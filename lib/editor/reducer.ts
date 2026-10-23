@@ -177,6 +177,21 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
   }
 }
 
+/**
+ * The snapshot to show for `passageId`. Editor state follows a passage change
+ * one effect later, so while `state` still belongs to another passage this
+ * returns `fallback` (the new passage's defaults) rather than a selection made
+ * against the old passage's tokens.
+ */
+export function selectSnapshot(
+  state: EditorState,
+  passageId: string,
+  fallback: EditorSnapshot
+): { snapshot: EditorSnapshot; isStale: boolean } {
+  const isStale = state.passageId !== passageId;
+  return { snapshot: isStale ? fallback : state.present, isStale };
+}
+
 export function canUndo(state: EditorState): boolean {
   return state.past.length > 0;
 }

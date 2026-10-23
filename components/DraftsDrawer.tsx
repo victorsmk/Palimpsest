@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Poem } from '@/lib/models';
 import { poemService } from '@/lib/services';
 
@@ -10,31 +10,33 @@ interface DraftsDrawerProps {
   onLoadPoem: (poem: Poem) => void;
 }
 
-export function DraftsDrawer({ isOpen, onClose, onLoadPoem }: DraftsDrawerProps) {
-  const [drafts, setDrafts] = useState<Poem[]>([]);
-  const [loading, setLoading] = useState(false);
+export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
+  // The panel mounts fresh on every open, so it always starts in the loading state.
+  return isOpen ? <DraftsPanel {...panelProps} /> : null;
+}
 
-  const fetchDrafts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const list = await poemService.listPoems();
-      setDrafts(list);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+function DraftsPanel({ onClose, onLoadPoem }: Omit<DraftsDrawerProps, 'isOpen'>) {
+  // null while the first fetch is in flight
+  const [drafts, setDrafts] = useState<Poem[] | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchDrafts();
-    }
-  }, [isOpen, fetchDrafts]);
+    let cancelled = false;
+    poemService
+      .listPoems()
+      .catch(() => [] as Poem[])
+      .then(list => {
+        if (!cancelled) setDrafts(list);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this saved draft?')) {
       await poemService.deletePoem(id);
-      await fetchDrafts();
+      setDrafts(await poemService.listPoems());
     }
   };
 
@@ -42,8 +44,6 @@ export function DraftsDrawer({ isOpen, onClose, onLoadPoem }: DraftsDrawerProps)
     onLoadPoem(poem);
     onClose();
   };
-
-  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[1px] animate-in fade-in duration-150">
@@ -74,7 +74,7 @@ export function DraftsDrawer({ isOpen, onClose, onLoadPoem }: DraftsDrawerProps)
 
         {/* Drafts List */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-1 py-1">
-          {loading ? (
+          {drafts === null ? (
             <div className="text-center py-12 text-xs text-[#8B867C]">
               Loading your collection...
             </div>

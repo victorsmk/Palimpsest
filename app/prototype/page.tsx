@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { tokenize } from '@/lib/tokenizer';
-import { useEditor } from '@/lib/editor';
+import { useEditor, reopenPoem } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
 import { ErasureWord } from '@/components/ErasureWord';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
@@ -57,7 +57,14 @@ export default function PrototypePage() {
   const [poemTitle, setPoemTitle] = useState<string>('');
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-  const [statusNotice, setStatusNotice] = useState<string | null>(null);
+  const [statusNotice, setStatusNotice] = useState<{ text: string; tone: 'ok' | 'error' } | null>(
+    null
+  );
+
+  const showNotice = useCallback((text: string, tone: 'ok' | 'error' = 'ok') => {
+    setStatusNotice({ text, tone });
+    setTimeout(() => setStatusNotice(null), tone === 'error' ? 7000 : 3500);
+  }, []);
 
   const activePassage = useMemo(
     () => PASSAGES.find(p => p.id === selectedPassageId) ?? PASSAGES[0],
@@ -105,29 +112,31 @@ export default function PrototypePage() {
 
     setCurrentPoemId(saved.id);
     setPoemTitle(saved.title || '');
-    setStatusNotice(`Draft "${saved.title}" saved.`);
-    setTimeout(() => setStatusNotice(null), 3500);
+    showNotice(`Draft "${saved.title}" saved.`);
   };
 
   // Handle loading a poem from My Collection
   const handleLoadPoem = useCallback((poem: Poem) => {
-    setSelectedPassageId(poem.passageId);
-    setCurrentPoemId(poem.id);
-    setPoemTitle(poem.title || '');
-
-    loadSnapshot(
-      {
-        retainedTokenIds: poem.retainedTokenIds,
-        lineBreaks: poem.lineBreaks,
-        erasureStyle: poem.erasureStyle,
-        title: poem.title || '',
-      },
-      poem.passageId
+    const passage = PASSAGES.find(p => p.id === poem.passageId);
+    const result = reopenPoem(
+      poem,
+      passage ? tokenize(passage.data.id, passage.data.sourceText) : null
     );
 
-    setStatusNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
-    setTimeout(() => setStatusNotice(null), 3500);
-  }, [loadSnapshot]);
+    // A draft that no longer fits its passage is refused; the page and the
+    // stored draft are left exactly as they were.
+    if (!result.ok || !passage) {
+      showNotice(result.ok ? 'Draft could not be opened.' : result.message, 'error');
+      return;
+    }
+
+    setSelectedPassageId(passage.id);
+    setCurrentPoemId(poem.id);
+    setPoemTitle(poem.title || '');
+    loadSnapshot(result.snapshot, passage.id);
+
+    showNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
+  }, [loadSnapshot, showNotice]);
 
   // Group tokens by paragraph for faithful book-page rendering
   const paragraphs = useMemo(() => {
@@ -208,8 +217,13 @@ export default function PrototypePage() {
 
       {/* Floating Status Notification Toast */}
       {statusNotice && (
-        <div className="max-w-4xl mx-auto w-full mb-4 px-4 py-2 bg-[#5B5D45] text-[#FAF6EE] text-xs font-medium rounded shadow animate-in fade-in flex items-center justify-between">
-          <span>{statusNotice}</span>
+        <div
+          role={statusNotice.tone === 'error' ? 'alert' : 'status'}
+          className={`max-w-4xl mx-auto w-full mb-4 px-4 py-2 ${
+            statusNotice.tone === 'error' ? 'bg-[#6C3438]' : 'bg-[#5B5D45]'
+          } text-[#FAF6EE] text-xs font-medium rounded shadow animate-in fade-in flex items-center justify-between`}
+        >
+          <span>{statusNotice.text}</span>
           <button onClick={() => setStatusNotice(null)} className="opacity-80 hover:opacity-100">✕</button>
         </div>
       )}

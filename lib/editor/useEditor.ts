@@ -2,10 +2,11 @@
 
 import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import type { ErasureStyle, Token } from '@/lib/models';
-import type { EditorSnapshot, EditorState } from './types';
+import type { EditorSnapshot } from './types';
 import {
   editorReducer,
   createInitialEditorState,
+  selectSnapshot,
   canUndo as checkCanUndo,
   canRedo as checkCanRedo,
 } from './reducer';
@@ -37,24 +38,29 @@ export function useEditor({ passageId, tokens, initialSnapshot }: UseEditorOptio
     }
   );
 
-  // When passage changes, re-initialize if needed
-  useEffect(() => {
-    if (state.passageId !== passageId) {
-      dispatch({
-        type: 'LOAD_SNAPSHOT',
-        snapshot: {
-          retainedTokenIds: allSelectableIds,
-          lineBreaks: [],
-          erasureStyle: 'blackout',
-          title: '',
-        },
-        passageId,
-      });
-    }
-  }, [passageId, allSelectableIds, state.passageId]);
+  const defaultSnapshot = useMemo<EditorSnapshot>(
+    () => ({
+      retainedTokenIds: allSelectableIds,
+      lineBreaks: [],
+      erasureStyle: 'blackout',
+      title: '',
+    }),
+    [allSelectableIds]
+  );
 
-  const canUndo = checkCanUndo(state);
-  const canRedo = checkCanRedo(state);
+  // The reducer state follows the passage through an effect, which runs after the
+  // render in which the passage changed. Until it does, expose the new passage's
+  // defaults so that render never pairs the old selection with the new tokens.
+  const { snapshot, isStale } = selectSnapshot(state, passageId, defaultSnapshot);
+
+  useEffect(() => {
+    if (isStale) {
+      dispatch({ type: 'LOAD_SNAPSHOT', snapshot: defaultSnapshot, passageId });
+    }
+  }, [isStale, defaultSnapshot, passageId]);
+
+  const canUndo = !isStale && checkCanUndo(state);
+  const canRedo = !isStale && checkCanRedo(state);
 
   const undo = useCallback(() => {
     dispatch({ type: 'UNDO' });
@@ -143,25 +149,25 @@ export function useEditor({ passageId, tokens, initialSnapshot }: UseEditorOptio
   }, [canUndo, canRedo, undo, redo]);
 
   const retainedSet = useMemo(
-    () => new Set(state.present.retainedTokenIds),
-    [state.present.retainedTokenIds]
+    () => new Set(snapshot.retainedTokenIds),
+    [snapshot.retainedTokenIds]
   );
 
   const lineBreakSet = useMemo(
-    () => new Set(state.present.lineBreaks),
-    [state.present.lineBreaks]
+    () => new Set(snapshot.lineBreaks),
+    [snapshot.lineBreaks]
   );
 
   return {
     state,
-    snapshot: state.present,
+    snapshot,
     retainedSet,
     lineBreakSet,
-    retainedCount: state.present.retainedTokenIds.length,
-    erasedCount: allSelectableIds.length - state.present.retainedTokenIds.length,
+    retainedCount: snapshot.retainedTokenIds.length,
+    erasedCount: allSelectableIds.length - snapshot.retainedTokenIds.length,
     totalWords: allSelectableIds.length,
-    erasureStyle: state.present.erasureStyle,
-    title: state.present.title,
+    erasureStyle: snapshot.erasureStyle,
+    title: snapshot.title,
     canUndo,
     canRedo,
     undo,
