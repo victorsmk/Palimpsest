@@ -17,6 +17,7 @@ function poemWith(overrides: Partial<Poem> = {}): Poem {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     title: 'Sea',
+    notes: 'Written on the shore',
     ...overrides,
   };
 }
@@ -31,6 +32,7 @@ describe('reopenPoem', () => {
         lineBreaks: [ids[3]],
         erasureStyle: 'faded',
         title: 'Sea',
+        notes: 'Written on the shore',
       },
     });
   });
@@ -43,11 +45,13 @@ describe('reopenPoem', () => {
     expect(poem.retainedTokenIds).toHaveLength(3);
   });
 
-  it('defaults a missing title to an empty string', () => {
+  it('defaults a missing title and notes to empty strings', () => {
     const poem = poemWith();
     delete poem.title;
+    delete poem.notes;
     const result = reopenPoem(poem, tokens);
     expect(result.ok && result.snapshot.title).toBe('');
+    expect(result.ok && result.snapshot.notes).toBe('');
   });
 
   it('refuses a poem whose passage is not in the library', () => {

@@ -14,6 +14,7 @@ export function createInitialEditorState(
     lineBreaks: [],
     erasureStyle: 'blackout',
     title: '',
+    notes: '',
   };
 
   return {
@@ -38,6 +39,29 @@ function pushHistory(state: EditorState, nextPresent: EditorSnapshot): EditorSta
     past: newPast,
     present: nextPresent,
     future: [], // New user action clears redo branch
+  };
+}
+
+/**
+ * Title and notes are poem metadata, not composition: changing them adds no
+ * history entry, and undo/redo never reverts them. They are applied to every
+ * snapshot so that stepping through history leaves them as they are.
+ */
+function setMetadata(
+  state: EditorState,
+  patch: Partial<Pick<EditorSnapshot, 'title' | 'notes'>>
+): EditorState {
+  const unchanged = (Object.keys(patch) as (keyof typeof patch)[]).every(
+    key => state.present[key] === patch[key]
+  );
+  if (unchanged) return state;
+
+  const apply = (snapshot: EditorSnapshot): EditorSnapshot => ({ ...snapshot, ...patch });
+  return {
+    ...state,
+    past: state.past.map(apply),
+    present: apply(state.present),
+    future: state.future.map(apply),
   };
 }
 
@@ -120,13 +144,11 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       });
     }
 
-    case 'SET_TITLE': {
-      if (state.present.title === action.title) return state;
-      return pushHistory(state, {
-        ...state.present,
-        title: action.title,
-      });
-    }
+    case 'SET_TITLE':
+      return setMetadata(state, { title: action.title });
+
+    case 'SET_NOTES':
+      return setMetadata(state, { notes: action.notes });
 
     case 'UNDO': {
       if (state.past.length === 0) return state;
@@ -159,7 +181,9 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         retainedTokenIds: [...action.initialSelectableTokenIds],
         lineBreaks: [],
         erasureStyle: 'blackout',
-        title: '',
+        // Resetting restores the words and style, not the poem's metadata.
+        title: state.present.title,
+        notes: state.present.notes,
       });
     }
 

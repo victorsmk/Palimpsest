@@ -50,6 +50,7 @@ export function reopenPoem(poem: Poem, passageTokens: Token[] | null): ReopenRes
       lineBreaks: [...poem.lineBreaks],
       erasureStyle: poem.erasureStyle,
       title: poem.title ?? '',
+      notes: poem.notes ?? '',
     },
   };
 }

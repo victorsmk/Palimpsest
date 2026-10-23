@@ -10,6 +10,7 @@ const defaultsB: EditorSnapshot = {
   lineBreaks: [],
   erasureStyle: 'blackout',
   title: '',
+  notes: '',
 };
 
 describe('selectSnapshot (passage switching)', () => {

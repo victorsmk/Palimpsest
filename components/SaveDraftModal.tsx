@@ -5,32 +5,37 @@ import React, { useState } from 'react';
 interface SaveDraftModalProps {
   isOpen: boolean;
   initialTitle: string;
+  initialNotes: string;
   passageTitle: string;
   retainedCount: number;
-  onSave: (title: string) => Promise<void>;
+  onSave: (title: string, notes: string) => Promise<void>;
   onClose: () => void;
 }
 
-export function SaveDraftModal({
-  isOpen,
+export function SaveDraftModal({ isOpen, ...formProps }: SaveDraftModalProps) {
+  // The form mounts fresh on every open, so its fields start from the current poem.
+  return isOpen ? <SaveDraftForm {...formProps} /> : null;
+}
+
+function SaveDraftForm({
   initialTitle,
+  initialNotes,
   passageTitle,
   retainedCount,
   onSave,
   onClose,
-}: SaveDraftModalProps) {
+}: Omit<SaveDraftModalProps, 'isOpen'>) {
   const [title, setTitle] = useState(initialTitle || 'Untitled Poem');
+  const [notes, setNotes] = useState(initialNotes);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setError(null);
     try {
-      await onSave(title);
+      await onSave(title, notes);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the draft.');
@@ -56,10 +61,14 @@ export function SaveDraftModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium uppercase tracking-wider text-[#57544E] mb-1.5">
+            <label
+              htmlFor="poem-title"
+              className="block text-xs font-medium uppercase tracking-wider text-[#57544E] mb-1.5"
+            >
               Poem Title
             </label>
             <input
+              id="poem-title"
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -67,6 +76,23 @@ export function SaveDraftModal({
               required
               className="w-full px-3 py-2 bg-[#F3EBDD] border border-[#DDD5C5] rounded text-sm text-[#24231F] focus:outline-none focus:ring-1 focus:ring-[#24231F]"
               autoFocus
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="poem-notes"
+              className="block text-xs font-medium uppercase tracking-wider text-[#57544E] mb-1.5"
+            >
+              Notes <span className="normal-case tracking-normal text-[#8B867C]">(optional)</span>
+            </label>
+            <textarea
+              id="poem-notes"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Anything to remember about this poem"
+              className="w-full px-3 py-2 bg-[#F3EBDD] border border-[#DDD5C5] rounded text-sm text-[#24231F] focus:outline-none focus:ring-1 focus:ring-[#24231F] resize-y"
             />
           </div>
 

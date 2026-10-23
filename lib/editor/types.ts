@@ -5,6 +5,7 @@ export interface EditorSnapshot {
   lineBreaks: string[];       // Token IDs after which a newline is rendered in extracted view
   erasureStyle: ErasureStyle;
   title: string;
+  notes: string;
 }
 
 export interface EditorState {
@@ -22,6 +23,7 @@ export type EditorAction =
   | { type: 'TOGGLE_LINE_BREAK'; tokenId: string }
   | { type: 'SET_ERASURE_STYLE'; style: ErasureStyle }
   | { type: 'SET_TITLE'; title: string }
+  | { type: 'SET_NOTES'; notes: string }
   | { type: 'LOAD_SNAPSHOT'; snapshot: EditorSnapshot; passageId: string }
   | { type: 'UNDO' }
   | { type: 'REDO' }

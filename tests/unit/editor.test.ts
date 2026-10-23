@@ -166,16 +166,77 @@ describe('Editor State & History Engine', () => {
   it('caps history stack at MAX_HISTORY_LENGTH', () => {
     let state = createInitialEditorState('passage-1', allTokens);
 
-    // Perform 60 actions
+    // Perform 60 undoable actions
     for (let i = 0; i < 60; i++) {
       state = editorReducer(state, {
-        type: 'SET_TITLE',
-        title: `Draft Title ${i}`,
+        type: 'SET_ERASURE_STYLE',
+        style: i % 2 === 0 ? 'faded' : 'whiteout',
       });
     }
 
     expect(state.past.length).toBe(MAX_HISTORY_LENGTH);
-    expect(state.present.title).toBe('Draft Title 59');
+    expect(state.present.erasureStyle).toBe('whiteout');
+  });
+
+  describe('title and notes metadata', () => {
+    it('start empty and are set without adding history', () => {
+      let state = createInitialEditorState('passage-1', allTokens);
+      expect(state.present.title).toBe('');
+      expect(state.present.notes).toBe('');
+
+      state = editorReducer(state, { type: 'SET_TITLE', title: 'Winter' });
+      state = editorReducer(state, { type: 'SET_NOTES', notes: 'First pass' });
+
+      expect(state.present.title).toBe('Winter');
+      expect(state.present.notes).toBe('First pass');
+      expect(state.past).toEqual([]);
+      expect(canUndo(state)).toBe(false);
+    });
+
+    it('are never reverted or re-applied by undo and redo', () => {
+      let state = createInitialEditorState('passage-1', allTokens);
+      state = editorReducer(state, { type: 'ERASE_ALL' });
+      state = editorReducer(state, { type: 'SET_TITLE', title: 'Winter' });
+      state = editorReducer(state, { type: 'SET_NOTES', notes: 'First pass' });
+      state = editorReducer(state, { type: 'RETAIN_ALL', allSelectableTokenIds: allTokens });
+
+      state = editorReducer(state, { type: 'UNDO' });
+      expect(state.present.retainedTokenIds).toEqual([]);
+      expect(state.present.title).toBe('Winter');
+      expect(state.present.notes).toBe('First pass');
+
+      state = editorReducer(state, { type: 'UNDO' });
+      expect(state.present.retainedTokenIds).toEqual(allTokens);
+      expect(state.present.title).toBe('Winter');
+
+      state = editorReducer(state, { type: 'REDO' });
+      state = editorReducer(state, { type: 'REDO' });
+      expect(state.present.retainedTokenIds).toEqual(allTokens);
+      expect(state.present.title).toBe('Winter');
+      expect(state.present.notes).toBe('First pass');
+    });
+
+    it('return the same state object when nothing changes', () => {
+      let state = createInitialEditorState('passage-1', allTokens);
+      state = editorReducer(state, { type: 'SET_TITLE', title: 'Winter' });
+      expect(editorReducer(state, { type: 'SET_TITLE', title: 'Winter' })).toBe(state);
+      expect(editorReducer(state, { type: 'SET_NOTES', notes: '' })).toBe(state);
+    });
+
+    it('survive RESET, which restores words and style only', () => {
+      let state = createInitialEditorState('passage-1', allTokens);
+      state = editorReducer(state, { type: 'SET_TITLE', title: 'Winter' });
+      state = editorReducer(state, { type: 'SET_NOTES', notes: 'First pass' });
+      state = editorReducer(state, { type: 'SET_ERASURE_STYLE', style: 'faded' });
+      state = editorReducer(state, { type: 'ERASE_ALL' });
+
+      state = editorReducer(state, { type: 'RESET', initialSelectableTokenIds: allTokens });
+
+      expect(state.present.retainedTokenIds).toEqual(allTokens);
+      expect(state.present.erasureStyle).toBe('blackout');
+      expect(state.present.title).toBe('Winter');
+      expect(state.present.notes).toBe('First pass');
+    });
   });
 
   it('tracks erasure style changes with undo and redo', () => {

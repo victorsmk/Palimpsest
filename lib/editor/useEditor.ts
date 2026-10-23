@@ -44,6 +44,7 @@ export function useEditor({ passageId, tokens, initialSnapshot }: UseEditorOptio
       lineBreaks: [],
       erasureStyle: 'blackout',
       title: '',
+      notes: '',
     }),
     [allSelectableIds]
   );
@@ -102,6 +103,10 @@ export function useEditor({ passageId, tokens, initialSnapshot }: UseEditorOptio
 
   const setTitle = useCallback((title: string) => {
     dispatch({ type: 'SET_TITLE', title });
+  }, []);
+
+  const setNotes = useCallback((notes: string) => {
+    dispatch({ type: 'SET_NOTES', notes });
   }, []);
 
   const reset = useCallback(() => {
@@ -168,6 +173,7 @@ export function useEditor({ passageId, tokens, initialSnapshot }: UseEditorOptio
     totalWords: allSelectableIds.length,
     erasureStyle: snapshot.erasureStyle,
     title: snapshot.title,
+    notes: snapshot.notes,
     canUndo,
     canRedo,
     undo,
@@ -179,6 +185,7 @@ export function useEditor({ passageId, tokens, initialSnapshot }: UseEditorOptio
     toggleLineBreak,
     setErasureStyle,
     setTitle,
+    setNotes,
     reset,
     loadSnapshot,
   };

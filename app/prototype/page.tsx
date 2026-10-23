@@ -54,7 +54,6 @@ const PASSAGES: PassageOption[] = [
 export default function PrototypePage() {
   const [selectedPassageId, setSelectedPassageId] = useState<string>(PASSAGES[0].id);
   const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(undefined);
-  const [poemTitle, setPoemTitle] = useState<string>('');
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [statusNotice, setStatusNotice] = useState<{ text: string; tone: 'ok' | 'error' } | null>(
@@ -79,6 +78,8 @@ export default function PrototypePage() {
   // Hook into our dedicated Editor State & History engine
   const {
     snapshot,
+    title: poemTitle,
+    notes: poemNotes,
     retainedSet,
     lineBreakSet,
     retainedCount,
@@ -93,6 +94,8 @@ export default function PrototypePage() {
     reset,
     toggleLineBreak,
     setErasureStyle,
+    setTitle,
+    setNotes,
     loadSnapshot,
   } = useEditor({
     passageId: activePassage.id,
@@ -100,18 +103,20 @@ export default function PrototypePage() {
   });
 
   // Handle saving to repository
-  const handleSaveDraft = async (title: string) => {
+  const handleSaveDraft = async (title: string, notes: string) => {
     const saved = await poemService.savePoem({
       id: currentPoemId,
       passageId: activePassage.id,
       title,
+      notes,
       retainedTokenIds: snapshot.retainedTokenIds,
       lineBreaks: snapshot.lineBreaks,
       erasureStyle: snapshot.erasureStyle,
     });
 
     setCurrentPoemId(saved.id);
-    setPoemTitle(saved.title || '');
+    setTitle(saved.title || '');
+    setNotes(saved.notes || '');
     showNotice(`Draft "${saved.title}" saved.`);
   };
 
@@ -132,7 +137,6 @@ export default function PrototypePage() {
 
     setSelectedPassageId(passage.id);
     setCurrentPoemId(poem.id);
-    setPoemTitle(poem.title || '');
     loadSnapshot(result.snapshot, passage.id);
 
     showNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
@@ -199,7 +203,6 @@ export default function PrototypePage() {
                   onClick={() => {
                     setSelectedPassageId(p.id);
                     setCurrentPoemId(undefined);
-                    setPoemTitle('');
                   }}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
                     isSelected
@@ -420,6 +423,7 @@ export default function PrototypePage() {
       <SaveDraftModal
         isOpen={isSaveModalOpen}
         initialTitle={poemTitle}
+        initialNotes={poemNotes}
         passageTitle={activePassage.data.title}
         retainedCount={retainedCount}
         onSave={handleSaveDraft}
