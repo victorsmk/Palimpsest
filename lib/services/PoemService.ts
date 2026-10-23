@@ -1,6 +1,6 @@
 import type { PoemRepository } from '@/lib/repositories';
 import { BrowserPoemRepository } from '@/lib/repositories';
-import type { ErasureStyle, Poem } from '@/lib/models';
+import { POEM_SCHEMA_VERSION, type ErasureStyle, type Poem } from '@/lib/models';
 
 export interface SavePoemInput {
   id?: string;
@@ -28,7 +28,7 @@ export class PoemService {
 
     const poem: Poem = {
       id: input.id || `poem-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      schemaVersion: 1,
+      schemaVersion: POEM_SCHEMA_VERSION,
       passageId: input.passageId,
       title: input.title?.trim() || 'Untitled Poem',
       notes: input.notes?.trim() || '',

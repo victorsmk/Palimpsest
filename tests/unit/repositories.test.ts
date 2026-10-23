@@ -136,4 +136,93 @@ describe('BrowserPoemRepository', () => {
     expect(list).toEqual([]);
     expect(await repo.get('poem-1')).toBeNull();
   });
+
+  describe('validation of persisted data', () => {
+    const KEY = 'palimpsest:poems:v1';
+
+    function seed(entries: Record<string, unknown>) {
+      const storage = new MemoryStorageAdapter();
+      storage.setItem(KEY, JSON.stringify(entries));
+      return { storage, repo: new BrowserPoemRepository(storage) };
+    }
+
+    it('ignores a top-level array or non-object payload', async () => {
+      for (const payload of ['[]', '"text"', '42', 'null']) {
+        const storage = new MemoryStorageAdapter();
+        storage.setItem(KEY, payload);
+        expect(await new BrowserPoemRepository(storage).list()).toEqual([]);
+      }
+    });
+
+    it('skips entries with the wrong shape but still returns valid ones', async () => {
+      const { repo } = seed({
+        'poem-1': dummyPoem,
+        'no-passage': { ...dummyPoem, id: 'no-passage', passageId: undefined },
+        'bad-tokens': { ...dummyPoem, id: 'bad-tokens', retainedTokenIds: ['tok-1', 7] },
+        'bad-style': { ...dummyPoem, id: 'bad-style', erasureStyle: 'watercolor' },
+        'bad-date': { ...dummyPoem, id: 'bad-date', createdAt: 'yesterday-ish' },
+        'bad-title': { ...dummyPoem, id: 'bad-title', title: 12 },
+        'not-an-object': 'poem',
+      });
+
+      const list = await repo.list();
+      expect(list.map(p => p.id)).toEqual(['poem-1']);
+      expect(await repo.get('bad-style')).toBeNull();
+      expect(await repo.get('not-an-object')).toBeNull();
+    });
+
+    it('rejects entries whose key does not match their id', async () => {
+      const { repo } = seed({ 'poem-1': { ...dummyPoem, id: 'someone-else' } });
+      expect(await repo.get('poem-1')).toBeNull();
+      expect(await repo.list()).toEqual([]);
+    });
+
+    it('rejects line breaks that are not on retained tokens', async () => {
+      const { repo } = seed({ 'poem-1': { ...dummyPoem, lineBreaks: ['tok-99'] } });
+      expect(await repo.get('poem-1')).toBeNull();
+    });
+
+    it('rejects missing, non-integer, zero, and future schema versions', async () => {
+      const { repo } = seed({
+        missing: { ...dummyPoem, id: 'missing', schemaVersion: undefined },
+        fractional: { ...dummyPoem, id: 'fractional', schemaVersion: 1.5 },
+        zero: { ...dummyPoem, id: 'zero', schemaVersion: 0 },
+        stringy: { ...dummyPoem, id: 'stringy', schemaVersion: '1' },
+        future: { ...dummyPoem, id: 'future', schemaVersion: 2 },
+      });
+      expect(await repo.list()).toEqual([]);
+    });
+
+    it('does not destroy unreadable entries when saving or deleting other poems', async () => {
+      const future = { ...dummyPoem, id: 'future', schemaVersion: 99, extra: 'from a newer build' };
+      const { storage, repo } = seed({ future });
+
+      await repo.save(dummyPoem);
+      expect((await repo.list()).map(p => p.id)).toEqual(['poem-1']);
+
+      await repo.delete('poem-1');
+      const stored = JSON.parse(storage.getItem(KEY)!);
+      expect(stored.future).toEqual(future);
+    });
+
+    it('round-trips a poem with no optional title or notes', async () => {
+      const bare: Poem = { ...dummyPoem, id: 'bare' };
+      delete bare.title;
+      const repo = new BrowserPoemRepository(new MemoryStorageAdapter());
+      await repo.save(bare);
+      expect(await repo.get('bare')).toEqual(bare);
+    });
+
+    it('rejects save() when storage cannot be written', async () => {
+      const failing = {
+        getItem: () => null,
+        setItem: () => {
+          throw new DOMException('quota', 'QuotaExceededError');
+        },
+        removeItem: () => {},
+      };
+      const repo = new BrowserPoemRepository(failing);
+      await expect(repo.save(dummyPoem)).rejects.toThrow(/browser storage/);
+    });
+  });
 });

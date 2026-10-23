@@ -52,6 +52,9 @@ export interface PoemLine {
   tokenIds: string[];     // Retained token IDs for this line in source order
 }
 
+/** Current persisted-poem schema version; bump when the Poem shape changes. */
+export const POEM_SCHEMA_VERSION = 1;
+
 export interface Poem {
   id: string;
   schemaVersion: number;  // For future data migration support

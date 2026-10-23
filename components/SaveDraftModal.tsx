@@ -21,15 +21,19 @@ export function SaveDraftModal({
 }: SaveDraftModalProps) {
   const [title, setTitle] = useState(initialTitle || 'Untitled Poem');
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setError(null);
     try {
       await onSave(title);
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the draft.');
     } finally {
       setIsSaving(false);
     }
@@ -77,6 +81,12 @@ export function SaveDraftModal({
               Drafts are stored locally in your browser storage.
             </div>
           </div>
+
+          {error && (
+            <p role="alert" className="text-xs text-[#6C3438]">
+              {error}
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-[#E0D4BE]">
             <button
