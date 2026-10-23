@@ -1,0 +1,15 @@
+{
+  "id": "walden-woods",
+  "bookId": "walden",
+  "title": "Walden — Where I Lived, and What I Lived For",
+  "description": "Thoreau explains why he retreated to Walden Pond to front only the essential facts of life.",
+  "sourceText": "I went to the woods because I wished to live deliberately, to front\r\nonly the essential facts of life, and see if I could not learn what it\r\nhad to teach, and not, when I came to die, discover that I had not\r\nlived. I did not wish to live what was not life, living is so dear; nor\r\ndid I wish to practise resignation, unless it was quite necessary. I\r\nwanted to live deep and suck out all the marrow of life, to live so\r\nsturdily and Spartan-like as to put to rout all that was not life, to\r\ncut a broad swath and shave close, to drive life into a corner, and\r\nreduce it to its lowest terms, and, if it proved to be mean, why then\r\nto get the whole and genuine meanness of it, and publish its meanness\r\nto the world; or if it were sublime, to know it by experience, and be\r\nable to give a true account of it in my next excursion. For most men,\r\nit appears to me, are in a strange uncertainty about it, whether it is\r\nof the devil or of God, and have somewhat hastily concluded that it\r\nis the chief end of man here to “glorify God and enjoy him forever.”",
+  "attribution": {
+    "title": "Walden",
+    "author": "Henry David Thoreau",
+    "year": 1854,
+    "source": "Project Gutenberg",
+    "url": "https://www.gutenberg.org/ebooks/205",
+    "licenseNote": "Public domain in the USA"
+  }
+}
