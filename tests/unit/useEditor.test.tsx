@@ -1,26 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { act, createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { act } from 'react';
 import { tokenize } from '@/lib/tokenizer';
 import { useEditor } from '@/lib/editor';
 import type { Token } from '@/lib/models';
-
-// Minimal renderHook: @testing-library/react needs @testing-library/dom, which this
-// project does not depend on, and react-dom + act is all these tests need.
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-function renderHook<Result, Props>(hook: (props: Props) => Result, initialProps: Props) {
-  const result = { current: undefined as unknown as Result };
-  function Probe({ hookProps }: { hookProps: Props }) {
-    result.current = hook(hookProps);
-    return null;
-  }
-  const root = createRoot(document.createElement('div'));
-  const render = (props: Props) => act(() => root.render(createElement(Probe, { hookProps: props })));
-  render(initialProps);
-  return { result, rerender: render };
-}
+import { renderHook } from '../helpers/react';
 
 const tokensA = tokenize('a', 'one two three four');
 const tokensB = tokenize('b', 'alpha beta gamma delta epsilon');

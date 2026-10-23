@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { tokenize } from '@/lib/tokenizer';
 import { useEditor, reopenPoem } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
 import { ErasureWord } from '@/components/ErasureWord';
+import { ViewToggle, type StudioView } from '@/components/ViewToggle';
+import { ExtractedPoem } from '@/components/ExtractedPoem';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
 import { poemService } from '@/lib/services';
@@ -56,6 +58,7 @@ export default function PrototypePage() {
   const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(undefined);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const [view, setView] = useState<StudioView>('page');
   const [statusNotice, setStatusNotice] = useState<{ text: string; tone: 'ok' | 'error' } | null>(
     null
   );
@@ -233,53 +236,64 @@ export default function PrototypePage() {
 
       {/* Main Workspace Layout */}
       <main className="max-w-4xl mx-auto w-full flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Cols: The Interactive Book Page */}
-        <div className="lg:col-span-2">
-          {/* Book Page Frame */}
-          <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 relative min-h-[500px]">
-            {/* Page Header */}
-            <div className="text-center mb-8 border-b border-[#ECE3D0] pb-4">
-              <span className="text-[11px] uppercase tracking-widest text-[#57544E]">
-                {activePassage.data.attribution.author} ({activePassage.data.attribution.year})
-              </span>
-              <h2 className="text-lg font-serif font-semibold text-[#24231F] mt-1">
-                {activePassage.data.title}
-              </h2>
-            </div>
+        {/* Left 2 Cols: the page or the extracted poem, one at a time */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          <ViewToggle view={view} onChange={setView} />
 
-            {/* Book Page Body */}
-            <article className="font-literary text-[17px] leading-[2.1] text-[#24231F] select-none">
-              {paragraphs.map((paraTokens, pIdx) => (
-                <p key={pIdx} className="mb-6 indent-6">
-                  {paraTokens.map(tok => (
-                    <ErasureWord
-                      key={tok.id}
-                      token={tok}
-                      isRetained={retainedSet.has(tok.id)}
-                      style={erasureStyle}
-                      onClick={toggleToken}
-                    />
-                  ))}
-                </p>
-              ))}
-            </article>
+          {view === 'poem' ? (
+            <ExtractedPoem
+              tokens={retainedTokens}
+              lineBreakSet={lineBreakSet}
+              onToggleLineBreak={toggleLineBreak}
+              title={poemTitle}
+              attribution={activePassage.data.attribution}
+            />
+          ) : (
+            <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 relative min-h-[500px]">
+              {/* Page Header */}
+              <div className="text-center mb-8 border-b border-[#ECE3D0] pb-4">
+                <span className="text-[11px] uppercase tracking-widest text-[#57544E]">
+                  {activePassage.data.attribution.author} ({activePassage.data.attribution.year})
+                </span>
+                <h2 className="text-lg font-serif font-semibold text-[#24231F] mt-1">
+                  {activePassage.data.title}
+                </h2>
+              </div>
 
-            {/* Page Footer */}
-            <div className="text-center mt-10 pt-4 border-t border-[#ECE3D0] text-[11px] text-[#8B867C]">
-              Public domain source via{' '}
-              <a
-                href={activePassage.data.attribution.url}
-                target="_blank"
-                rel="noreferrer"
-                className="underline hover:text-[#24231F]"
-              >
-                Project Gutenberg
-              </a>
+              {/* Book Page Body */}
+              <article className="font-literary text-[17px] leading-[2.1] text-[#24231F] select-none">
+                {paragraphs.map((paraTokens, pIdx) => (
+                  <p key={pIdx} className="mb-6 indent-6">
+                    {paraTokens.map(tok => (
+                      <ErasureWord
+                        key={tok.id}
+                        token={tok}
+                        isRetained={retainedSet.has(tok.id)}
+                        style={erasureStyle}
+                        onClick={toggleToken}
+                      />
+                    ))}
+                  </p>
+                ))}
+              </article>
+
+              {/* Page Footer */}
+              <div className="text-center mt-10 pt-4 border-t border-[#ECE3D0] text-[11px] text-[#8B867C]">
+                Public domain source via{' '}
+                <a
+                  href={activePassage.data.attribution.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-[#24231F]"
+                >
+                  Project Gutenberg
+                </a>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Right Col: Controls & Extracted Poem Preview */}
+        {/* Right Col: Controls */}
         <aside className="flex flex-col gap-6">
           {/* History & Studio Controls Card */}
           <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg p-5 shadow-sm space-y-4">
@@ -367,53 +381,6 @@ export default function PrototypePage() {
                   Erase All
                 </button>
               </div>
-            </div>
-          </div>
-
-          {/* Extracted Poem Preview with Interactive Line Breaks */}
-          <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg p-5 shadow-sm flex-1 flex flex-col">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs uppercase tracking-wider text-[#5B5D45] font-bold">
-                Extracted Poem
-              </h3>
-              <span className="text-[10px] text-[#8B867C]">
-                Click word to add ↵ break
-              </span>
-            </div>
-            <p className="text-xs text-[#57544E] mb-4">
-              Click any word below to insert or remove a poetic line break:
-            </p>
-
-            <div className="flex-1 bg-[#F3EBDD]/60 rounded p-4 font-literary text-[15px] leading-relaxed border border-[#E0D4BE]/60 min-h-[160px] flex flex-col items-center justify-center">
-              {retainedTokens.length === 0 ? (
-                <span className="text-xs text-[#8B867C] italic">
-                  All words erased. Click words on the page to discover your poem.
-                </span>
-              ) : (
-                <div className="text-[#24231F] text-center w-full space-y-1">
-                  {retainedTokens.map((tok, i) => {
-                    const hasBreakAfter = lineBreakSet.has(tok.id);
-                    return (
-                      <React.Fragment key={tok.id}>
-                        <span
-                          onClick={() => toggleLineBreak(tok.id)}
-                          title="Click to toggle line break after this word"
-                          className="inline-block px-1 py-0.5 rounded cursor-pointer hover:bg-[#E4D8C2] transition-colors"
-                        >
-                          {tok.text}
-                          {hasBreakAfter && (
-                            <span className="text-[10px] text-[#6C3438] font-sans ml-1 font-bold">
-                              ↵
-                            </span>
-                          )}
-                        </span>
-                        {hasBreakAfter && <br />}
-                        {!hasBreakAfter && i < retainedTokens.length - 1 && ' '}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </div>
         </aside>
