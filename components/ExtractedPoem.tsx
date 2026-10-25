@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment } from 'react';
+import { Fragment, type Ref } from 'react';
 import type { Attribution, Token } from '@/lib/models';
 
 interface ExtractedPoemProps {
@@ -11,6 +11,8 @@ interface ExtractedPoemProps {
   onToggleLineBreak: (tokenId: string) => void;
   title: string;
   attribution: Attribution;
+  /** The element exported as an image. */
+  frameRef?: Ref<HTMLDivElement>;
 }
 
 /**
@@ -23,9 +25,10 @@ export function ExtractedPoem({
   onToggleLineBreak,
   title,
   attribution,
+  frameRef,
 }: ExtractedPoemProps) {
   return (
-    <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 min-h-[500px] flex flex-col">
+    <div ref={frameRef} className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 min-h-[500px] flex flex-col">
       <div className="text-center mb-8 border-b border-[#ECE3D0] pb-4">
         <h2 className="text-lg font-serif font-semibold text-[#24231F]">
           {title || 'Untitled poem'}
@@ -55,7 +58,11 @@ export function ExtractedPoem({
                   >
                     {token.text}
                     {breaksAfter && (
-                      <span aria-hidden="true" className="text-xs text-[#6C3438] font-sans ml-1 font-bold">
+                      <span
+                        aria-hidden="true"
+                        data-export-ignore
+                        className="text-xs text-[#6C3438] font-sans ml-1 font-bold"
+                      >
                         ↵
                       </span>
                     )}
@@ -68,7 +75,10 @@ export function ExtractedPoem({
         )}
       </div>
 
-      <p className="text-center mt-8 pt-4 border-t border-[#ECE3D0] text-[11px] text-[#57544E]">
+      <p
+        data-export-ignore
+        className="text-center mt-8 pt-4 border-t border-[#ECE3D0] text-[11px] text-[#57544E]"
+      >
         Click a word to start a new line after it. Line breaks never reorder words.
       </p>
     </div>

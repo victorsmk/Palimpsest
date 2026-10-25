@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useEditor, reopenPoem } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
@@ -11,6 +11,7 @@ import { SaveDraftModal } from '@/components/SaveDraftModal';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
 import { usePageDna } from '@/components/usePageDna';
 import { bookService, poemService } from '@/lib/services';
+import { exportElementAsPng, exportFilename } from '@/lib/export/png';
 import type { Passage, Poem } from '@/lib/models';
 
 type Library = { passages: Passage[] } | { error: string };
@@ -57,6 +58,8 @@ function Studio({ passages }: { passages: Passage[] }) {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [view, setView] = useState<StudioView>('page');
+  const [isExporting, setIsExporting] = useState(false);
+  const exportFrameRef = useRef<HTMLDivElement>(null);
   const [statusNotice, setStatusNotice] = useState<{ text: string; tone: 'ok' | 'error' } | null>(
     null
   );
@@ -137,6 +140,21 @@ function Studio({ passages }: { passages: Passage[] }) {
 
     showNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
   }, [passages, loadSnapshot, showNotice]);
+
+  // Exports whichever view is showing: the erased page or the extracted poem.
+  const handleExport = async () => {
+    const frame = exportFrameRef.current;
+    if (!frame) return;
+    setIsExporting(true);
+    try {
+      await exportElementAsPng(frame, exportFilename(poemTitle || activePassage.title, view));
+      showNotice(view === 'poem' ? 'Poem exported as PNG.' : 'Page exported as PNG.');
+    } catch {
+      showNotice('The image could not be created. Please try again.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Group tokens by paragraph for faithful book-page rendering
   const paragraphs = useMemo(() => {
@@ -249,9 +267,13 @@ function Studio({ passages }: { passages: Passage[] }) {
               onToggleLineBreak={toggleLineBreak}
               title={poemTitle}
               attribution={activePassage.attribution}
+              frameRef={exportFrameRef}
             />
           ) : (
-            <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 relative min-h-[500px]">
+            <div
+              ref={exportFrameRef}
+              className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 relative min-h-[500px]"
+            >
               {/* Page Header */}
               <div className="text-center mb-8 border-b border-[#ECE3D0] pb-4">
                 <span className="text-[11px] uppercase tracking-widest text-[#57544E]">
@@ -364,6 +386,19 @@ function Studio({ passages }: { passages: Passage[] }) {
                 className="w-full py-2 bg-[#6C3438] hover:bg-[#57292D] text-[#F3EBDD] rounded text-xs font-medium transition-colors shadow-sm flex items-center justify-center gap-1.5"
               >
                 <span aria-hidden="true">💾</span> Save Draft to Collection
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={isExporting}
+                className="w-full py-2 border border-[#24231F] hover:bg-[#E4D8C2]/50 text-[#24231F] rounded text-xs font-medium transition-colors disabled:opacity-60 disabled:cursor-wait"
+              >
+                {isExporting
+                  ? 'Creating image…'
+                  : view === 'poem'
+                    ? 'Export poem as PNG'
+                    : 'Export page as PNG'}
               </button>
 
               <div className="flex gap-2">
