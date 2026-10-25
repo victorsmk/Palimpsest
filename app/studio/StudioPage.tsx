@@ -18,13 +18,15 @@ import { poemService } from '@/lib/services';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
 import { downloadTextFile, poemLines, poemToText } from '@/lib/export/text';
 import { PrintablePoem } from '@/components/PrintablePoem';
-import { discoverHref, readHandoff, type ReadHandoff } from '@/lib/handoff';
+import { discoverHref, readHandoff, sharedPoemFromEditor, sharedPoemHref, type ReadHandoff } from '@/lib/handoff';
 import type { Passage, Poem } from '@/lib/models';
 
 type Notice = { text: string; tone: 'ok' | 'error' };
 
-const openedMessage = (bookTitle: string, mode: 'found' | 'assisted') =>
-  `Opened a poem ${mode === 'found' ? 'found in' : 'made from'} ${bookTitle}. Edit it, then save it to your collection.`;
+const openedMessage = (bookTitle: string, mode: 'found' | 'assisted' | 'shared') =>
+  mode === 'shared'
+    ? `Opened a poem shared with you, from ${bookTitle}. Edit it, then save it to your collection.`
+    : `Opened a poem ${mode === 'found' ? 'found in' : 'made from'} ${bookTitle}. Edit it, then save it to your collection.`;
 
 function noticeForHandoff(handoff: ReadHandoff): Notice | null {
   if (handoff.kind === 'open') {
@@ -87,6 +89,10 @@ function Studio({ passages }: { passages: Passage[] }) {
   const [view, setView] = useState<StudioView>('page');
   const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
+  // A link to the poem that the browser would not copy for us, to be copied by hand. It belongs to the
+  // poem as it was when it was made, so it is shown only while the poem is unchanged.
+  const [shareLink, setShareLink] = useState<{ url: string; snapshot: EditorSnapshot } | null>(null);
+  const shareField = useRef<HTMLInputElement>(null);
   // The poem as last saved or opened, for the passage it belongs to. Unsaved changes are whatever
   // differs from it (or, before anything is saved or opened, from the untouched passage).
   const [baseline, setBaseline] = useState<{ passageId: string; snapshot: EditorSnapshot } | null>(() =>
@@ -323,6 +329,31 @@ function Studio({ passages }: { passages: Passage[] }) {
 
   // The browser's print dialog offers "Save as PDF"; only the poem is on the page when printing.
   const handlePrint = () => window.print();
+
+  // A link that opens this poem in the Studio: its words, breaks, style and title, never its notes.
+  const handleShareLink = async () => {
+    const shared = sharedPoemFromEditor(activePassage, snapshot);
+    if (!shared.ok) {
+      showNotice(shared.message, 'error');
+      return;
+    }
+    const url = `${window.location.origin}${sharedPoemHref(shared.poem)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareLink(null);
+      showNotice('Link copied. Anyone with it can open this poem in the Studio.');
+    } catch {
+      // No clipboard here, or the browser said no: show the link so that it can be copied by hand.
+      setShareLink({ url, snapshot });
+    }
+  };
+
+  const visibleShareLink = shareLink && shareLink.snapshot === snapshot ? shareLink.url : null;
+  useEffect(() => {
+    if (!visibleShareLink) return;
+    shareField.current?.focus();
+    shareField.current?.select();
+  }, [visibleShareLink]);
 
   return (
     <div className="min-h-screen bg-[#F3EBDD] text-[#24231F] flex flex-col justify-between py-8 px-4 sm:px-8">
@@ -571,6 +602,32 @@ function Studio({ passages }: { passages: Passage[] }) {
                 <ExportButton onClick={handlePrint} disabled={retainedCount === 0}>
                   Print / Save as PDF
                 </ExportButton>
+                <ExportButton onClick={() => void handleShareLink()} disabled={retainedCount === 0}>
+                  Copy link to this poem
+                </ExportButton>
+                {visibleShareLink && (
+                  <div className="space-y-1.5 rounded border border-[#E0D4BE] bg-[#F3EBDD] p-3">
+                    <label htmlFor="share-link" className="block text-xs text-[#57544E]">
+                      Your browser would not copy the link for you. Copy it from here: select it and press Ctrl+C
+                      (Cmd+C on a Mac).
+                    </label>
+                    <input
+                      id="share-link"
+                      ref={shareField}
+                      readOnly
+                      value={visibleShareLink}
+                      onFocus={event => event.currentTarget.select()}
+                      className="w-full rounded border border-[#E0D4BE] bg-[#FAF6EE] px-2 py-1.5 font-mono text-[11px] text-[#24231F] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#6C3438]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShareLink(null)}
+                      className="rounded px-2 py-1 text-xs text-[#57544E] underline hover:text-[#24231F] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
                 {retainedCount === 0 && (
                   <p className="text-xs text-[#57544E]">Keep at least one word to export your poem.</p>
                 )}

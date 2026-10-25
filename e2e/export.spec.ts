@@ -60,7 +60,7 @@ test.describe('exporting the poem', () => {
     await openStudio(page);
     await page.getByRole('button', { name: 'Erase All' }).click();
     const buttons = exportGroup(page).getByRole('button');
-    await expect(buttons).toHaveCount(2);
+    await expect(buttons).toHaveCount(3);
     for (const button of await buttons.all()) await expect(button).toBeDisabled();
     await expect(page.getByText('Keep at least one word to export your poem.')).toBeVisible();
 

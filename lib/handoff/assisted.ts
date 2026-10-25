@@ -5,6 +5,7 @@ import {
   FOUND_HANDOFF_PASSAGE_MISSING_MESSAGE,
   type FoundHandoffResult,
 } from './found';
+import { breaksPattern, keptPattern, readBreaks, readKept, writeKept } from './positions';
 
 /**
  * Hand-off of an Assisted poem to the Studio, carried in the URL hash:
@@ -30,11 +31,8 @@ export const ASSISTED_PREFIX = 'assisted=';
 /** The most words one poem may keep in a link. A 5-7-5 poem keeps at most 17. */
 const MAX_KEPT = 40;
 
-const PART = '\\d{1,6}(?:-\\d{1,6})?';
 // Passage id, then up to 40 comma-separated words or runs, then zero or more break positions.
-const PATTERN = new RegExp(
-  `^assisted=([a-z0-9][a-z0-9-]{0,63}):(${PART}(?:,${PART}){0,${MAX_KEPT - 1}}):((?:\\d{1,6}(?:,\\d{1,6}){0,49})?)$`
-);
+const PATTERN = new RegExp(`^assisted=([a-z0-9][a-z0-9-]{0,63}):(${keptPattern(MAX_KEPT)}):(${breaksPattern(50)})$`);
 
 /** The words of a candidate and the two line breaks, as a hand-off. */
 export function assistedHandoffFromCandidate(candidate: AssistedCandidate): AssistedHandoff {
@@ -44,19 +42,6 @@ export function assistedHandoffFromCandidate(candidate: AssistedCandidate): Assi
     keptPositions: lines.flatMap(line => line.tokens.map(t => t.position)),
     breakAfterPositions: [candidate.line1, candidate.line2].map(line => line.tokens[line.tokens.length - 1].position),
   };
-}
-
-/** Runs of three or more consecutive positions are written first-last, anything shorter one by one. */
-function writeKept(positions: number[]): string {
-  const parts: string[] = [];
-  for (let i = 0; i < positions.length; ) {
-    let j = i;
-    while (j + 1 < positions.length && positions[j + 1] === positions[j] + 1) j++;
-    if (j - i >= 2) parts.push(`${positions[i]}-${positions[j]}`);
-    else for (let k = i; k <= j; k++) parts.push(String(positions[k]));
-    i = j + 1;
-  }
-  return parts.join(',');
 }
 
 /** The hash payload, without the leading "#". */
@@ -73,25 +58,10 @@ export function decodeAssistedHandoff(hash: string): AssistedHandoff | null {
   const match = PATTERN.exec(hash.startsWith('#') ? hash.slice(1) : hash);
   if (!match) return null;
 
-  const keptPositions: number[] = [];
-  for (const part of match[2].split(',')) {
-    const [from, to = from] = part.split('-').map(Number);
-    if (to < from) return null;
-    if (keptPositions.length + (to - from + 1) > MAX_KEPT) return null;
-    for (let position = from; position <= to; position++) {
-      if (keptPositions.length > 0 && position <= keptPositions[keptPositions.length - 1]) return null; // ascending, no repeats
-      keptPositions.push(position);
-    }
-  }
-
-  const breakAfterPositions = match[3] ? match[3].split(',').map(Number) : [];
-  const last = keptPositions[keptPositions.length - 1];
-  for (let i = 0; i < breakAfterPositions.length; i++) {
-    const position = breakAfterPositions[i];
-    const ascending = i === 0 || position > breakAfterPositions[i - 1];
-    // A break follows a word of the poem, and not its last word.
-    if (!ascending || !keptPositions.includes(position) || position === last) return null;
-  }
+  const keptPositions = readKept(match[2], MAX_KEPT);
+  if (!keptPositions) return null;
+  const breakAfterPositions = readBreaks(match[3], keptPositions);
+  if (!breakAfterPositions) return null;
   return { passageId: match[1], keptPositions, breakAfterPositions };
 }
 

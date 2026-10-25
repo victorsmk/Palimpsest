@@ -19,4 +19,17 @@ export {
 } from './assisted';
 export type { AssistedHandoff } from './assisted';
 export { readHandoff } from './read';
+export {
+  MAX_SHARED_TITLE,
+  MAX_SHARED_WORDS,
+  SHARE_EMPTY_MESSAGE,
+  SHARE_TOO_LONG_MESSAGE,
+  cleanSharedTitle,
+  decodeSharedPoem,
+  encodeSharedPoem,
+  resolveSharedPoem,
+  sharedPoemFromEditor,
+  sharedPoemHref,
+} from './shared';
+export type { ShareResult, SharedPoem } from './shared';
 export { discoverHash, discoverHref, readDiscoverPassage } from './discover';
