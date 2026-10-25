@@ -2,13 +2,15 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useEditor, reopenPoem } from '@/lib/editor';
+import { useRouter } from 'next/navigation';
+import { useEditor, reopenPoem, createDefaultSnapshot, snapshotsEqual, type EditorSnapshot } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
 import { BookText } from '@/components/BookText';
 import { ViewToggle, type StudioView } from '@/components/ViewToggle';
 import { ExtractedPoem } from '@/components/ExtractedPoem';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { usePageDna } from '@/components/usePageDna';
 import { PageDnaStrip } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
@@ -84,6 +86,14 @@ function Studio({ passages }: { passages: Passage[] }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [view, setView] = useState<StudioView>('page');
   const [isExporting, setIsExporting] = useState(false);
+  const router = useRouter();
+  // The poem as last saved or opened, for the passage it belongs to. Unsaved changes are whatever
+  // differs from it (or, before anything is saved or opened, from the untouched passage).
+  const [baseline, setBaseline] = useState<{ passageId: string; snapshot: EditorSnapshot } | null>(() =>
+    handoff.kind === 'open' ? { passageId: handoff.passage.id, snapshot: handoff.snapshot } : null
+  );
+  // Something that would replace the poem on screen, held until the writer says it is all right.
+  const [pendingReplace, setPendingReplace] = useState<{ message: string; run: () => void } | null>(null);
   const exportFrameRef = useRef<HTMLDivElement>(null);
   const [statusNotice, setStatusNotice] = useState<Notice | null>(() => noticeForHandoff(handoff));
 
@@ -131,6 +141,43 @@ function Studio({ passages }: { passages: Passage[] }) {
     initialSnapshot: handoff.kind === 'open' ? handoff.snapshot : undefined,
   });
 
+  const untouched = useMemo(() => createDefaultSnapshot(tokens), [tokens]);
+  const isDirty = !snapshotsEqual(snapshot, baseline?.passageId === activePassage.id ? baseline.snapshot : untouched);
+
+  // Runs `run` now, or after the writer agrees, if it would throw away changes that are not saved.
+  const askBeforeReplacing = useCallback(
+    (message: string, run: () => void) => {
+      if (!isDirty) {
+        run();
+        return;
+      }
+      setPendingReplace({ message, run });
+    },
+    [isDirty]
+  );
+
+  // Closing or reloading the tab with unsaved changes gets the browser's own warning.
+  useEffect(() => {
+    if (!isDirty) return;
+    function warn(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isDirty]);
+
+  // A link out of the Studio loses unsaved changes too, and the browser's warning does not see it.
+  const guardLink = (href: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+    const opensElsewhere = event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+    if (!isDirty || event.defaultPrevented || opensElsewhere) return;
+    event.preventDefault();
+    askBeforeReplacing(
+      "Leaving the Studio will lose the changes you haven't saved to the poem you are editing.",
+      () => router.push(href)
+    );
+  };
+
   // Once a hand-off has been read, take it out of the address bar and let its notice go in time.
   useEffect(() => {
     if (handoff.kind === 'none') return;
@@ -149,14 +196,20 @@ function Studio({ passages }: { passages: Passage[] }) {
         showNotice(next.message, 'error');
         return;
       }
-      setSelectedPassageId(next.passage.id);
-      setCurrentPoemId(undefined);
-      loadSnapshot(next.snapshot, next.passage.id);
-      showNotice(openedMessage(next.passage.attribution.title, next.mode), 'ok', 8000);
+      askBeforeReplacing(
+        "Opening this poem will replace the one you are editing, which has changes you haven't saved.",
+        () => {
+          setSelectedPassageId(next.passage.id);
+          setCurrentPoemId(undefined);
+          loadSnapshot(next.snapshot, next.passage.id);
+          setBaseline({ passageId: next.passage.id, snapshot: next.snapshot });
+          showNotice(openedMessage(next.passage.attribution.title, next.mode), 'ok', 8000);
+        }
+      );
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [passages, loadSnapshot, showNotice]);
+  }, [passages, loadSnapshot, showNotice, askBeforeReplacing]);
 
   // Handle saving to repository
   const handleSaveDraft = async (title: string, notes: string) => {
@@ -173,6 +226,17 @@ function Studio({ passages }: { passages: Passage[] }) {
     setCurrentPoemId(saved.id);
     setTitle(saved.title || '');
     setNotes(saved.notes || '');
+    // What was just saved is now the poem to compare against.
+    setBaseline({
+      passageId: activePassage.id,
+      snapshot: {
+        retainedTokenIds: snapshot.retainedTokenIds,
+        lineBreaks: snapshot.lineBreaks,
+        erasureStyle: snapshot.erasureStyle,
+        title: saved.title || '',
+        notes: saved.notes || '',
+      },
+    });
     showNotice(`Draft "${saved.title}" saved.`);
   };
 
@@ -188,12 +252,18 @@ function Studio({ passages }: { passages: Passage[] }) {
       return;
     }
 
-    setSelectedPassageId(passage.id);
-    setCurrentPoemId(poem.id);
-    loadSnapshot(result.snapshot, passage.id);
-
-    showNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
-  }, [passages, loadSnapshot, showNotice]);
+    const opened = result.snapshot;
+    askBeforeReplacing(
+      `Opening “${poem.title || 'Untitled Poem'}” will replace the poem you are editing, which has changes you haven't saved.`,
+      () => {
+        setSelectedPassageId(passage.id);
+        setCurrentPoemId(poem.id);
+        loadSnapshot(opened, passage.id);
+        setBaseline({ passageId: passage.id, snapshot: opened });
+        showNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
+      }
+    );
+  }, [passages, loadSnapshot, showNotice, askBeforeReplacing]);
 
   // Exports whichever view is showing: the erased page or the extracted poem.
   const handleExport = async () => {
@@ -254,18 +324,21 @@ function Studio({ passages }: { passages: Passage[] }) {
             <span className="text-xs text-[#57544E]" aria-hidden="true">|</span>
             <Link
               href="/"
+              onClick={guardLink('/')}
               className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors"
             >
               Home
             </Link>
             <Link
               href="/discover"
+              onClick={guardLink('/discover')}
               className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors"
             >
               Discover
             </Link>
             <Link
               href="/assist"
+              onClick={guardLink('/assist')}
               className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors"
             >
               Assisted
@@ -298,8 +371,14 @@ function Studio({ passages }: { passages: Passage[] }) {
                   type="button"
                   aria-pressed={isSelected}
                   onClick={() => {
-                    setSelectedPassageId(p.id);
-                    setCurrentPoemId(undefined);
+                    if (isSelected) return;
+                    askBeforeReplacing(
+                      `Switching to ${p.attribution.title} will replace the poem you are editing, which has changes you haven't saved.`,
+                      () => {
+                        setSelectedPassageId(p.id);
+                        setCurrentPoemId(undefined);
+                      }
+                    );
                   }}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
                     isSelected
@@ -455,7 +534,11 @@ function Studio({ passages }: { passages: Passage[] }) {
               </div>
             </div>
 
-            <PageDnaStrip state={pageDna} discoverHref={discoverHref(activePassage.id)} />
+            <PageDnaStrip
+              state={pageDna}
+              discoverHref={discoverHref(activePassage.id)}
+              onDiscoverClick={guardLink(discoverHref(activePassage.id))}
+            />
 
             {/* Save & Reset Actions */}
             <div className="space-y-2 pt-1">
@@ -531,6 +614,21 @@ function Studio({ passages }: { passages: Passage[] }) {
         onLoadPoem={handleLoadPoem}
         passages={passages}
       />
+
+      {pendingReplace && (
+        <ConfirmDialog
+          title="Discard your unsaved changes?"
+          description={pendingReplace.message}
+          confirmLabel="Discard changes"
+          cancelLabel="Keep editing"
+          onConfirm={() => {
+            const { run } = pendingReplace;
+            setPendingReplace(null);
+            run();
+          }}
+          onCancel={() => setPendingReplace(null)}
+        />
+      )}
     </div>
   );
 }

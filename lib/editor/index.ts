@@ -10,3 +10,4 @@ export {
 export { reopenPoem } from './reopen';
 export type { ReopenResult } from './reopen';
 export type { EditorSnapshot, EditorState, EditorAction } from './types';
+export { createDefaultSnapshot, snapshotsEqual } from './snapshot';

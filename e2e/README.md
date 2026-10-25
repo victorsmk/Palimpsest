@@ -61,6 +61,9 @@ where Firefox starts there.
   24px touch targets. In WebKit (like Safari) Tab skips links, so those checks adapt per browser.
 - `export.spec.ts`: the text download (name, lines as broken, source, no notes), the disabled state with nothing kept, Print / Save as PDF (the dialog is called; in print
   media only the poem is visible; Chromium renders a one-page PDF), and the notice timer.
+- `unsaved.spec.ts`: the Studio asks before unsaved changes are thrown away (switching passage, opening a
+  draft, a link to a poem, leaving by a link), not when nothing is unsaved (saved, undone, freshly opened),
+  the question's keyboard and phone layout, and the browser's own warning when the tab is closed.
 - `collection.spec.ts`: a poem in My Collection (its book, its first three lines, "…" when there is more,
   poems with the same title told apart) and deleting one: the in-app question, Cancel focused, Escape,
   focus restored, keyboard only, phone layout, and a failed deletion.

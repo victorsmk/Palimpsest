@@ -139,10 +139,13 @@ export function PageDnaTrack({
 export function PageDnaStrip({
   state,
   discoverHref,
+  onDiscoverClick,
 }: {
   state: PageDnaState;
   /** Where to read the poems: a link under the strip, shown when there are poems to find. */
   discoverHref?: string;
+  /** Called when that link is clicked; it may stop the navigation. */
+  onDiscoverClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const ready = state.status === 'ready' ? state.pageDna : null;
 
@@ -197,6 +200,7 @@ export function PageDnaStrip({
       {ready && ready.poemsToFind > 0 && discoverHref && (
         <Link
           href={discoverHref}
+          onClick={onDiscoverClick}
           className="self-start rounded py-1 text-xs font-medium text-[#6C3438] underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
         >
           Read these poems in Discover →
