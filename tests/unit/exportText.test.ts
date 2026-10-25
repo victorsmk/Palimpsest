@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escapeMarkdown, poemLines, poemToMarkdown, poemToText } from '@/lib/export/text';
+import { poemLines, poemToText } from '@/lib/export/text';
 import { exportFilename } from '@/lib/export/png';
 import type { Attribution, Token } from '@/lib/models';
 
@@ -69,55 +69,11 @@ describe('poemToText', () => {
     expect(poemToText({ title: '  ', lines: ['a'], attribution }).split('\n')[0]).toBe('Untitled poem');
     expect(poemToText({ title: 'Two\n  lines', lines: ['a'], attribution }).split('\n')[0]).toBe('Two lines');
   });
-
-  it('leaves out the notes, which are the writer\'s own', () => {
-    expect(poemToText({ title: 'T', lines: ['a'], attribution, notes: 'private thought' })).not.toContain('private thought');
-  });
-});
-
-describe('poemToMarkdown', () => {
-  it('writes a heading, the lines as separate lines, and the source', () => {
-    expect(poemToMarkdown({ title: 'Winter', lines: ['to front only', 'of life'], attribution })).toBe(
-      [
-        '# Winter',
-        '',
-        'to front only  \nof life',
-        '',
-        '*Found in Walden, Henry David Thoreau (1854)* · [Project Gutenberg](https://www.gutenberg.org/ebooks/205)',
-        '',
-      ].join('\n')
-    );
-  });
-
-  it('adds the notes after the poem, only when there are some', () => {
-    const withNotes = poemToMarkdown({ title: 'T', lines: ['a'], attribution, notes: 'first\nsecond' });
-    expect(withNotes).toContain('\n## Notes\n\nfirst  \nsecond\n');
-    expect(poemToMarkdown({ title: 'T', lines: ['a'], attribution, notes: '  \n ' })).not.toContain('Notes');
-    expect(poemToMarkdown({ title: 'T', lines: ['a'], attribution })).not.toContain('Notes');
-  });
-});
-
-describe('escapeMarkdown', () => {
-  it.each([
-    ['plain words', 'plain words'],
-    ['a *star*', 'a \\*star\\*'],
-    ['snake_case', 'snake\\_case'],
-    ['[link](x)', '\\[link\\](x)'],
-    ['# heading', '\\# heading'],
-    ['a & b', 'a \\& b'],
-    ['<b>', '\\<b\\>'],
-    ['1. one', '1\\. one'],
-    ['- dash', '\\- dash'],
-    ['back\\slash', 'back\\\\slash'],
-  ])('writes %j so it reads literally', (input, expected) => {
-    expect(escapeMarkdown(input)).toBe(expected);
-  });
 });
 
 describe('export file names', () => {
   it('uses the same name for every format, changing only the extension', () => {
     expect(exportFilename('Winter Twilight', 'poem', 'txt')).toBe('palimpsest-winter-twilight-poem.txt');
-    expect(exportFilename('Winter Twilight', 'poem', 'md')).toBe('palimpsest-winter-twilight-poem.md');
     expect(exportFilename('Winter Twilight', 'poem')).toBe('palimpsest-winter-twilight-poem.png');
   });
 });

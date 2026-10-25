@@ -14,7 +14,7 @@ import { PageDnaStrip } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
 import { poemService } from '@/lib/services';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
-import { downloadTextFile, poemLines, poemToMarkdown, poemToText } from '@/lib/export/text';
+import { downloadTextFile, poemLines, poemToText } from '@/lib/export/text';
 import { PrintablePoem } from '@/components/PrintablePoem';
 import { discoverHref, readHandoff, type ReadHandoff } from '@/lib/handoff';
 import type { Passage, Poem } from '@/lib/models';
@@ -227,22 +227,16 @@ function Studio({ passages }: { passages: Passage[] }) {
     return tokens.filter(t => t.isSelectable && retainedSet.has(t.id));
   }, [tokens, retainedSet]);
 
-  // The finished poem, as the text, Markdown and print exports carry it.
+  // The finished poem, as the text and print exports carry it.
   const poemDocument = {
     title: poemTitle,
     lines: poemLines(retainedTokens, lineBreakSet),
     attribution: activePassage.attribution,
-    notes: poemNotes,
   };
 
   const handleDownloadText = () => {
     downloadTextFile(exportFilename(poemTitle || activePassage.title, 'poem', 'txt'), poemToText(poemDocument), 'text/plain');
     showNotice('Poem downloaded as text.');
-  };
-
-  const handleDownloadMarkdown = () => {
-    downloadTextFile(exportFilename(poemTitle || activePassage.title, 'poem', 'md'), poemToMarkdown(poemDocument), 'text/markdown');
-    showNotice('Poem downloaded as Markdown.');
   };
 
   // The browser's print dialog offers "Save as PDF"; only the poem is on the page when printing.
@@ -478,9 +472,6 @@ function Studio({ passages }: { passages: Passage[] }) {
                 </div>
                 <ExportButton onClick={handleDownloadText} disabled={retainedCount === 0}>
                   Download as text (.txt)
-                </ExportButton>
-                <ExportButton onClick={handleDownloadMarkdown} disabled={retainedCount === 0}>
-                  Download as Markdown (.md)
                 </ExportButton>
                 <ExportButton onClick={handlePrint} disabled={retainedCount === 0}>
                   Print / Save as PDF

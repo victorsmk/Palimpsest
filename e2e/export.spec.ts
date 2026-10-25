@@ -33,22 +33,6 @@ test.describe('exporting the poem', () => {
     expect(fileLines.join('\n')).not.toContain('a private note'); // notes stay out of the shareable text
   });
 
-  test('downloads Markdown with a heading, the lines kept apart, the source and the notes', async ({ page }) => {
-    const lines = await composePoem(page, 'why I kept these');
-    const [download] = await Promise.all([
-      page.waitForEvent('download'),
-      exportGroup(page).getByRole('button', { name: 'Download as Markdown (.md)' }).click(),
-    ]);
-    expect(download.suggestedFilename()).toBe('palimpsest-quiet-woods-poem.md');
-    await expect(page.getByRole('status').filter({ hasText: 'Poem downloaded as Markdown.' })).toBeVisible();
-
-    const text = readFileSync(await download.path(), 'utf8');
-    expect(text.startsWith('# Quiet Woods\n\n')).toBe(true);
-    expect(text).toContain(`${lines[0]}  \n${lines[1]}\n`); // two trailing spaces make the line break
-    expect(text).toMatch(/\*Found in .+\* · \[Project Gutenberg\]\(https:\/\/www\.gutenberg\.org\//);
-    expect(text).toContain('## Notes\n\nwhy I kept these\n');
-  });
-
   test('the files hold exactly the words that are kept, in order', async ({ page }) => {
     await composePoem(page);
     const [download] = await Promise.all([
@@ -66,17 +50,17 @@ test.describe('exporting the poem', () => {
     const group = exportGroup(page);
     await group.getByRole('button', { name: 'Download as text (.txt)' }).click();
     await page.waitForTimeout(2000);
-    await group.getByRole('button', { name: 'Download as Markdown (.md)' }).click();
+    await group.getByRole('button', { name: 'Download as text (.txt)' }).click();
     // Messages last 3.5s: the first one's timer runs out about 1.5s from now, while this one has 3.5s.
     await page.waitForTimeout(2500);
-    await expect(page.getByRole('status').filter({ hasText: 'Poem downloaded as Markdown.' })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Poem downloaded as text.' })).toBeVisible();
   });
 
   test('has nothing to export until a word is kept, and says so', async ({ page }) => {
     await openStudio(page);
     await page.getByRole('button', { name: 'Erase All' }).click();
     const buttons = exportGroup(page).getByRole('button');
-    await expect(buttons).toHaveCount(3);
+    await expect(buttons).toHaveCount(2);
     for (const button of await buttons.all()) await expect(button).toBeDisabled();
     await expect(page.getByText('Keep at least one word to export your poem.')).toBeVisible();
 

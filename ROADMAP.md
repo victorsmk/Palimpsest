@@ -26,3 +26,23 @@ page is blocked for about 0.1–0.26 s at normal speed, and 0.45–1.4 s with th
 the slowest). Not worth a worker yet, by decision. Revisit if it feels laggy on real phones. The search
 does not touch the UI and has a `shouldCancel` hook, so the move is wiring, not a rewrite. A cheaper
 first step would be to make the search itself faster (fewer lines kept per word, a smaller span).
+
+## Bring your own text: upload a PDF, TXT or DOCX (raised 2026-10-25)
+
+A user should be able to upload a text in PDF, plain-text or Word (.docx) format and use it in the
+Studio, Discover and Assisted pages like any bundled passage. Things to settle when we get there:
+extracting clean text from each format (PDFs especially), how a long upload is split into passages
+(the searches are built for a few hundred words at a time), where the upload lives (this browser only,
+or the backend once there is one), and rights: the bundled books are public domain, an upload may not
+be, so exported poems and attribution need care. The spec lists user uploads as out of scope for the
+MVP, so this is a later phase.
+
+## Many more books, chosen from a list (raised 2026-10-25)
+
+Three passages shown as buttons at the top is fine as a proof of concept. With many books it needs a
+different structure: a browsable, searchable list (by title, author, maybe genre or length), probably
+with a way to pick a chapter or passage inside a book. The source could be a database of many Project
+Gutenberg books. Things to settle: how passages are cut from a whole book, whether texts are fetched
+on demand instead of bundled with the app (the three passages are bundled today, and the syllable
+dictionary is already 1.5 MB), verifying each text's source and licence as the spec requires, and the
+cost of running the searches on longer or more passages. This goes naturally with the backend item.

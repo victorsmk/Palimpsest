@@ -1,6 +1,6 @@
 /**
- * Text exports of a finished poem: plain text and Markdown. The poem is the retained words in
- * source order, broken into lines where the writer asked for a break. Line breaks never reorder words.
+ * Plain-text export of a finished poem. The poem is the retained words in source order, broken
+ * into lines where the writer asked for a break. Line breaks never reorder words.
  */
 import type { Attribution, Token } from '@/lib/models';
 
@@ -9,8 +9,6 @@ export interface PoemDocument {
   /** The poem, one string per line. */
   lines: string[];
   attribution: Attribution;
-  /** The writer's own notes. Only the Markdown file carries them. */
-  notes?: string;
 }
 
 const UNTITLED = 'Untitled poem';
@@ -38,34 +36,6 @@ const sourceLine = ({ title, author, year }: Attribution) => `Found in ${title},
 /** Plain text: the title, the poem, and where it was found. */
 export function poemToText({ title, lines, attribution }: PoemDocument): string {
   return [cleanTitle(title), '', ...lines, '', `${sourceLine(attribution)}`, `Source: ${attribution.source}, ${attribution.url}`, ''].join('\n');
-}
-
-/**
- * Makes text read literally in Markdown: characters that mean something are escaped, and so is a
- * line that would otherwise start a numbered list ("1." as a word).
- */
-export function escapeMarkdown(text: string): string {
-  return text
-    .replace(/[\\`*_[\]<>#~|&]/g, '\\$&')
-    .replace(/^(\d+)([.)])/, '$1\\$2')
-    .replace(/^([-+])(\s|$)/, '\\$1$2');
-}
-
-/** Markdown: a heading, the poem with each line kept as a line, the source, and the notes if any. */
-export function poemToMarkdown({ title, lines, attribution, notes }: PoemDocument): string {
-  // Two trailing spaces make a line break inside a paragraph; the blank lines between stanzas stay blank.
-  const verse = lines.map(line => `${escapeMarkdown(line)}  `);
-  const parts = [
-    `# ${escapeMarkdown(cleanTitle(title))}`,
-    verse.join('\n').trimEnd(),
-    `*${escapeMarkdown(sourceLine(attribution))}* · [${escapeMarkdown(attribution.source)}](${attribution.url})`,
-  ];
-  const note = notes?.trim();
-  if (note) {
-    const body = note.split(/\r?\n/).map(line => `${escapeMarkdown(line)}  `).join('\n').trimEnd();
-    parts.push(`## Notes\n\n${body}`);
-  }
-  return parts.filter(part => part !== '').join('\n\n') + '\n';
 }
 
 /** Saves a string as a file the browser downloads. Browser-only. */
