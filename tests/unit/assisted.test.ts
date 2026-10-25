@@ -29,9 +29,9 @@ describe('Assisted Erasure Algorithm', () => {
       }
     }
 
-    const candidates = assistedSearch(tokens, sylMap, 'assisted-test', {
+    const { candidates } = assistedSearch(tokens, sylMap, 'assisted-test', {
       maxSpanPerLine: 10,
-      maxCandidates: 10,
+      limit: 10,
     });
 
     expect(candidates.length).toBeGreaterThan(0);

@@ -41,10 +41,7 @@ describe('Discovery Engine Execution on Real Gutenberg Passages', () => {
       const pageDNA = calculatePageDNA(foundCandidates.length, wordCount);
 
       // 2. Assisted Search
-      const assistedCandidates = assistedSearch(tokens, tokenSylMap, passage.id, {
-        maxSpanPerLine: 20,
-        maxCandidates: 100,
-      });
+      const { candidates: assistedCandidates } = assistedSearch(tokens, tokenSylMap, passage.id);
 
       console.log(`────────────────────────────────────────────────────────────`);
       console.log(`PASSAGE: ${passage.title}`);

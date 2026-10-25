@@ -1,207 +1,200 @@
 import type { Token } from '@/lib/models';
 import type { SyllableResult } from '@/lib/syllables';
-import { WEAK_LINE_ENDINGS } from '@/lib/search/lineEndings';
-import type { AssistedCandidate, AssistedLine, AssistedSearchOptions } from './types';
+import { scoreLine, scorePoem } from './score';
+import { selectDiverse } from './select';
+import type {
+  AssistedCandidate,
+  AssistedLine,
+  AssistedSearchOptions,
+  AssistedSearchResult,
+} from './types';
 
-function makeFingerprint(l1: Token[], l2: Token[], l3: Token[]): string {
-  return [
-    l1.map(t => t.id).join(','),
-    l2.map(t => t.id).join(','),
-    l3.map(t => t.id).join(','),
-  ].join('|');
+const DEFAULTS = {
+  maxSpanPerLine: 16,
+  maxGapBetweenWords: 3,
+  maxGapBetweenLines: 6,
+  maxLinesPerStart: 25,
+  maxWorkPerStart: 50_000,
+  limit: 10,
+  maxSharedWords: 0.25,
+  maxSpanOverlap: 0.4,
+};
+
+/** A line kept by the search: its words (by index into the passage's words) and its own score. */
+interface KeptLine {
+  line: AssistedLine;
+  start: number;
+  end: number;
+  score: number;
+}
+
+/** What follows a first line: the best second and third line found after it, and their combined score. */
+interface Continuation {
+  line2: KeptLine;
+  line3: KeptLine;
+  score: number;
 }
 
 /**
- * Evaluates candidate quality according to Section 9 heuristics:
- * Higher score = more poetic / readable / cohesive.
- */
-export function scoreCandidate(
-  l1: AssistedLine,
-  l2: AssistedLine,
-  l3: AssistedLine
-): number {
-  let score = 100;
-
-  for (const line of [l1, l2, l3]) {
-    // 1. Penalize weak function words at the end of lines (-15 pts)
-    const lastWord = line.tokens[line.tokens.length - 1]?.word ?? '';
-    if (WEAK_LINE_ENDINGS.has(lastWord)) {
-      score -= 15;
-    }
-
-    // 2. Penalize excessive gaps between retained words (-2 pts per skipped word)
-    score -= line.gapCount * 2;
-
-    // 3. Penalize uncertainty in syllable counting (-10 pts)
-    if (line.hasUncertain) {
-      score -= 10;
-    }
-
-    // 4. Reward content words (+3 pts each)
-    const contentWords = line.tokens.filter(t => !WEAK_LINE_ENDINGS.has(t.word)).length;
-    score += contentWords * 3;
-  }
-
-  return score;
-}
-
-interface GeneratedSubsequence {
-  tokens: Token[];
-  syllables: SyllableResult[];
-  gaps: number;
-}
-
-/**
- * Generates all in-order subsequences starting at or after `startIndex`
- * within `maxSpan` tokens that sum to exactly `targetSyllables`.
- */
-function findSubsequences(
-  wordTokens: Token[],
-  syllableMap: Map<string, SyllableResult>,
-  startIndex: number,
-  targetSyllables: number,
-  maxSpan: number
-): GeneratedSubsequence[] {
-  const results: GeneratedSubsequence[] = [];
-  const limitIndex = Math.min(startIndex + maxSpan, wordTokens.length);
-
-  function search(
-    currentIndex: number,
-    accumulatedSyllables: number,
-    chosenTokens: Token[],
-    chosenSyllables: SyllableResult[],
-    gapsCount: number
-  ) {
-    if (accumulatedSyllables === targetSyllables) {
-      results.push({
-        tokens: [...chosenTokens],
-        syllables: [...chosenSyllables],
-        gaps: gapsCount,
-      });
-      return;
-    }
-
-    if (currentIndex >= limitIndex || accumulatedSyllables > targetSyllables) {
-      return;
-    }
-
-    for (let i = currentIndex; i < limitIndex; i++) {
-      const tok = wordTokens[i];
-      const syl = syllableMap.get(tok.id) ?? {
-        word: tok.word,
-        count: null,
-        confidence: 'unknown',
-      };
-
-      if (syl.count === null) continue; // Skip tokens with unknown count in assisted search
-      if (accumulatedSyllables + syl.count > targetSyllables) continue; // Branch pruning
-
-      const addedGaps = chosenTokens.length > 0 ? i - currentIndex : 0;
-
-      search(
-        i + 1,
-        accumulatedSyllables + syl.count,
-        [...chosenTokens, tok],
-        [...chosenSyllables, syl],
-        gapsCount + addedGaps
-      );
-    }
-  }
-
-  search(startIndex, 0, [], [], 0);
-  return results;
-}
-
-/**
- * Searches for non-contiguous 5–7–5 syllable sequences in source order.
- * Bounds total work and limits span to keep computation tractable and responsive.
+ * Searches a passage for 5–7–5 poems made of words kept in their original order, skipping the rest
+ * (assisted erasure). It is bounded, not exhaustive: a passage of 200 words holds trillions of
+ * ways to make one, so
+ *
+ *  1. from every word as a starting point it keeps only the best few lines (5 and 7 syllables),
+ *     which means the whole passage is searched, not just its beginning;
+ *  2. for every first line it finds the best second and third lines after it (nearby, in order);
+ *  3. it ranks the poems that makes and picks a set that differ from one another.
+ *
+ * Words with no known syllable count are never kept, only skipped over. Nothing is invented: every
+ * poem returned has lines of exactly 5, 7 and 5 syllables made of real words in source order.
  */
 export function assistedSearch(
   tokens: Token[],
   syllableMap: Map<string, SyllableResult>,
   passageId: string,
   options: AssistedSearchOptions = {}
-): AssistedCandidate[] {
-  const maxSpan = options.maxSpanPerLine ?? 20;
-  const maxCandidates = options.maxCandidates ?? 150;
+): AssistedSearchResult {
+  const o = { ...DEFAULTS, ...options };
+  const words = tokens.filter(t => t.isSelectable && t.kind === 'word');
+  const n = words.length;
+  const syllables: SyllableResult[] = words.map(
+    t => syllableMap.get(t.id) ?? { word: t.word, count: null, confidence: 'unknown' }
+  );
+  const counts = syllables.map(s => s.count);
 
-  const wordTokens = tokens.filter(t => t.isSelectable && t.kind === 'word');
-  const candidates: AssistedCandidate[] = [];
-  const seen = new Set<string>();
+  const stats = {
+    wordCount: n,
+    wordsWithoutCount: counts.filter(c => c === null).length,
+    linesKept: { five: 0, seven: 0 },
+    poemsConsidered: 0,
+    workLimitReached: false,
+    cancelled: false,
+  };
 
-  for (let s1 = 0; s1 < wordTokens.length && candidates.length < maxCandidates; s1++) {
-    const lines1 = findSubsequences(wordTokens, syllableMap, s1, 5, maxSpan);
-
-    for (const l1 of lines1) {
-      if (!l1.tokens.length) continue;
-      const lastL1Index = wordTokens.indexOf(l1.tokens[l1.tokens.length - 1]);
-      const s2 = lastL1Index + 1;
-      if (s2 >= wordTokens.length) continue;
-
-      const lines2 = findSubsequences(wordTokens, syllableMap, s2, 7, maxSpan);
-
-      for (const l2 of lines2) {
-        if (!l2.tokens.length) continue;
-        const lastL2Index = wordTokens.indexOf(l2.tokens[l2.tokens.length - 1]);
-        const s3 = lastL2Index + 1;
-        if (s3 >= wordTokens.length) continue;
-
-        const lines3 = findSubsequences(wordTokens, syllableMap, s3, 5, maxSpan);
-
-        for (const l3 of lines3) {
-          if (!l3.tokens.length) continue;
-
-          const fp = makeFingerprint(l1.tokens, l2.tokens, l3.tokens);
-          if (seen.has(fp)) continue;
-          seen.add(fp);
-
-          const line1: AssistedLine = {
-            tokens: l1.tokens,
-            syllableResults: l1.syllables,
-            totalSyllables: 5,
-            gapCount: l1.gaps,
-            hasUncertain: l1.syllables.some(s => s.confidence !== 'definite'),
-          };
-
-          const line2: AssistedLine = {
-            tokens: l2.tokens,
-            syllableResults: l2.syllables,
-            totalSyllables: 7,
-            gapCount: l2.gaps,
-            hasUncertain: l2.syllables.some(s => s.confidence !== 'definite'),
-          };
-
-          const line3: AssistedLine = {
-            tokens: l3.tokens,
-            syllableResults: l3.syllables,
-            totalSyllables: 5,
-            gapCount: l3.gaps,
-            hasUncertain: l3.syllables.some(s => s.confidence !== 'definite'),
-          };
-
-          const score = scoreCandidate(line1, line2, line3);
-
-          candidates.push({
-            id: fp,
-            passageId,
-            line1,
-            line2,
-            line3,
-            startPosition: l1.tokens[0].position,
-            endPosition: l3.tokens[l3.tokens.length - 1].position,
-            hasUncertain: line1.hasUncertain || line2.hasUncertain || line3.hasUncertain,
-            score,
-          });
-
-          if (candidates.length >= maxCandidates) break;
-        }
-        if (candidates.length >= maxCandidates) break;
-      }
-      if (candidates.length >= maxCandidates) break;
-    }
+  function makeLine(indices: number[], totalSyllables: number): KeptLine {
+    const start = indices[0];
+    const end = indices[indices.length - 1];
+    const line: AssistedLine = {
+      tokens: indices.map(i => words[i]),
+      syllableResults: indices.map(i => syllables[i]),
+      totalSyllables,
+      gapCount: end - start + 1 - indices.length,
+      hasUncertain: indices.some(i => syllables[i].confidence !== 'definite'),
+    };
+    return { line, start, end, score: scoreLine(line) };
   }
 
-  // Sort candidates by score descending
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates;
+  /** The best lines of `target` syllables that begin with word `start`. */
+  function linesFrom(start: number, target: number): KeptLine[] {
+    const first = counts[start];
+    if (first === null || first > target) return [];
+
+    const found: KeptLine[] = [];
+    const chosen = [start];
+    const lastAllowed = Math.min(start + o.maxSpanPerLine - 1, n - 1);
+    let steps = 0;
+    let outOfWork = false;
+
+    const walk = (last: number, sum: number) => {
+      if (sum === target) {
+        found.push(makeLine(chosen, target));
+        return;
+      }
+      const reach = Math.min(last + 1 + o.maxGapBetweenWords, lastAllowed);
+      for (let next = last + 1; next <= reach && !outOfWork; next++) {
+        const c = counts[next];
+        if (c === null || sum + c > target) continue;
+        if (++steps > o.maxWorkPerStart) {
+          outOfWork = true;
+          return;
+        }
+        chosen.push(next);
+        walk(next, sum + c);
+        chosen.pop();
+      }
+    };
+    walk(start, first);
+
+    if (outOfWork) stats.workLimitReached = true;
+    // Best first; among equals the one that ends sooner. Ties beyond that keep the order found.
+    found.sort((a, b) => b.score - a.score || a.end - b.end);
+    return found.slice(0, o.maxLinesPerStart);
+  }
+
+  const fives: KeptLine[][] = [];
+  const sevens: KeptLine[][] = [];
+  for (let start = 0; start < n; start++) {
+    if (options.shouldCancel?.()) {
+      return { candidates: [], stats: { ...stats, cancelled: true } };
+    }
+    fives.push(linesFrom(start, 5));
+    sevens.push(linesFrom(start, 7));
+  }
+  stats.linesKept = {
+    five: fives.reduce((sum, lines) => sum + lines.length, 0),
+    seven: sevens.reduce((sum, lines) => sum + lines.length, 0),
+  };
+
+  // Best third line starting within reach of position p, and best second+third after p. Both are
+  // found once for every position, so each first line is then matched in a single lookup.
+  const reach = (p: number) => Math.min(p + o.maxGapBetweenLines, n - 1);
+
+  const bestThird: (KeptLine | null)[] = Array.from({ length: n + 1 }, (_, p) => {
+    let best: KeptLine | null = null;
+    for (let q = p; q <= reach(p); q++) {
+      const top = fives[q]?.[0];
+      if (top && (!best || top.score > best.score)) best = top;
+    }
+    return best;
+  });
+
+  const bestTail: (Continuation | null)[] = Array.from({ length: n + 1 }, (_, p) => {
+    let best: Continuation | null = null;
+    for (let q = p; q <= reach(p); q++) {
+      for (const line2 of sevens[q] ?? []) {
+        const line3 = bestThird[line2.end + 1];
+        if (!line3) continue;
+        const score = line2.score + line3.score;
+        if (!best || score > best.score) best = { line2, line3, score };
+      }
+    }
+    return best;
+  });
+
+  const poems: AssistedCandidate[] = [];
+  for (const group of fives) {
+    for (const line1 of group) {
+      const rest = bestTail[line1.end + 1];
+      if (!rest) continue;
+      const l1 = line1.line;
+      const l2 = rest.line2.line;
+      const l3 = rest.line3.line;
+      const endWord = rest.line3.end;
+      poems.push({
+        id: [l1, l2, l3].map(l => l.tokens.map(t => t.id).join(',')).join('|'),
+        passageId,
+        line1: l1,
+        line2: l2,
+        line3: l3,
+        startPosition: l1.tokens[0].position,
+        endPosition: l3.tokens[l3.tokens.length - 1].position,
+        startWord: line1.start,
+        endWord,
+        skippedWords: endWord - line1.start + 1 - (l1.tokens.length + l2.tokens.length + l3.tokens.length),
+        hasUncertain: l1.hasUncertain || l2.hasUncertain || l3.hasUncertain,
+        score: scorePoem(l1, l2, l3),
+      });
+    }
+  }
+  stats.poemsConsidered = poems.length;
+
+  const wordIndexById = new Map(words.map((t, i) => [t.id, i]));
+  return {
+    candidates: selectDiverse(poems, wordIndexById, {
+      limit: o.limit,
+      maxSharedWords: o.maxSharedWords,
+      maxSpanOverlap: o.maxSpanOverlap,
+    }),
+    stats,
+  };
 }
