@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { bundledPassages } from '@/lib/library/bundled';
-import { BookService, PageDnaService, bookService } from '@/lib/services';
+import { BookService, FoundService, bookService } from '@/lib/services';
 import { BrowserBookRepository } from '@/lib/repositories';
 import { tokenize } from '@/lib/tokenizer';
 import type { Passage } from '@/lib/models';
@@ -74,38 +74,35 @@ describe('BookService', () => {
   });
 });
 
-describe('PageDnaService', () => {
-  // Poems to find per passage (weak line endings hidden, overlapping windows grouped). The raw
-  // sliding-window counts this used to report (18.99, 40.85, 15.66 per 100 words) are gone.
+describe('FoundService', () => {
+  // Poems to find per passage (weak line endings hidden, overlapping windows grouped).
   const expected: Record<string, { poemsToFind: number; wordsPerPoem: number; per100Words: number }> = {
     'jane-eyre-ch1': { poemsToFind: 8, wordsPerPoem: 30, per100Words: 3.38 },
     'walden-woods': { poemsToFind: 9, wordsPerPoem: 24, per100Words: 4.23 },
     'dorian-gray-ch1': { poemsToFind: 7, wordsPerPoem: 28, per100Words: 3.54 },
   };
 
-  it('works out how many poems there are to find in each passage', async () => {
-    const service = new PageDnaService();
+  it('works out the poems to find in each passage', async () => {
+    const service = new FoundService();
     for (const passage of bundledPassages) {
-      const pageDna = await service.getPageDna(passage);
+      const { families, pageDna } = await service.analyze(passage);
       expect(pageDna, passage.id).toMatchObject(expected[passage.id]);
       expect(pageDna.blocks, passage.id).toHaveLength(expected[passage.id].poemsToFind);
+      expect(families, passage.id).toHaveLength(expected[passage.id].poemsToFind);
     }
   });
 
-  it('caches per passage', () => {
-    const service = new PageDnaService();
+  it('caches per passage, so the Studio and Discover share one search', () => {
+    const service = new FoundService();
     const [first, second] = bundledPassages;
-    expect(service.getPageDna(first)).toBe(service.getPageDna(first));
-    expect(service.getPageDna(first)).not.toBe(service.getPageDna(second));
+    expect(service.analyze(first)).toBe(service.analyze(first));
+    expect(service.analyze(first)).not.toBe(service.analyze(second));
   });
 
   it('has nothing to find in a passage with no words', async () => {
-    const service = new PageDnaService();
-    expect(await service.getPageDna({ id: 'empty', tokens: [] })).toEqual({
-      poemsToFind: 0,
-      per100Words: 0,
-      wordsPerPoem: null,
-      blocks: [],
-    });
+    const service = new FoundService();
+    const analysis = await service.analyze({ id: 'empty', tokens: [] });
+    expect(analysis.families).toEqual([]);
+    expect(analysis.pageDna).toEqual({ poemsToFind: 0, per100Words: 0, wordsPerPoem: null, blocks: [] });
   });
 });

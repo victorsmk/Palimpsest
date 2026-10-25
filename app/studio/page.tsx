@@ -11,12 +11,12 @@ import { SaveDraftModal } from '@/components/SaveDraftModal';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
 import { usePageDna } from '@/components/usePageDna';
 import { PageDnaStrip } from '@/components/PageDnaStrip';
-import { bookService, poemService } from '@/lib/services';
+import { useLibrary } from '@/components/useLibrary';
+import { poemService } from '@/lib/services';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
 import { readFoundHandoff, type ReadHandoff } from '@/lib/handoff';
 import type { Passage, Poem } from '@/lib/models';
 
-type Library = { passages: Passage[] } | { error: string };
 type Notice = { text: string; tone: 'ok' | 'error' };
 
 const openedMessage = (bookTitle: string) =>
@@ -44,25 +44,10 @@ function StudioMessage({ role, children }: { role: 'status' | 'alert'; children:
 }
 
 export default function StudioPage() {
-  const [library, setLibrary] = useState<Library | null>(null);
+  const library = useLibrary();
 
-  useEffect(() => {
-    let cancelled = false;
-    bookService
-      .listPassages()
-      .then(passages => {
-        if (!cancelled) setLibrary({ passages });
-      })
-      .catch(() => {
-        if (!cancelled) setLibrary({ error: 'The library could not be opened. Please reload the page.' });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (!library) return <StudioMessage role="status">Opening the library…</StudioMessage>;
-  if ('error' in library) return <StudioMessage role="alert">{library.error}</StudioMessage>;
+  if (library.status === 'loading') return <StudioMessage role="status">Opening the library…</StudioMessage>;
+  if (library.status === 'error') return <StudioMessage role="alert">{library.message}</StudioMessage>;
   if (library.passages.length === 0) {
     return <StudioMessage role="alert">The library has no passages yet.</StudioMessage>;
   }

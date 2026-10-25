@@ -1,26 +1,113 @@
 'use client';
 
-import { layoutPageDnaBlocks } from '@/lib/search/found';
+import { layoutPageDnaBlocks, type PageDnaBlock } from '@/lib/search/found';
 import type { PageDnaState } from './usePageDna';
 
-const TRACK_HEIGHT = 34;
 const TRACK_PADDING = 4;
 const ROW_GAP = 3;
 
-const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+export const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 /** A fraction as a CSS percentage, without floating-point noise. */
 const percent = (fraction: number) => `${Math.round(fraction * 100000) / 1000}%`;
 
+interface PageDnaTrackProps {
+  blocks: PageDnaBlock[];
+  /** Spoken description of the strip as a whole. */
+  description: string;
+  /** Track height in pixels. */
+  height?: number;
+  /** Number the blocks 1..n, in reading order. */
+  numbered?: boolean;
+  /** Makes each block a button that selects its poem. Without it the strip is a picture. */
+  onSelectPoem?: (familyId: string) => void;
+  /** The poem to outline (the one being hovered or read). */
+  activePoemId?: string | null;
+  onHoverPoem?: (familyId: string | null) => void;
+}
+
 /**
- * "Page DNA": how many poems there are to find in the passage, and where. The headline says it in
- * plain words; the strip shows each poem as a block at its place in the passage (darker means more
- * ways to read it); the per-100-words figure is only a hover detail.
+ * The strip itself: the passage as a track with one block per poem to find, placed where the poem
+ * sits. Darker means more ways to read it. Poems that overlap are drawn in separate rows so
+ * darkness means only one thing.
+ */
+export function PageDnaTrack({
+  blocks,
+  description,
+  height = 34,
+  numbered = false,
+  onSelectPoem,
+  activePoemId = null,
+  onHoverPoem,
+}: PageDnaTrackProps) {
+  const { placed, rows } = layoutPageDnaBlocks(blocks);
+  const rowHeight = (height - 2 * TRACK_PADDING - (rows - 1) * ROW_GAP) / rows;
+  const interactive = onSelectPoem !== undefined;
+
+  return (
+    <div
+      role={interactive ? 'group' : 'img'}
+      aria-label={description}
+      className="relative w-full rounded-[5px] bg-[#E4D8C2]"
+      style={{ height }}
+    >
+      {placed.map(({ block, row }, index) => {
+        const style = {
+          left: percent(block.startFraction),
+          width: percent(block.endFraction - block.startFraction),
+          top: TRACK_PADDING + row * (rowHeight + ROW_GAP),
+          height: rowHeight,
+          opacity: Math.min(1, 0.5 + 0.12 * block.variants),
+        };
+        const className = 'absolute block rounded-[2px] bg-[#6C3438]';
+        const label = numbered ? (
+          <span className="text-[11px] font-bold leading-none text-white" aria-hidden="true">
+            {index + 1}
+          </span>
+        ) : null;
+
+        if (!interactive) {
+          return (
+            <i key={block.familyId} data-poem={block.familyId} className={`${className} flex items-center justify-center`} style={style}>
+              {label}
+            </i>
+          );
+        }
+
+        const active = activePoemId === block.familyId;
+        return (
+          <button
+            key={block.familyId}
+            type="button"
+            data-poem={block.familyId}
+            data-active={active}
+            aria-label={`Go to poem ${index + 1}`}
+            onClick={() => onSelectPoem(block.familyId)}
+            onMouseEnter={() => onHoverPoem?.(block.familyId)}
+            onMouseLeave={() => onHoverPoem?.(null)}
+            onFocus={() => onHoverPoem?.(block.familyId)}
+            onBlur={() => onHoverPoem?.(null)}
+            className={`${className} flex items-center justify-center cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#24231F]`}
+            style={{
+              ...style,
+              ...(active ? { outline: '2px solid #24231F', outlineOffset: 1, zIndex: 1 } : null),
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * "Page DNA" in the Studio's sidebar: how many poems there are to find in the passage, and where.
+ * The headline says it in plain words; the strip shows each poem as a block at its place in the
+ * passage; the per-100-words figure is only a hover detail.
  */
 export function PageDnaStrip({ state }: { state: PageDnaState }) {
   const ready = state.status === 'ready' ? state.pageDna : null;
-  const { placed, rows } = layoutPageDnaBlocks(ready?.blocks ?? []);
-  const rowHeight = (TRACK_HEIGHT - 2 * TRACK_PADDING - (rows - 1) * ROW_GAP) / rows;
 
   let headline: React.ReactNode;
   let description: string;
@@ -62,27 +149,7 @@ export function PageDnaStrip({ state }: { state: PageDnaState }) {
 
       <div className="leading-tight">{headline}</div>
 
-      <div
-        role="img"
-        aria-label={`Page DNA strip. ${description}`}
-        className="relative w-full rounded-[5px] bg-[#E4D8C2]"
-        style={{ height: TRACK_HEIGHT }}
-      >
-        {placed.map(({ block, row }) => (
-          <i
-            key={block.familyId}
-            data-poem={block.familyId}
-            className="absolute block rounded-[2px] bg-[#6C3438]"
-            style={{
-              left: percent(block.startFraction),
-              width: percent(block.endFraction - block.startFraction),
-              top: TRACK_PADDING + row * (rowHeight + ROW_GAP),
-              height: rowHeight,
-              opacity: Math.min(1, 0.5 + 0.12 * block.variants),
-            }}
-          />
-        ))}
-      </div>
+      <PageDnaTrack blocks={ready?.blocks ?? []} description={`Page DNA strip. ${description}`} />
 
       <div className="flex justify-between text-[10px] text-[#605C53]" aria-hidden="true">
         <span>start of passage</span>
