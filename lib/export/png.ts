@@ -11,7 +11,7 @@ const PAPER = '#F3EBDD';
 
 export type ExportView = 'page' | 'poem';
 
-export function exportFilename(title: string, view: ExportView): string {
+export function exportFilename(title: string, view: ExportView, extension = 'png'): string {
   const slug = title
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
@@ -19,7 +19,7 @@ export function exportFilename(title: string, view: ExportView): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
-  return `palimpsest-${slug || 'untitled'}-${view}.png`;
+  return `palimpsest-${slug || 'untitled'}-${view}.${extension}`;
 }
 
 /**

@@ -14,6 +14,8 @@ import { PageDnaStrip } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
 import { poemService } from '@/lib/services';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
+import { downloadTextFile, poemLines, poemToMarkdown, poemToText } from '@/lib/export/text';
+import { PrintablePoem } from '@/components/PrintablePoem';
 import { discoverHref, readFoundHandoff, type ReadHandoff } from '@/lib/handoff';
 import type { Passage, Poem } from '@/lib/models';
 
@@ -40,6 +42,19 @@ function StudioMessage({ role, children }: { role: 'status' | 'alert'; children:
         {children}
       </p>
     </div>
+  );
+}
+
+function ExportButton({ onClick, disabled, children }: { onClick: () => void; disabled: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full py-2 border border-[#24231F] hover:bg-[#E4D8C2]/50 text-[#24231F] rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {children}
+    </button>
   );
 }
 
@@ -70,9 +85,12 @@ function Studio({ passages }: { passages: Passage[] }) {
   const exportFrameRef = useRef<HTMLDivElement>(null);
   const [statusNotice, setStatusNotice] = useState<Notice | null>(() => noticeForHandoff(handoff));
 
+  // One dismiss timer at a time: an older notice's timer must not remove a newer notice early.
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const showNotice = useCallback((text: string, tone: 'ok' | 'error' = 'ok', duration?: number) => {
+    clearTimeout(noticeTimer.current);
     setStatusNotice({ text, tone });
-    setTimeout(() => setStatusNotice(null), duration ?? (tone === 'error' ? 7000 : 3500));
+    noticeTimer.current = setTimeout(() => setStatusNotice(null), duration ?? (tone === 'error' ? 7000 : 3500));
   }, []);
 
   const activePassage = useMemo(
@@ -207,10 +225,31 @@ function Studio({ passages }: { passages: Passage[] }) {
     return tokens.filter(t => t.isSelectable && retainedSet.has(t.id));
   }, [tokens, retainedSet]);
 
+  // The finished poem, as the text, Markdown and print exports carry it.
+  const poemDocument = {
+    title: poemTitle,
+    lines: poemLines(retainedTokens, lineBreakSet),
+    attribution: activePassage.attribution,
+    notes: poemNotes,
+  };
+
+  const handleDownloadText = () => {
+    downloadTextFile(exportFilename(poemTitle || activePassage.title, 'poem', 'txt'), poemToText(poemDocument), 'text/plain');
+    showNotice('Poem downloaded as text.');
+  };
+
+  const handleDownloadMarkdown = () => {
+    downloadTextFile(exportFilename(poemTitle || activePassage.title, 'poem', 'md'), poemToMarkdown(poemDocument), 'text/markdown');
+    showNotice('Poem downloaded as Markdown.');
+  };
+
+  // The browser's print dialog offers "Save as PDF"; only the poem is on the page when printing.
+  const handlePrint = () => window.print();
+
   return (
     <div className="min-h-screen bg-[#F3EBDD] text-[#24231F] flex flex-col justify-between py-8 px-4 sm:px-8">
       {/* Top Header */}
-      <header className="max-w-4xl mx-auto w-full mb-8 flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E4D8C2] pb-6 gap-4">
+      <header className="print:hidden max-w-4xl mx-auto w-full mb-8 flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E4D8C2] pb-6 gap-4">
         <div>
           <div className="flex items-center gap-3">
             <span className="text-xs uppercase tracking-widest text-[#6C3438] font-bold">
@@ -278,7 +317,7 @@ function Studio({ passages }: { passages: Passage[] }) {
       {statusNotice && (
         <div
           role={statusNotice.tone === 'error' ? 'alert' : 'status'}
-          className={`max-w-4xl mx-auto w-full mb-4 px-4 py-2 ${
+          className={`print:hidden max-w-4xl mx-auto w-full mb-4 px-4 py-2 ${
             statusNotice.tone === 'error' ? 'bg-[#6C3438]' : 'bg-[#5B5D45]'
           } text-[#FAF6EE] text-xs font-medium rounded shadow animate-in fade-in flex items-center justify-between`}
         >
@@ -295,7 +334,9 @@ function Studio({ passages }: { passages: Passage[] }) {
       )}
 
       {/* Main Workspace Layout */}
-      <main id="main" tabIndex={-1} className="max-w-4xl mx-auto w-full flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 outline-none">
+      <PrintablePoem {...poemDocument} />
+
+      <main id="main" tabIndex={-1} className="print:hidden max-w-4xl mx-auto w-full flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 outline-none">
         {/* Left 2 Cols: the page or the extracted poem, one at a time */}
         <div className="lg:col-span-2 flex flex-col gap-4">
           <ViewToggle view={view} onChange={setView} />
@@ -423,11 +464,29 @@ function Studio({ passages }: { passages: Passage[] }) {
                 <span aria-hidden="true">💾</span> Save Draft to Collection
               </button>
 
+              <div role="group" aria-label="Export your poem" className="space-y-2">
+                <div className="text-[11px] uppercase tracking-wider text-[#57544E] font-semibold" aria-hidden="true">
+                  Export poem
+                </div>
+                <ExportButton onClick={handleDownloadText} disabled={retainedCount === 0}>
+                  Download as text (.txt)
+                </ExportButton>
+                <ExportButton onClick={handleDownloadMarkdown} disabled={retainedCount === 0}>
+                  Download as Markdown (.md)
+                </ExportButton>
+                <ExportButton onClick={handlePrint} disabled={retainedCount === 0}>
+                  Print / Save as PDF
+                </ExportButton>
+                {retainedCount === 0 && (
+                  <p className="text-xs text-[#57544E]">Keep at least one word to export your poem.</p>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={handleExport}
                 disabled={isExporting}
-                className="w-full py-2 border border-[#24231F] hover:bg-[#E4D8C2]/50 text-[#24231F] rounded text-xs font-medium transition-colors disabled:opacity-60 disabled:cursor-wait"
+                className="w-full py-2 text-[#57544E] hover:text-[#24231F] underline rounded text-xs font-medium transition-colors disabled:opacity-60 disabled:cursor-wait"
               >
                 {isExporting
                   ? 'Creating image…'

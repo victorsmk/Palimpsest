@@ -58,3 +58,6 @@ where Firefox starts there.
 - `navigation.spec.ts`: page titles, the skip link, the links between Home, the Studio and Discover, the
   passage kept in Discover's address, keyboard order, spoken announcements, strip-number contrast and
   24px touch targets. In WebKit (like Safari) Tab skips links, so those checks adapt per browser.
+- `export.spec.ts`: the text and Markdown downloads (names, lines as broken, source, notes only in
+  Markdown), the disabled state with nothing kept, Print / Save as PDF (the dialog is called; in print
+  media only the poem is visible; Chromium renders a one-page PDF), and the notice timer.
