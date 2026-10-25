@@ -9,6 +9,8 @@ export interface BookRepository {
 
 export interface PoemRepository {
   save(poem: Poem): Promise<void>;
+  /** Saves several poems in one write: all of them are stored, or none are. */
+  saveMany(poems: Poem[]): Promise<void>;
   get(id: string): Promise<Poem | null>;
   list(): Promise<Poem[]>;
   delete(id: string): Promise<void>;

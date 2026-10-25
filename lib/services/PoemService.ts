@@ -1,6 +1,7 @@
 import type { PoemRepository } from '@/lib/repositories';
 import { BrowserPoemRepository } from '@/lib/repositories';
 import { POEM_SCHEMA_VERSION, type ErasureStyle, type Poem } from '@/lib/models';
+import { backupFilename, createBackup, planRestore, serializeBackup, type RestorePlan } from '@/lib/backup';
 
 export interface SavePoemInput {
   id?: string;
@@ -92,6 +93,29 @@ export class PoemService {
       lineBreaks: poem.lineBreaks,
       erasureStyle: poem.erasureStyle,
     });
+  }
+
+  /** Every poem in the collection as the text of a backup file, with the name to give the file. */
+  async exportBackup(now: Date = new Date()): Promise<{ filename: string; text: string; count: number }> {
+    const poems = await this.listPoems();
+    return { filename: backupFilename(now), text: serializeBackup(createBackup(poems, now)), count: poems.length };
+  }
+
+  /** What restoring these poems would do to the collection as it is now. Changes nothing. */
+  async planRestore(incoming: Poem[]): Promise<RestorePlan> {
+    return planRestore(await this.repo.list(), incoming);
+  }
+
+  /**
+   * Adds the poems of a backup that the collection does not already have, in one write. A poem the
+   * collection has, changed or not, is never touched. What is added is worked out again here, from
+   * the collection as it is at this moment, so a collection that changed since the question was
+   * asked is not overwritten.
+   */
+  async restoreBackup(incoming: Poem[]): Promise<RestorePlan> {
+    const plan = planRestore(await this.repo.list(), incoming);
+    if (plan.toAdd.length > 0) await this.repo.saveMany(plan.toAdd);
+    return plan;
   }
 
   async deletePoem(id: string): Promise<void> {

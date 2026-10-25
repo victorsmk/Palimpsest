@@ -2,9 +2,12 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Passage, Poem } from '@/lib/models';
+import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
+import { downloadTextFile } from '@/lib/export/text';
 import { poemPreview } from '@/lib/poems/preview';
 import { poemService } from '@/lib/services';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
+import { ConfirmDialog } from './ConfirmDialog';
 import { RenamePoemForm } from './RenamePoemForm';
 import { useDialog } from './useDialog';
 
@@ -21,6 +24,10 @@ interface DraftsDrawerProps {
 /** A small text button on a poem's card. Tall enough to touch (at least 24 px). */
 const ACTION =
   'rounded px-2.5 py-1 text-xs text-[#57544E] hover:bg-[#E4D8C2]/60 hover:text-[#24231F] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
+
+/** The smaller buttons above "Close Collection": back up, restore. */
+const FOOTER_ACTION =
+  'rounded border border-[#E0D4BE] px-3 py-1.5 text-xs font-medium text-[#24231F] hover:bg-[#E4D8C2]/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
 
 export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
   // The panel mounts fresh on every open, so it always starts in the loading state.
@@ -40,6 +47,18 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
   // What the last rename or copy did, said on screen and aloud; or why it failed.
   const [notice, setNotice] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // A backup the reader has chosen, read and checked, waiting to be told to go ahead.
+  const [pendingRestore, setPendingRestore] = useState<{
+    poems: Poem[];
+    plan: RestorePlan;
+    entries: number;
+    unreadable: number;
+    repeated: number;
+  } | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const restoreButton = useRef<HTMLButtonElement>(null);
   // The Delete button that asked the question, to give focus back to if the reader cancels. Not left
   // to the dialog: Safari does not focus a button when it is clicked.
   const deleteTrigger = useRef<HTMLElement | null>(null);
@@ -142,6 +161,81 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
       // Not released at once: the new copy takes the top of the list and moves every card down, so a
       // second click of a double click would land on a different poem's Duplicate button.
       setTimeout(() => setDuplicatingId(null), 700);
+    }
+  };
+
+  const backUp = async () => {
+    setNotice(null);
+    try {
+      const backup = await poemService.exportBackup();
+      if (backup.count === 0) {
+        setNotice({ text: 'You have no poems to back up yet.', tone: 'ok' });
+        return;
+      }
+      downloadTextFile(backup.filename, backup.text, 'application/json');
+      setNotice({ text: `Backed up ${backup.count} ${backup.count === 1 ? 'poem' : 'poems'} to ${backup.filename}.`, tone: 'ok' });
+    } catch {
+      setNotice({ text: 'Could not create the backup. Please try again.', tone: 'error' });
+    }
+  };
+
+  const readFile = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(file);
+    });
+
+  // The reader has picked a file. Check it, then say what restoring it would do before doing anything.
+  const chooseBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // so that choosing the same file again still counts
+    if (!file) return;
+    setNotice(null);
+    if (file.size > MAX_BACKUP_BYTES) {
+      setNotice({ text: 'That file is too large to be a Palimpsest backup.', tone: 'error' });
+      return;
+    }
+    try {
+      const read = readBackup(await readFile(file));
+      if (!read.ok) {
+        setNotice({ text: read.message, tone: 'error' });
+        return;
+      }
+      const plan = await poemService.planRestore(read.poems);
+      const entries = read.poems.length + read.unreadable + read.repeated;
+      if (plan.toAdd.length === 0) {
+        const { headline, details } = describeRestore(entries, plan, read.unreadable, read.repeated);
+        setNotice({ text: ['Nothing to add.', headline, ...details].join(' '), tone: 'ok' });
+        return;
+      }
+      setRestoreError(null);
+      setPendingRestore({ poems: read.poems, plan, entries, unreadable: read.unreadable, repeated: read.repeated });
+    } catch {
+      setNotice({ text: 'That file could not be read. Please try another.', tone: 'error' });
+    }
+  };
+
+  const cancelRestore = () => {
+    setPendingRestore(null);
+    focusLater(() => restoreButton.current);
+  };
+
+  const confirmRestore = async () => {
+    if (!pendingRestore) return;
+    setRestoring(true);
+    try {
+      const done = await poemService.restoreBackup(pendingRestore.poems);
+      setDrafts(await poemService.listPoems());
+      setPendingRestore(null);
+      const added = done.toAdd.length;
+      setNotice({ text: `Added ${added} ${added === 1 ? 'poem' : 'poems'} from the backup.`, tone: 'ok' });
+      focusLater(() => restoreButton.current);
+    } catch {
+      setRestoreError('The poems could not be added, and your collection has not been changed. Please try again.');
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -315,6 +409,26 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
 
         {/* Footer */}
         <div className="pt-4 border-t border-[#E0D4BE] text-center">
+          <div className="mb-2 flex flex-wrap justify-center gap-2">
+            <button type="button" onClick={backUp} className={FOOTER_ACTION}>
+              Back up all poems
+            </button>
+            <button
+              type="button"
+              ref={restoreButton}
+              onClick={() => fileInput.current?.click()}
+              className={FOOTER_ACTION}
+            >
+              Restore from a backup…
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={chooseBackup}
+            />
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -324,6 +438,27 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
           </button>
         </div>
       </div>
+
+      {pendingRestore && (
+        <ConfirmDialog
+          title="Restore from this backup?"
+          description={(() => {
+            const { headline, details } = describeRestore(
+              pendingRestore.entries,
+              pendingRestore.plan,
+              pendingRestore.unreadable,
+              pendingRestore.repeated
+            );
+            return [headline, ...details, 'Nothing you already have will be changed.'].join(' ');
+          })()}
+          confirmLabel={`Add ${pendingRestore.plan.toAdd.length} ${pendingRestore.plan.toAdd.length === 1 ? 'poem' : 'poems'}`}
+          busyLabel="Adding…"
+          onConfirm={confirmRestore}
+          onCancel={cancelRestore}
+          error={restoreError}
+          busy={restoring}
+        />
+      )}
 
       {pendingDelete && (
         <ConfirmDeleteDialog

@@ -70,8 +70,14 @@ export class BrowserPoemRepository implements PoemRepository {
   }
 
   async save(poem: Poem): Promise<void> {
+    await this.saveMany([poem]);
+  }
+
+  async saveMany(poems: Poem[]): Promise<void> {
+    // An id is a key in the stored object, and "__proto__" is not an ordinary key.
+    if (poems.some(poem => poem.id === '__proto__')) throw new Error('That poem cannot be stored.');
     const data = this.loadRaw();
-    data[poem.id] = poem;
+    for (const poem of poems) data[poem.id] = poem;
     this.writeRaw(data);
   }
 
