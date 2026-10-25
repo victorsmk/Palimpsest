@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { tokenize } from '@/lib/tokenizer';
 import { useEditor, reopenPoem } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
-import { ErasureWord } from '@/components/ErasureWord';
+import { BookText } from '@/components/BookText';
 import { ViewToggle, type StudioView } from '@/components/ViewToggle';
 import { ExtractedPoem } from '@/components/ExtractedPoem';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
@@ -193,7 +193,7 @@ export default function PrototypePage() {
             onClick={() => setIsDrawerOpen(true)}
             className="px-3.5 py-1.5 bg-[#FAF6EE] hover:bg-[#E4D8C2] border border-[#E0D4BE] rounded text-xs font-medium text-[#24231F] transition-colors shadow-sm flex items-center justify-center gap-1.5"
           >
-            <span>📖</span> My Collection
+            <span aria-hidden="true">📖</span> My Collection
           </button>
 
           {/* Passage Selector Tabs */}
@@ -203,6 +203,8 @@ export default function PrototypePage() {
               return (
                 <button
                   key={p.id}
+                  type="button"
+                  aria-pressed={isSelected}
                   onClick={() => {
                     setSelectedPassageId(p.id);
                     setCurrentPoemId(undefined);
@@ -230,7 +232,14 @@ export default function PrototypePage() {
           } text-[#FAF6EE] text-xs font-medium rounded shadow animate-in fade-in flex items-center justify-between`}
         >
           <span>{statusNotice.text}</span>
-          <button onClick={() => setStatusNotice(null)} className="opacity-80 hover:opacity-100">✕</button>
+          <button
+            type="button"
+            onClick={() => setStatusNotice(null)}
+            aria-label="Dismiss message"
+            className="opacity-80 hover:opacity-100"
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
         </div>
       )}
 
@@ -261,24 +270,15 @@ export default function PrototypePage() {
               </div>
 
               {/* Book Page Body */}
-              <article className="font-literary text-[17px] leading-[2.1] text-[#24231F] select-none">
-                {paragraphs.map((paraTokens, pIdx) => (
-                  <p key={pIdx} className="mb-6 indent-6">
-                    {paraTokens.map(tok => (
-                      <ErasureWord
-                        key={tok.id}
-                        token={tok}
-                        isRetained={retainedSet.has(tok.id)}
-                        style={erasureStyle}
-                        onClick={toggleToken}
-                      />
-                    ))}
-                  </p>
-                ))}
-              </article>
+              <BookText
+                paragraphs={paragraphs}
+                retainedSet={retainedSet}
+                style={erasureStyle}
+                onToggle={toggleToken}
+              />
 
               {/* Page Footer */}
-              <div className="text-center mt-10 pt-4 border-t border-[#ECE3D0] text-[11px] text-[#8B867C]">
+              <div className="text-center mt-10 pt-4 border-t border-[#ECE3D0] text-[11px] text-[#605C53]">
                 Public domain source via{' '}
                 <a
                   href={activePassage.data.attribution.url}
@@ -294,7 +294,11 @@ export default function PrototypePage() {
         </div>
 
         {/* Right Col: Controls */}
-        <aside className="flex flex-col gap-6">
+        <aside aria-label="Studio controls" className="flex flex-col gap-6">
+          {/* Announces the effect of keeping or erasing words to screen readers. */}
+          <p role="status" className="sr-only">
+            {retainedCount} {retainedCount === 1 ? 'word' : 'words'} kept, {erasedCount} erased.
+          </p>
           {/* History & Studio Controls Card */}
           <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
@@ -307,6 +311,7 @@ export default function PrototypePage() {
                   onClick={undo}
                   disabled={!canUndo}
                   title="Undo (Ctrl+Z)"
+                  aria-label="Undo"
                   className={`px-2.5 py-1 text-xs rounded border transition-colors ${
                     canUndo
                       ? 'border-[#E0D4BE] hover:bg-[#E4D8C2] text-[#24231F]'
@@ -319,6 +324,7 @@ export default function PrototypePage() {
                   onClick={redo}
                   disabled={!canRedo}
                   title="Redo (Ctrl+Y)"
+                  aria-label="Redo"
                   className={`px-2.5 py-1 text-xs rounded border transition-colors ${
                     canRedo
                       ? 'border-[#E0D4BE] hover:bg-[#E4D8C2] text-[#24231F]'
@@ -364,7 +370,7 @@ export default function PrototypePage() {
                 onClick={() => setIsSaveModalOpen(true)}
                 className="w-full py-2 bg-[#6C3438] hover:bg-[#57292D] text-[#F3EBDD] rounded text-xs font-medium transition-colors shadow-sm flex items-center justify-center gap-1.5"
               >
-                <span>💾</span> Save Draft to Collection
+                <span aria-hidden="true">💾</span> Save Draft to Collection
               </button>
 
               <div className="flex gap-2">
@@ -405,7 +411,7 @@ export default function PrototypePage() {
       />
 
       {/* Footer */}
-      <footer className="max-w-4xl mx-auto w-full mt-10 text-center text-xs text-[#8B867C] border-t border-[#E4D8C2] pt-4">
+      <footer className="max-w-4xl mx-auto w-full mt-10 text-center text-xs text-[#605C53] border-t border-[#E4D8C2] pt-4">
         Palimpsest © 2026 — Found Poetry & Erasure Workshop · Phase 2 Functional Studio
       </footer>
     </div>

@@ -38,8 +38,11 @@ interface StyleSelectorProps {
 
 export function StyleSelector({ currentStyle, onSelectStyle }: StyleSelectorProps) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] uppercase tracking-wider text-[#57544E] font-semibold">
+    <div role="group" aria-labelledby="erasure-style-label" className="flex flex-col gap-1.5">
+      <span
+        id="erasure-style-label"
+        className="text-[11px] uppercase tracking-wider text-[#57544E] font-semibold"
+      >
         Erasure Style
       </span>
       <div className="grid grid-cols-3 gap-2">
@@ -49,6 +52,7 @@ export function StyleSelector({ currentStyle, onSelectStyle }: StyleSelectorProp
             <button
               key={style.id}
               type="button"
+              aria-pressed={isSelected}
               onClick={() => onSelectStyle(style.id)}
               className={`flex flex-col items-center justify-center p-2.5 rounded border transition-all text-left ${
                 isSelected
@@ -57,11 +61,11 @@ export function StyleSelector({ currentStyle, onSelectStyle }: StyleSelectorProp
               }`}
             >
               {/* Visual preview swatch */}
-              <div className="h-4 w-12 flex items-center justify-center text-[10px] select-none mb-1.5 font-literary">
+              <div aria-hidden="true" className="h-4 w-12 flex items-center justify-center text-[10px] select-none mb-1.5 font-literary">
                 <span className={`px-1.5 py-0.5 ${style.previewClass}`}>Word</span>
               </div>
               <span className="text-xs font-medium text-[#24231F]">{style.label}</span>
-              <span className="text-[10px] text-[#8B867C] text-center leading-tight mt-0.5">
+              <span className="text-[10px] text-[#605C53] text-center leading-tight mt-0.5">
                 {style.description}
               </span>
             </button>

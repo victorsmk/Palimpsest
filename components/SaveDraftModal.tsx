@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
+import { useDialog } from './useDialog';
 
 interface SaveDraftModalProps {
   isOpen: boolean;
@@ -29,6 +30,8 @@ function SaveDraftForm({
   const [notes, setNotes] = useState(initialNotes);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const headingId = useId();
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,16 +49,24 @@ function SaveDraftForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px] p-4">
-      <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-xl max-w-md w-full p-6 text-[#24231F] animate-in fade-in zoom-in-95 duration-150">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={headingId}
+        tabIndex={-1}
+        className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-xl max-w-md w-full p-6 text-[#24231F] animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between border-b border-[#E0D4BE] pb-3 mb-4">
-          <h3 className="font-serif font-bold text-lg text-[#24231F]">
+          <h3 id={headingId} className="font-serif font-bold text-lg text-[#24231F]">
             Save Poem Draft
           </h3>
           <button
+            type="button"
             onClick={onClose}
-            className="text-[#8B867C] hover:text-[#24231F] text-lg font-bold p-1"
+            aria-label="Close"
+            className="text-[#605C53] hover:text-[#24231F] text-lg font-bold p-1"
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         </div>
 
@@ -75,7 +86,7 @@ function SaveDraftForm({
               placeholder="e.g. Winter Twilight"
               required
               className="w-full px-3 py-2 bg-[#F3EBDD] border border-[#DDD5C5] rounded text-sm text-[#24231F] focus:outline-none focus:ring-1 focus:ring-[#24231F]"
-              autoFocus
+              data-autofocus
             />
           </div>
 
@@ -84,7 +95,7 @@ function SaveDraftForm({
               htmlFor="poem-notes"
               className="block text-xs font-medium uppercase tracking-wider text-[#57544E] mb-1.5"
             >
-              Notes <span className="normal-case tracking-normal text-[#8B867C]">(optional)</span>
+              Notes <span className="normal-case tracking-normal text-[#605C53]">(optional)</span>
             </label>
             <textarea
               id="poem-notes"
@@ -103,7 +114,7 @@ function SaveDraftForm({
             <div>
               <span className="font-semibold text-[#24231F]">Words Retained:</span> {retainedCount}
             </div>
-            <div className="text-[11px] text-[#8B867C] pt-1">
+            <div className="text-[11px] text-[#605C53] pt-1">
               Drafts are stored locally in your browser storage.
             </div>
           </div>

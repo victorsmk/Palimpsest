@@ -46,7 +46,7 @@ export default function Home() {
             <p>essential facts of life, and</p>
             <p>see if I could not&rdquo;</p>
           </div>
-          <span className="text-xs text-[#8B867C] block border-t border-[#ECE3D0] pt-3">
+          <span className="text-xs text-[#605C53] block border-t border-[#ECE3D0] pt-3">
             Henry David Thoreau, <em>Walden</em> (1854)
           </span>
         </div>
@@ -60,7 +60,7 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="max-w-4xl mx-auto w-full text-center text-xs text-[#8B867C] border-t border-[#E4D8C2] pt-6">
+      <footer className="max-w-4xl mx-auto w-full text-center text-xs text-[#605C53] border-t border-[#E4D8C2] pt-6">
         Palimpsest © 2026 — Local-first browser workshop powered by Project Gutenberg texts & CMU Pronouncing Dictionary.
       </footer>
     </div>
