@@ -128,7 +128,7 @@ export function FoundPoemCard({
             aria-expanded={expanded}
             aria-controls={variantsId}
             onClick={() => setExpanded(open => !open)}
-            className={`rounded text-[13px] text-[#6C3438] underline ${FOCUS_RING}`}
+            className={`rounded py-1 text-[13px] text-[#6C3438] underline ${FOCUS_RING}`}
           >
             <span aria-hidden="true">{expanded ? '▾' : '▸'} </span>
             {variants.length} other {plural(variants.length, 'way', 'ways')} to read this

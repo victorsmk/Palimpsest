@@ -10,3 +10,4 @@ export {
   resolveFoundHandoff,
 } from './found';
 export type { FoundHandoff, FoundHandoffResult, ReadHandoff } from './found';
+export { discoverHash, discoverHref, readDiscoverPassage } from './discover';

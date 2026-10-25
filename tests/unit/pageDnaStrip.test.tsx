@@ -1,11 +1,20 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createElement } from 'react';
 import { layoutPageDnaBlocks, type PageDna, type PageDnaBlock } from '@/lib/search/found';
-import { PageDnaStrip } from '@/components/PageDnaStrip';
+import { PageDnaStrip, PageDnaTrack } from '@/components/PageDnaStrip';
 import type { PageDnaState } from '@/components/usePageDna';
 import { render } from '../helpers/react';
 import golden from '../fixtures/found-families.json';
+
+// next/link needs the App Router; here it is just an anchor.
+vi.mock('next/link', async () => {
+  const { createElement: h } = await import('react');
+  return {
+    default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) =>
+      h('a', { href, ...rest }, children),
+  };
+});
 
 const block = (id: string, start: number, end: number, variants = 0, words = 100): PageDnaBlock => ({
   familyId: id,
@@ -65,6 +74,120 @@ describe('layoutPageDnaBlocks', () => {
         }
       }
     }
+  });
+});
+
+describe('layoutPageDnaBlocks with a minimum width', () => {
+  // Blocks are fractions of a 100-word passage: 'a' 0-9 is 0.00-0.10.
+  it('draws blocks at their true size when no minimum is asked for', () => {
+    const { placed } = layoutPageDnaBlocks([block('a', 0, 9), block('b', 15, 24)]);
+    expect(placed.map(p => [p.start, p.end])).toEqual([[0, 0.1], [0.15, 0.25]]);
+  });
+
+  it('widens a block that is narrower than the minimum, keeping its start', () => {
+    const { placed } = layoutPageDnaBlocks([block('a', 0, 4)], 0.2); // 0.00-0.05 -> 0.00-0.20
+    expect(placed[0].start).toBe(0);
+    expect(placed[0].end).toBeCloseTo(0.2);
+  });
+
+  it('never narrows a block that is already wide enough', () => {
+    const { placed } = layoutPageDnaBlocks([block('a', 10, 59)], 0.2); // 0.10-0.60
+    expect([placed[0].start, placed[0].end]).toEqual([0.1, 0.6]);
+  });
+
+  it('works out the rows from the widened blocks, so nothing overlaps', () => {
+    // True blocks 0.00-0.10 and 0.15-0.25 do not touch (one row). Widened to 0.20 the first reaches
+    // 0.20, past the second's start at 0.15, so the second needs its own row.
+    expect(layoutPageDnaBlocks([block('a', 0, 9), block('b', 15, 24)]).rows).toBe(1);
+    const widened = layoutPageDnaBlocks([block('a', 0, 9), block('b', 15, 24)], 0.2);
+    expect(widened.placed.map(p => p.row)).toEqual([0, 1]);
+    expect(widened.rows).toBe(2);
+  });
+
+  it('slides a widened block left instead of letting it run off the end of the strip', () => {
+    const { placed } = layoutPageDnaBlocks([block('z', 95, 99)], 0.2); // 0.95-1.00 -> 0.80-1.00
+    expect(placed[0].start).toBeCloseTo(0.8);
+    expect(placed[0].end).toBeCloseTo(1);
+  });
+
+  it('caps a minimum larger than the whole strip at the strip', () => {
+    const { placed } = layoutPageDnaBlocks([block('a', 10, 19)], 5);
+    expect([placed[0].start, placed[0].end]).toEqual([0, 1]);
+  });
+
+  it('keeps no two blocks of a row overlapping, however wide the minimum', () => {
+    const blocks = [block('a', 2, 8), block('b', 12, 20), block('c', 25, 30), block('d', 33, 40), block('e', 70, 74), block('f', 90, 99)];
+    for (const minimum of [0, 0.05, 0.1, 0.25, 0.5]) {
+      const { placed } = layoutPageDnaBlocks(blocks, minimum);
+      for (const a of placed) {
+        for (const b of placed) {
+          if (a !== b && a.row === b.row) {
+            expect(a.end <= b.start + 1e-9 || b.end <= a.start + 1e-9, `min ${minimum}: ${a.block.familyId}/${b.block.familyId}`).toBe(true);
+          }
+        }
+        expect(a.end - a.start).toBeGreaterThanOrEqual(Math.min(1, minimum) - 1e-9);
+        expect(a.start).toBeGreaterThanOrEqual(-1e-9);
+        expect(a.end).toBeLessThanOrEqual(1 + 1e-9);
+      }
+    }
+  });
+});
+
+describe('PageDnaTrack minimum block size', () => {
+  afterEach(() => {
+    delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+  });
+
+  /** A browser that reports the strip as `width` pixels wide as soon as it is watched. */
+  const stripIsPixelsWide = (width: number) => {
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+      constructor(private callback: (entries: { contentRect: { width: number } }[]) => void) {}
+      observe() {
+        this.callback([{ contentRect: { width } }]);
+      }
+      disconnect() {}
+    };
+  };
+  const track = (blocks: PageDnaBlock[], minBlockPx?: number) =>
+    render(
+      createElement(PageDnaTrack, { blocks, description: 'strip', height: 60, minBlockPx, onSelectPoem: () => {} })
+    );
+  const widths = (container: Element) => [...container.querySelectorAll<HTMLElement>('[data-poem]')].map(b => b.style.width);
+
+  it('widens blocks that would be narrower than the minimum on a narrow strip', () => {
+    stripIsPixelsWide(300); // 24px plus half a pixel of headroom, of 300px, is 8.167%
+    const { container } = track([block('a', 0, 4), block('b', 50, 79)], 24); // 5% and 30% wide
+    expect(widths(container)).toEqual(['8.167%', '30%']);
+    for (const width of widths(container)) expect((parseFloat(width) / 100) * 300).toBeGreaterThanOrEqual(24);
+  });
+
+  it('leaves blocks at their true size on a strip wide enough, or when no minimum is set', () => {
+    stripIsPixelsWide(1000); // 24px of 1000 is 2.4%
+    expect(widths(track([block('a', 0, 4)], 24).container)).toEqual(['5%']);
+    stripIsPixelsWide(300);
+    expect(widths(track([block('a', 0, 4)]).container)).toEqual(['5%']);
+  });
+
+  it('makes the strip tall enough that every row of blocks is at least the minimum high', () => {
+    stripIsPixelsWide(300);
+    // Three blocks that overlap once widened to 8% need three rows: 4+4 padding, 3*24, 2*3 gaps = 86px.
+    const { container } = track([block('a', 0, 4), block('b', 3, 7), block('c', 5, 9)], 24);
+    const strip = container.querySelector<HTMLElement>('[role=group]')!;
+    expect(strip.style.height).toBe('86px');
+    for (const b of container.querySelectorAll<HTMLElement>('[data-poem]')) {
+      expect(parseFloat(b.style.height)).toBeGreaterThanOrEqual(24);
+    }
+  });
+
+  it('keeps the strip at the requested height when the rows already fit', () => {
+    stripIsPixelsWide(300);
+    const { container } = track([block('a', 0, 9), block('b', 50, 59)], 24);
+    expect(container.querySelector<HTMLElement>('[role=group]')!.style.height).toBe('60px');
+  });
+
+  it('copes with a browser that has no size observer', () => {
+    const { container } = track([block('a', 0, 4)], 24);
+    expect(widths(container)).toEqual(['5%']); // true size until it can measure
   });
 });
 
@@ -147,6 +270,28 @@ describe('PageDnaStrip', () => {
     const { container } = show({ status: 'ready', pageDna: pageDna() });
     const strip = container.querySelector('[role=img]')!;
     expect(strip.getAttribute('aria-label')).toBe('Page DNA strip. 3 poems to find, about one every 24 words.');
+  });
+
+  describe('the link to Discover', () => {
+    const showLinked = (state: PageDnaState) =>
+      render(createElement(PageDnaStrip, { state, discoverHref: '/discover#passage=walden-woods' }));
+
+    it('leads to the poems in this passage, when there are some to read', () => {
+      const { container } = showLinked({ status: 'ready', pageDna: pageDna() });
+      const link = container.querySelector('a')!;
+      expect(link.getAttribute('href')).toBe('/discover#passage=walden-woods');
+      expect(text(link)).toBe('Read these poems in Discover →');
+    });
+
+    it('is left out when nothing links to Discover, or there is nothing to read', () => {
+      expect(show({ status: 'ready', pageDna: pageDna() }).container.querySelector('a')).toBeNull();
+      expect(
+        showLinked({ status: 'ready', pageDna: { poemsToFind: 0, per100Words: 0, wordsPerPoem: null, blocks: [] } })
+          .container.querySelector('a')
+      ).toBeNull();
+      expect(showLinked({ status: 'loading' }).container.querySelector('a')).toBeNull();
+      expect(showLinked({ status: 'unavailable' }).container.querySelector('a')).toBeNull();
+    });
   });
 
   it('says so, with an empty strip, when there is nothing to find', () => {

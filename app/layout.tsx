@@ -13,7 +13,11 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Palimpsest — Found Poetry & Erasure Workshop",
+  // Pages name themselves ("Studio", "Discover"); the template adds the site name.
+  title: {
+    default: "Palimpsest — Found Poetry & Erasure Workshop",
+    template: "%s · Palimpsest",
+  },
   description: "Discover hidden poetry inside classic literary texts by erasing words.",
 };
 
@@ -28,6 +32,13 @@ export default function RootLayout({
       className={`${literata.variable} ${dmSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-[#F3EBDD] text-[#24231F]">
+        {/* First thing a keyboard user reaches: jump past the header to the page's main content. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded focus:bg-[#24231F] focus:px-3 focus:py-2 focus:text-sm focus:text-[#F3EBDD]"
+        >
+          Skip to main content
+        </a>
         {children}
       </body>
     </html>

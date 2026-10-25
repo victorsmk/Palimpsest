@@ -101,7 +101,8 @@ export function DiscoverBody({ passage, state, otherPassages, onChoosePassage }:
         <div className="min-w-0 flex-1">
           <PageDnaTrack
             blocks={pageDna.blocks}
-            height={46}
+            height={60}
+            minBlockPx={24}
             numbered
             description={`Page DNA strip. ${pageDna.poemsToFind} ${noun} to find, about one every ${pageDna.wordsPerPoem} words. Each block goes to its poem.`}
             onSelectPoem={goToPoem}

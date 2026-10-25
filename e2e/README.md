@@ -55,3 +55,6 @@ where Firefox starts there.
   its words and line breaks; the link is removed from the address bar; bad or stale links are refused.
 - `discover.spec.ts`: the Discover page: every poem found in each passage against the golden fixture,
   expandable variants, "Open in editor" landing in the Studio, the clickable strip, and a phone-sized screen.
+- `navigation.spec.ts`: page titles, the skip link, the links between Home, the Studio and Discover, the
+  passage kept in Discover's address, keyboard order, spoken announcements, strip-number contrast and
+  24px touch targets. In WebKit (like Safari) Tab skips links, so those checks adapt per browser.

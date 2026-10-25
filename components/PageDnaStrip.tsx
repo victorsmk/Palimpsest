@@ -1,5 +1,7 @@
 'use client';
 
+import { useCallback, useState } from 'react';
+import Link from 'next/link';
 import { layoutPageDnaBlocks, type PageDnaBlock } from '@/lib/search/found';
 import type { PageDnaState } from './usePageDna';
 
@@ -15,8 +17,13 @@ interface PageDnaTrackProps {
   blocks: PageDnaBlock[];
   /** Spoken description of the strip as a whole. */
   description: string;
-  /** Track height in pixels. */
+  /** Track height in pixels (taller if the blocks need more rows than this leaves room for). */
   height?: number;
+  /**
+   * The smallest a block may be drawn, in pixels, in both directions. Short poems on a narrow strip
+   * are widened to this and the rows rearranged, so every block stays big enough to tap.
+   */
+  minBlockPx?: number;
   /** Number the blocks 1..n, in reading order. */
   numbered?: boolean;
   /** Makes each block a button that selects its poem. Without it the strip is a picture. */
@@ -35,33 +42,56 @@ export function PageDnaTrack({
   blocks,
   description,
   height = 34,
+  minBlockPx,
   numbered = false,
   onSelectPoem,
   activePoemId = null,
   onHoverPoem,
 }: PageDnaTrackProps) {
-  const { placed, rows } = layoutPageDnaBlocks(blocks);
-  const rowHeight = (height - 2 * TRACK_PADDING - (rows - 1) * ROW_GAP) / rows;
+  // The minimum size is in pixels, so the strip has to know its own width. A callback ref watches it
+  // (until the first measurement the blocks are drawn at their true size).
+  const [trackWidth, setTrackWidth] = useState(0);
+  const watchWidth = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (!element || !minBlockPx || typeof ResizeObserver === 'undefined') return;
+      const observer = new ResizeObserver(entries => setTrackWidth(entries[0].contentRect.width));
+      observer.observe(element);
+      return () => observer.disconnect();
+    },
+    [minBlockPx]
+  );
+
+  // Half a pixel of headroom, so rounding the percentages can never leave a block a hair under the minimum.
+  const minFraction = minBlockPx && trackWidth > 0 ? (minBlockPx + 0.5) / trackWidth : 0;
+  const { placed, rows } = layoutPageDnaBlocks(blocks, minFraction);
+  const neededHeight = minBlockPx ? 2 * TRACK_PADDING + rows * minBlockPx + (rows - 1) * ROW_GAP : 0;
+  const trackHeight = Math.max(height, neededHeight);
+  const rowHeight = (trackHeight - 2 * TRACK_PADDING - (rows - 1) * ROW_GAP) / rows;
   const interactive = onSelectPoem !== undefined;
 
   return (
     <div
+      ref={watchWidth}
       role={interactive ? 'group' : 'img'}
       aria-label={description}
       className="relative w-full rounded-[5px] bg-[#E4D8C2]"
-      style={{ height }}
+      style={{ height: trackHeight }}
     >
-      {placed.map(({ block, row }, index) => {
+      {placed.map(({ block, row, start, end }, index) => {
         const style = {
-          left: percent(block.startFraction),
-          width: percent(block.endFraction - block.startFraction),
+          left: percent(start),
+          width: percent(end - start),
           top: TRACK_PADDING + row * (rowHeight + ROW_GAP),
           height: rowHeight,
           opacity: Math.min(1, 0.5 + 0.12 * block.variants),
         };
         const className = 'absolute block rounded-[2px] bg-[#6C3438]';
+        // A cream chip with dark text, so the number reads on a block of any shade.
         const label = numbered ? (
-          <span className="text-[11px] font-bold leading-none text-white" aria-hidden="true">
+          <span
+            className="inline-flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-[#FAF6EE] text-[10px] font-bold leading-none text-[#24231F]"
+            aria-hidden="true"
+          >
             {index + 1}
           </span>
         ) : null;
@@ -106,7 +136,14 @@ export function PageDnaTrack({
  * The headline says it in plain words; the strip shows each poem as a block at its place in the
  * passage; the per-100-words figure is only a hover detail.
  */
-export function PageDnaStrip({ state }: { state: PageDnaState }) {
+export function PageDnaStrip({
+  state,
+  discoverHref,
+}: {
+  state: PageDnaState;
+  /** Where to read the poems: a link under the strip, shown when there are poems to find. */
+  discoverHref?: string;
+}) {
   const ready = state.status === 'ready' ? state.pageDna : null;
 
   let headline: React.ReactNode;
@@ -160,6 +197,15 @@ export function PageDnaStrip({ state }: { state: PageDnaState }) {
         <p className="text-xs text-[#57544E]">
           about one every {ready.wordsPerPoem} {plural(ready.wordsPerPoem, 'word', 'words')}
         </p>
+      )}
+
+      {ready && ready.poemsToFind > 0 && discoverHref && (
+        <Link
+          href={discoverHref}
+          className="self-start rounded py-1 text-xs font-medium text-[#6C3438] underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
+        >
+          Read these poems in Discover →
+        </Link>
       )}
     </div>
   );

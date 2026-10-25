@@ -13,7 +13,13 @@ export default function Home() {
             Found Poetry & Erasure Workshop
           </p>
         </div>
-        <nav className="flex items-center gap-4">
+        <nav aria-label="Main" className="flex items-center gap-3">
+          <Link
+            href="/discover"
+            className="px-4 py-2 border border-[#24231F] text-[#24231F] rounded text-xs font-medium hover:bg-[#E4D8C2]/50 transition-colors"
+          >
+            Discover poems
+          </Link>
           <Link
             href="/studio"
             className="px-4 py-2 bg-[#24231F] text-[#F3EBDD] rounded text-xs font-medium hover:bg-[#3D3A33] transition-colors shadow-sm"
@@ -24,7 +30,7 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-3xl mx-auto w-full my-auto py-16 text-center flex flex-col items-center">
+      <main id="main" tabIndex={-1} className="max-w-3xl mx-auto w-full my-auto py-16 text-center flex flex-col items-center outline-none">
         <span className="text-xs uppercase tracking-widest text-[#6C3438] font-bold mb-4">
           Uncovering accidental verse
         </span>
@@ -51,12 +57,20 @@ export default function Home() {
           </span>
         </div>
 
-        <Link
-          href="/studio"
-          className="inline-flex items-center justify-center px-6 py-3 bg-[#6C3438] hover:bg-[#57292D] text-[#F3EBDD] rounded-md font-medium text-sm transition-all shadow-md hover:shadow-lg"
-        >
-          Open the Studio
-        </Link>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/discover"
+            className="inline-flex items-center justify-center px-6 py-3 bg-[#6C3438] hover:bg-[#57292D] text-[#F3EBDD] rounded-md font-medium text-sm transition-all shadow-md hover:shadow-lg"
+          >
+            Find the poems in a text
+          </Link>
+          <Link
+            href="/studio"
+            className="inline-flex items-center justify-center px-6 py-3 border border-[#24231F] text-[#24231F] hover:bg-[#E4D8C2]/50 rounded-md font-medium text-sm transition-colors"
+          >
+            Open the Studio
+          </Link>
+        </div>
       </main>
 
       {/* Footer */}
