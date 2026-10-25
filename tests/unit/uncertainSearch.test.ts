@@ -186,4 +186,24 @@ describe('Assisted search with an ambiguous word (1 or 2 syllables) at word 20 o
     expect(best(candidates.filter(c => c.hasUncertain))).toBe(50);
     expect(candidates[0].hasUncertain).toBe(false);
   });
+
+  it('with onlyUncertain, returns just the poems that rely on it, chosen from among themselves', () => {
+    // Among all poems the better definite ones fill this short passage and crowd the uncertain ones out...
+    const mixed = assistedSearch(tokens, syllables, 'p', { limit: 50, allowUncertain: true });
+    expect(mixed.candidates.some(c => c.hasUncertain)).toBe(false);
+
+    // ...so asking for the uncertain ones alone picks the best of those, different from one another.
+    const only = assistedSearch(tokens, syllables, 'p', { limit: 50, allowUncertain: true, onlyUncertain: true });
+    expect(only.candidates.length).toBeGreaterThan(0);
+    expect(only.candidates.every(c => c.hasUncertain)).toBe(true);
+    expect(only.candidates[0].score).toBe(50);
+    for (let i = 0; i < only.candidates.length; i++) {
+      for (let j = i + 1; j < only.candidates.length; j++) {
+        const [a, b] = [only.candidates[i], only.candidates[j]];
+        const overlap = Math.min(a.endWord, b.endWord) - Math.max(a.startWord, b.startWord) + 1;
+        const shorter = Math.min(a.endWord - a.startWord, b.endWord - b.startWord) + 1;
+        expect(overlap <= 0 || overlap / shorter <= 0.4).toBe(true);
+      }
+    }
+  });
 });

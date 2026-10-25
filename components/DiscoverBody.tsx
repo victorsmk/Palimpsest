@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Passage } from '@/lib/models';
 import { FoundPoemCard, poemCardId } from './FoundPoemCard';
 import { PageDnaTrack, plural } from './PageDnaStrip';
+import { UncertainPoems } from './UncertainPoems';
 import type { FoundAnalysisState } from './useFoundAnalysis';
 
 interface DiscoverBodyProps {
@@ -39,34 +40,40 @@ export function DiscoverBody({ passage, state, otherPassages, onChoosePassage }:
 
   const { analysis } = state;
   const { families, pageDna, wordCount } = analysis;
+  const uncertain = (
+    <UncertainPoems passage={passage} families={analysis.uncertainFamilies} wordCount={wordCount} />
+  );
 
   if (families.length === 0) {
     return (
-      <section className="rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] px-6 py-10 text-center">
-        <h2 className="font-serif text-xl font-bold">No poems to find here</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-[#57544E]">
-          {analysis.hiddenByWeakEnding > 0
-            ? 'Some stretches of this passage fall into three lines of 5, 7 and 5 syllables, but every one of them ends a line on a word like “the” or “and”.'
-            : 'Nothing in this passage falls into three lines of 5, 7 and 5 syllables when it is read straight through.'}
-        </p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-[#57544E]">
-          Words our dictionary does not know can also hide poems.
-        </p>
-        {otherPassages.length > 0 && (
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            {otherPassages.map(other => (
-              <button
-                key={other.id}
-                type="button"
-                onClick={() => onChoosePassage(other.id)}
-                className="rounded-md border border-[#24231F] px-3 py-1.5 text-xs text-[#24231F] hover:bg-[#E4D8C2]/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
-              >
-                Try {other.attribution.title}
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      <>
+        <section className="rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] px-6 py-10 text-center">
+          <h2 className="font-serif text-xl font-bold">No poems to find here</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-[#57544E]">
+            {analysis.hiddenByWeakEnding > 0
+              ? 'Some stretches of this passage fall into three lines of 5, 7 and 5 syllables, but every one of them ends a line on a word like “the” or “and”.'
+              : 'Nothing in this passage falls into three lines of 5, 7 and 5 syllables when it is read straight through.'}
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-[#57544E]">
+            Words our dictionary does not know can also hide poems.
+          </p>
+          {otherPassages.length > 0 && (
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {otherPassages.map(other => (
+                <button
+                  key={other.id}
+                  type="button"
+                  onClick={() => onChoosePassage(other.id)}
+                  className="rounded-md border border-[#24231F] px-3 py-1.5 text-xs text-[#24231F] hover:bg-[#E4D8C2]/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
+                >
+                  Try {other.attribution.title}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+        {uncertain}
+      </>
     );
   }
 
@@ -132,6 +139,8 @@ export function DiscoverBody({ passage, state, otherPassages, onChoosePassage }:
           </li>
         ))}
       </ol>
+
+      {uncertain}
     </div>
   );
 }

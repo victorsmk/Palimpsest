@@ -53,6 +53,11 @@ export interface AssistedSearchOptions {
    * only words with a definite count are used.
    */
   allowUncertain?: boolean;
+  /**
+   * With `allowUncertain`: return only the poems that rely on an uncertain count, chosen to differ
+   * from one another among themselves (not crowded out by similar definite poems). Default false.
+   */
+  onlyUncertain?: boolean;
   /** Checked between starting words; when it returns true the search stops and returns nothing. */
   shouldCancel?: () => boolean;
 }

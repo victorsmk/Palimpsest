@@ -12,6 +12,7 @@ import {
 } from '@/lib/search/found';
 import { foundHandoffFromCandidate, foundHandoffHref } from '@/lib/handoff';
 import { plural } from './PageDnaStrip';
+import { UncertaintyNotes } from './UncertaintyNotes';
 
 /** The DOM id of a poem's card, so the strip can scroll to it. */
 export const poemCardId = (familyId: string) => `poem-card-${familyId}`;
@@ -45,6 +46,8 @@ interface FoundPoemCardProps {
   wordCount: number;
   active: boolean;
   onActiveChange: (familyId: string | null) => void;
+  /** A poem that depends on how a word is said: named "Uncertain poem N", with a note on each such word. */
+  uncertain?: boolean;
 }
 
 /** One poem to find: its three lines, where it comes from, Open in editor, and its other readings. */
@@ -56,7 +59,9 @@ export function FoundPoemCard({
   wordCount,
   active,
   onActiveChange,
+  uncertain = false,
 }: FoundPoemCardProps) {
+  const noun = uncertain ? 'Uncertain poem' : 'Poem';
   const [expanded, setExpanded] = useState(false);
   const variantsId = useId();
   const poem = family.representative;
@@ -94,7 +99,7 @@ export function FoundPoemCard({
           {number}
         </span>
         <h2 id={`${poemCardId(family.id)}-heading`} className="sr-only">
-          Poem {number}
+          {noun} {number}
         </h2>
         <span className="text-xs text-[#605C53]">
           words {block.startWord + 1}–{block.endWord + 1} of {wordCount}
@@ -104,6 +109,7 @@ export function FoundPoemCard({
       <p className="font-literary text-lg leading-snug text-[#24231F] sm:text-[22px]">
         <Lines lines={linesOf(poem)} />
       </p>
+      {uncertain && <UncertaintyNotes lines={[poem.line1, poem.line2, poem.line3]} className="mt-2" />}
 
       <p className="mt-3 rounded-md bg-[#F3EBDD] px-3 py-2 font-literary text-sm leading-relaxed">
         <span className="text-[#605C53]">{before && `${startsBeforeContext ? '… ' : ''}${before} `}</span>
@@ -116,7 +122,7 @@ export function FoundPoemCard({
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Link
           href={foundHandoffHref(foundHandoffFromCandidate(poem))}
-          aria-label={`Open poem ${number} in the editor`}
+          aria-label={`Open ${noun.toLowerCase()} ${number} in the editor`}
           className={`rounded-md bg-[#6C3438] px-4 py-2 text-[13px] font-semibold text-[#F3EBDD] transition-colors hover:bg-[#57292D] ${FOCUS_RING}`}
         >
           Open in editor
@@ -140,7 +146,7 @@ export function FoundPoemCard({
         <ul
           id={variantsId}
           hidden={!expanded}
-          aria-label={`Other ways to read poem ${number}`}
+          aria-label={`Other ways to read ${noun.toLowerCase()} ${number}`}
           className="mt-3 grid list-none gap-2 border-t border-[#ECE3D0] pt-3"
         >
           {variants.map((variant, i) => (
@@ -148,12 +154,17 @@ export function FoundPoemCard({
               key={variant.id}
               className="flex items-center justify-between gap-3 rounded-md bg-[#F3EBDD] px-3.5 py-2.5"
             >
-              <p className="font-literary text-base leading-snug">
-                <Lines lines={linesOf(variant)} />
-              </p>
+              <div>
+                <p className="font-literary text-base leading-snug">
+                  <Lines lines={linesOf(variant)} />
+                </p>
+                {uncertain && (
+                  <UncertaintyNotes lines={[variant.line1, variant.line2, variant.line3]} className="mt-1.5" />
+                )}
+              </div>
               <Link
                 href={foundHandoffHref(foundHandoffFromCandidate(variant))}
-                aria-label={`Open variant ${i + 1} of poem ${number} in the editor`}
+                aria-label={`Open variant ${i + 1} of ${noun.toLowerCase()} ${number} in the editor`}
                 className={`shrink-0 rounded-md border border-[#24231F] px-3 py-1.5 text-xs text-[#24231F] hover:bg-[#E4D8C2]/50 ${FOCUS_RING}`}
               >
                 Open in editor

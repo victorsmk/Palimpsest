@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import type { Passage } from '@/lib/models';
 import { AssistedPoemCard } from './AssistedPoemCard';
+import { AssistUncertain } from './AssistUncertain';
 import { plural } from './PageDnaStrip';
-import type { AssistedPoemsState } from './useAssistedPoems';
+import type { AssistedPoemsState, useUncertainAssistedPoems } from './useAssistedPoems';
 
 /** How many poems show at first, and how many more each press of "Show more" adds. */
 export const FIRST_PAGE = 6;
@@ -16,6 +17,8 @@ interface AssistBodyProps {
   /** The other passages, offered when there is nothing to make from this one. */
   otherPassages: Passage[];
   onChoosePassage: (passageId: string) => void;
+  /** The search for poems that depend on how a word is said. Replaceable so that it can be tested without running it. */
+  useUncertain?: typeof useUncertainAssistedPoems;
 }
 
 /**
@@ -23,7 +26,7 @@ interface AssistBodyProps {
  * at a time), or a plain explanation when there are none. Remount it (key by passage) when the
  * passage changes so that nothing carries over.
  */
-export function AssistBody({ passage, state, otherPassages, onChoosePassage }: AssistBodyProps) {
+export function AssistBody({ passage, state, otherPassages, onChoosePassage, useUncertain }: AssistBodyProps) {
   const [shown, setShown] = useState(FIRST_PAGE);
 
   if (state.status === 'loading') {
@@ -116,6 +119,10 @@ export function AssistBody({ passage, state, otherPassages, onChoosePassage }: A
             Show {Math.min(PAGE_STEP, remaining)} more {plural(Math.min(PAGE_STEP, remaining), 'poem', 'poems')}
           </button>
         </div>
+      )}
+
+      {stats.uncertainWords > 0 && (
+        <AssistUncertain passage={passage} wordCount={stats.wordCount} useUncertain={useUncertain} />
       )}
     </div>
   );

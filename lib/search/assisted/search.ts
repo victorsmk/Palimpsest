@@ -194,7 +194,7 @@ export function assistedSearch(
 
   const wordIndexById = new Map(words.map((t, i) => [t.id, i]));
   return {
-    candidates: selectDiverse(poems, wordIndexById, {
+    candidates: selectDiverse(options.onlyUncertain ? poems.filter(p => p.hasUncertain) : poems, wordIndexById, {
       limit: o.limit,
       maxSharedWords: o.maxSharedWords,
       maxSpanOverlap: o.maxSpanOverlap,
