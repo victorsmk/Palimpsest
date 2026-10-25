@@ -270,6 +270,12 @@ function Studio({ passages }: { passages: Passage[] }) {
             >
               Discover
             </Link>
+            <Link
+              href="/assist"
+              className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors"
+            >
+              Assisted
+            </Link>
           </div>
           <h1 className="text-3xl font-serif font-bold tracking-tight text-[#24231F] mt-1">
             Palimpsest Studio

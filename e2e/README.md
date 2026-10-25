@@ -62,3 +62,7 @@ where Firefox starts there.
 - `export.spec.ts`: the text and Markdown downloads (names, lines as broken, source, notes only in
   Markdown), the disabled state with nothing kept, Print / Save as PDF (the dialog is called; in print
   media only the poem is visible; Chromium renders a one-page PDF), and the notice timer.
+- `assist.spec.ts`: the Assisted page (`/assist`): the poems of each passage (count and best poem pinned),
+  the marked source stretch, "Show more", the passage in the address, opening a poem in the Studio with
+  exactly its words, links to and from the other pages, title, skip link, keyboard, headings, 24px targets,
+  contrast of the struck-through words and no sideways scroll on a phone.

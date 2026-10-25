@@ -67,6 +67,9 @@ function Discover({ passages }: { passages: Passage[] }) {
             <Link href="/" className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors">
               Home
             </Link>
+            <Link href="/assist" className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors">
+              Assisted
+            </Link>
             <Link href="/studio" className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors">
               Studio
             </Link>

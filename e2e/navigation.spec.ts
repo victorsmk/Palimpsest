@@ -174,7 +174,7 @@ test.describe('keyboard and screen reader', () => {
     await openDiscover(page);
     const links = linksInTabOrder(browserName);
     const expected = [
-      ...(links ? ['Skip to main content', 'Home', 'Studio'] : []),
+      ...(links ? ['Skip to main content', 'Home', 'Assisted', 'Studio'] : []),
       'Jane Eyre',
       'Walden',
       'The Picture of Dorian Gray',

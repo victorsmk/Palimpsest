@@ -21,6 +21,12 @@ export default function Home() {
             Discover poems
           </Link>
           <Link
+            href="/assist"
+            className="px-4 py-2 border border-[#24231F] text-[#24231F] rounded text-xs font-medium hover:bg-[#E4D8C2]/50 transition-colors"
+          >
+            Assisted poems
+          </Link>
+          <Link
             href="/studio"
             className="px-4 py-2 bg-[#24231F] text-[#F3EBDD] rounded text-xs font-medium hover:bg-[#3D3A33] transition-colors shadow-sm"
           >
@@ -63,6 +69,12 @@ export default function Home() {
             className="inline-flex items-center justify-center px-6 py-3 bg-[#6C3438] hover:bg-[#57292D] text-[#F3EBDD] rounded-md font-medium text-sm transition-all shadow-md hover:shadow-lg"
           >
             Find the poems in a text
+          </Link>
+          <Link
+            href="/assist"
+            className="inline-flex items-center justify-center px-6 py-3 border border-[#24231F] text-[#24231F] hover:bg-[#E4D8C2]/50 rounded-md font-medium text-sm transition-colors"
+          >
+            Erase your way to a poem
           </Link>
           <Link
             href="/studio"
