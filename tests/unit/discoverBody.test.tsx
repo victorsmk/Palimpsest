@@ -58,10 +58,10 @@ describe('DiscoverBody: the poems to find', () => {
     expect(flat(container)).toContain('about one every 24 words');
   });
 
-  it('keeps the per-100-words number to a hover detail', () => {
+  it('shows no per-100-words number and no hover box', () => {
     const { container } = show();
     expect(flat(container)).not.toContain('4.23');
-    expect(container.querySelector('[title]')!.getAttribute('title')).toContain('4.23 per 100 words');
+    expect(container.querySelector('[title]')).toBeNull();
   });
 
   it('lists one card per poem, in reading order, with the poem exactly as found', () => {

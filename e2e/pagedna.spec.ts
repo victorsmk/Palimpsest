@@ -24,7 +24,7 @@ test.describe('Page DNA', () => {
     });
   }
 
-  test('puts the plain words first and keeps the per-100-words number to a hover detail', async ({ page }) => {
+  test('puts the plain words first and shows no per-100-words number and no hover box', async ({ page }) => {
     await openStudio(page);
     await passageButton(page, 'Walden').click();
     await expect(sidebar(page).getByText('9 poems to find')).toBeVisible();
@@ -34,9 +34,8 @@ test.describe('Page DNA', () => {
     await expect(page.getByText(/per 100 ?w|\/ 100w/)).toHaveCount(0);
     expect(await sidebar(page).innerText()).not.toContain('4.23');
 
-    // The number is available on hover (a title attribute), with a one-line key to the strip.
-    const hover = sidebar(page).locator('[title*="per 100 words"]');
-    await expect(hover).toHaveAttribute('title', /Each block is a poem to find.*4\.23 per 100 words/);
+    // Nor does hovering explain it: the old hover text is gone.
+    await expect(page.locator('[title*="per 100 words"], [title*="Each block"]')).toHaveCount(0);
   });
 
   test('moves to the new passage and never shows the previous passage\'s strip', async ({ page }) => {

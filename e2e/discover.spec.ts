@@ -214,10 +214,10 @@ test.describe('the strip', () => {
     await expect(card(page, 5)).toHaveAttribute('data-active', 'true');
   });
 
-  test('keeps the per-100-words number to a hover detail', async ({ page }) => {
+  test('shows no per-100-words number and no hover box', async ({ page }) => {
     await openDiscover(page, 'Walden');
     expect(await page.getByRole('main').innerText()).not.toContain('4.23');
-    await expect(page.locator('[title*="per 100 words"]').first()).toHaveAttribute('title', /4\.23 per 100 words/);
+    await expect(page.locator('[title*="per 100 words"]')).toHaveCount(0);
   });
 });
 

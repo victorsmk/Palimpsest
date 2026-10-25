@@ -84,7 +84,6 @@ export function DiscoverBody({ passage, state, otherPassages, onChoosePassage }:
     <div className="space-y-4">
       <section
         aria-labelledby="discover-dna-heading"
-        title={`Each block is a poem to find, where it sits in the passage. That is ${pageDna.per100Words} per 100 words.`}
         className="rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-4 sm:flex sm:items-center sm:gap-6"
       >
         <div className="mb-3 shrink-0 sm:mb-0">

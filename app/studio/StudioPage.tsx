@@ -472,11 +472,6 @@ function Studio({ passages }: { passages: Passage[] }) {
         onClose={() => setIsDrawerOpen(false)}
         onLoadPoem={handleLoadPoem}
       />
-
-      {/* Footer */}
-      <footer className="max-w-4xl mx-auto w-full mt-10 text-center text-xs text-[#605C53] border-t border-[#E4D8C2] pt-4">
-        Palimpsest © 2026 — Found Poetry & Erasure Workshop
-      </footer>
     </div>
   );
 }

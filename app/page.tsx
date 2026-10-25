@@ -75,7 +75,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="max-w-4xl mx-auto w-full text-center text-xs text-[#605C53] border-t border-[#E4D8C2] pt-6">
-        Palimpsest © 2026 — Local-first browser workshop powered by Project Gutenberg texts & CMU Pronouncing Dictionary.
+        Local-first browser workshop powered by Project Gutenberg texts & CMU Pronouncing Dictionary.
       </footer>
     </div>
   );

@@ -37,6 +37,16 @@ test.describe('page titles', () => {
   });
 });
 
+test.describe('no copyright line', () => {
+  for (const path of ['/', '/studio', '/discover']) {
+    test(`${path} carries no copyright notice`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.getByRole('main')).toBeVisible();
+      expect(await page.locator('body').innerText()).not.toMatch(/©|copyright/i);
+    });
+  }
+});
+
 test.describe('skip link', () => {
   for (const [name, path, ready] of [
     ['home', '/', (p: Page) => p.getByRole('heading', { level: 1 }).first()],

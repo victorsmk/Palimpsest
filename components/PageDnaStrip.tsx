@@ -134,7 +134,7 @@ export function PageDnaTrack({
 /**
  * "Page DNA" in the Studio's sidebar: how many poems there are to find in the passage, and where.
  * The headline says it in plain words; the strip shows each poem as a block at its place in the
- * passage; the per-100-words figure is only a hover detail.
+ * passage.
  */
 export function PageDnaStrip({
   state,
@@ -170,13 +170,8 @@ export function PageDnaStrip({
     description = `${ready.poemsToFind} ${plural(ready.poemsToFind, 'poem', 'poems')} to find, about one every ${ready.wordsPerPoem} ${plural(ready.wordsPerPoem ?? 0, 'word', 'words')}.`;
   }
 
-  // The number is for the curious: one line of hover text, not part of the headline.
-  const hover = ready
-    ? `Each block is a poem to find, where it sits in the passage. That is ${ready.per100Words} per 100 words.`
-    : undefined;
-
   return (
-    <div className="flex flex-col gap-1.5" title={hover} aria-busy={state.status === 'loading'}>
+    <div className="flex flex-col gap-1.5" aria-busy={state.status === 'loading'}>
       <span
         id="page-dna-label"
         className="text-[11px] uppercase tracking-wider text-[#57544E] font-semibold"

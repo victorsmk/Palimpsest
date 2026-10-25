@@ -210,13 +210,11 @@ describe('PageDnaStrip', () => {
     expect(text(container)).not.toMatch(/hidden/i);
   });
 
-  it('keeps the per-100-words figure out of the visible text and in a hover detail', () => {
+  it('shows no per-100-words figure and no hover box', () => {
     const { container } = show({ status: 'ready', pageDna: pageDna() });
     expect(text(container)).not.toContain('4.23');
     expect(text(container)).not.toMatch(/100/);
-    const hover = container.querySelector('[title]')!.getAttribute('title')!;
-    expect(hover).toContain('4.23 per 100 words');
-    expect(hover).toMatch(/each block is a poem to find/i);
+    expect(container.querySelector('[title]')).toBeNull();
   });
 
   it('uses the singular for a single poem', () => {
