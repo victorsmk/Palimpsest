@@ -51,3 +51,5 @@ where Firefox starts there.
 - `layout.spec.ts`: no word ever moves when words are erased or the erasure style changes.
 - `pagedna.spec.ts`: the Page DNA headline and strip in the Studio sidebar: poems to find per
   passage, blocks drawn at the right place and never over each other, number only as a hover detail.
+- `handoff.spec.ts`: a poem sent from Discover in the URL hash (`/studio#found=...`) opens with exactly
+  its words and line breaks; the link is removed from the address bar; bad or stale links are refused.

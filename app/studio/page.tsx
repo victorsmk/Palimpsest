@@ -13,9 +13,25 @@ import { usePageDna } from '@/components/usePageDna';
 import { PageDnaStrip } from '@/components/PageDnaStrip';
 import { bookService, poemService } from '@/lib/services';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
+import { readFoundHandoff, type ReadHandoff } from '@/lib/handoff';
 import type { Passage, Poem } from '@/lib/models';
 
 type Library = { passages: Passage[] } | { error: string };
+type Notice = { text: string; tone: 'ok' | 'error' };
+
+const openedMessage = (bookTitle: string) =>
+  `Opened a poem found in ${bookTitle}. Edit it, then save it to your collection.`;
+
+function noticeForHandoff(handoff: ReadHandoff): Notice | null {
+  if (handoff.kind === 'open') return { text: openedMessage(handoff.passage.attribution.title), tone: 'ok' };
+  if (handoff.kind === 'invalid') return { text: handoff.message, tone: 'error' };
+  return null;
+}
+
+/** Drops the hash from the address bar (keeping Next's history state) so a reload does not reapply it. */
+function clearHash() {
+  window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+}
 
 function StudioMessage({ role, children }: { role: 'status' | 'alert'; children: React.ReactNode }) {
   return (
@@ -54,20 +70,24 @@ export default function StudioPage() {
 }
 
 function Studio({ passages }: { passages: Passage[] }) {
-  const [selectedPassageId, setSelectedPassageId] = useState<string>(passages[0].id);
+  // A poem sent from Discover arrives in the URL hash. Studio only renders in the browser, after
+  // the library has loaded, so the hash can be read while choosing the initial state: the poem is
+  // open on the first render instead of the default page flashing first.
+  const [handoff] = useState<ReadHandoff>(() => readFoundHandoff(window.location.hash, passages));
+  const [selectedPassageId, setSelectedPassageId] = useState<string>(() =>
+    handoff.kind === 'open' ? handoff.passage.id : passages[0].id
+  );
   const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(undefined);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [view, setView] = useState<StudioView>('page');
   const [isExporting, setIsExporting] = useState(false);
   const exportFrameRef = useRef<HTMLDivElement>(null);
-  const [statusNotice, setStatusNotice] = useState<{ text: string; tone: 'ok' | 'error' } | null>(
-    null
-  );
+  const [statusNotice, setStatusNotice] = useState<Notice | null>(() => noticeForHandoff(handoff));
 
-  const showNotice = useCallback((text: string, tone: 'ok' | 'error' = 'ok') => {
+  const showNotice = useCallback((text: string, tone: 'ok' | 'error' = 'ok', duration?: number) => {
     setStatusNotice({ text, tone });
-    setTimeout(() => setStatusNotice(null), tone === 'error' ? 7000 : 3500);
+    setTimeout(() => setStatusNotice(null), duration ?? (tone === 'error' ? 7000 : 3500));
   }, []);
 
   const activePassage = useMemo(
@@ -103,7 +123,35 @@ function Studio({ passages }: { passages: Passage[] }) {
   } = useEditor({
     passageId: activePassage.id,
     tokens,
+    initialSnapshot: handoff.kind === 'open' ? handoff.snapshot : undefined,
   });
+
+  // Once a hand-off has been read, take it out of the address bar and let its notice go in time.
+  useEffect(() => {
+    if (handoff.kind === 'none') return;
+    clearHash();
+    const timer = setTimeout(() => setStatusNotice(null), handoff.kind === 'open' ? 8000 : 7000);
+    return () => clearTimeout(timer);
+  }, [handoff]);
+
+  // A link that changes only the hash while the Studio is already open does not reload the page.
+  useEffect(() => {
+    function onHashChange() {
+      const next = readFoundHandoff(window.location.hash, passages);
+      if (next.kind === 'none') return;
+      clearHash();
+      if (next.kind === 'invalid') {
+        showNotice(next.message, 'error');
+        return;
+      }
+      setSelectedPassageId(next.passage.id);
+      setCurrentPoemId(undefined);
+      loadSnapshot(next.snapshot, next.passage.id);
+      showNotice(openedMessage(next.passage.attribution.title), 'ok', 8000);
+    }
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [passages, loadSnapshot, showNotice]);
 
   // Handle saving to repository
   const handleSaveDraft = async (title: string, notes: string) => {
