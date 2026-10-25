@@ -50,9 +50,17 @@ for (const [name, viewport] of [
       const baselineHeight = await frameHeight(page);
       expect(baseline.length).toBeGreaterThan(150);
 
-      // Erase every third word, in the default style.
-      const words = pageWords(page);
-      for (let i = 0; i < baseline.length; i += 3) await words.nth(i).click();
+      // Erase every third word, in the default style. One in-page step instead of ~70 separate
+      // clicks: how a click is delivered is covered by other specs, and this keeps the test fast
+      // enough for the slower engines.
+      await pageWords(page).evaluateAll(words =>
+        words.forEach((word, i) => {
+          if (i % 3 === 0) (word as HTMLElement).click();
+        })
+      );
+      await expect(page.locator('article button[aria-pressed="false"]')).toHaveCount(
+        Math.ceil(baseline.length / 3)
+      );
       expect(await movedWords(page, baseline), 'after erasing every third word').toMatchObject({
         count: baseline.length,
         movedTotal: 0,

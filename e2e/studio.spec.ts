@@ -193,11 +193,13 @@ test.describe('export', () => {
       const box = await sizeOfFrame(page, 'page');
       const [download] = await Promise.all([page.waitForEvent('download'), exportButton.click()]);
       expect(download.suggestedFilename()).toBe('palimpsest-walden-where-i-lived-and-what-i-lived-for-page.png');
+      // Check the notice first: it dismisses itself after a few seconds, and decoding the
+      // image below can take longer than that in slower engines.
+      await expect(page.getByRole('status').filter({ hasText: 'Page exported as PNG.' })).toBeVisible();
 
       const png = await readPng(page, download);
       expect(Math.abs(png.width - box.width * 2), `${label} width`).toBeLessThanOrEqual(2);
       expect(Math.abs(png.height - box.height * 2), `${label} height`).toBeLessThanOrEqual(2);
-      await expect(page.getByRole('status').filter({ hasText: 'Page exported as PNG.' })).toBeVisible();
     }
   });
 
@@ -242,10 +244,11 @@ test.describe('export', () => {
       page.getByRole('button', { name: 'Export poem as PNG' }).click(),
     ]);
     expect(download.suggestedFilename()).toBe('palimpsest-quiet-woods-poem.png');
+    // The notice dismisses itself after a few seconds, so check it before decoding the image.
+    await expect(page.getByRole('status').filter({ hasText: 'Poem exported as PNG.' })).toBeVisible();
     const png = await readPng(page, download);
     expect(Math.abs(png.width - box.width * 2)).toBeLessThanOrEqual(2);
     expect(Math.abs(png.height - box.height * 2)).toBeLessThanOrEqual(2);
-    await expect(page.getByRole('status').filter({ hasText: 'Poem exported as PNG.' })).toBeVisible();
   });
 });
 

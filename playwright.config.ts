@@ -1,6 +1,11 @@
+import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
+// Optional, machine-specific settings (kept out of git): see e2e/README.md.
+if (existsSync('.env.e2e.local')) process.loadEnvFile('.env.e2e.local');
+
 const PORT = 3100;
+const firefoxExecutable = process.env.PW_FIREFOX_EXECUTABLE;
 
 export default defineConfig({
   testDir: './e2e',
@@ -12,7 +17,18 @@ export default defineConfig({
     acceptDownloads: true,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        ...(firefoxExecutable ? { launchOptions: { executablePath: firefoxExecutable } } : {}),
+      },
+    },
+    // Playwright's own WebKit build: a close proxy for Safari's engine, not Safari itself.
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+  ],
   // Test the production build, the closest thing to what users get.
   webServer: {
     command: `npm run build && npm run start -- -p ${PORT}`,
