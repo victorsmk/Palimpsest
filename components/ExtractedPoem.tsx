@@ -44,7 +44,11 @@ export function ExtractedPoem({
             All words are erased. Switch to the page and keep the words that belong in your poem.
           </p>
         ) : (
-          <div className="font-literary text-xl leading-loose text-center text-[#24231F] max-w-md">
+          <div
+            role="group"
+            aria-label="Poem text"
+            className="font-literary text-xl leading-loose text-center text-[#24231F] max-w-md"
+          >
             {tokens.map((token, i) => {
               const breaksAfter = lineBreakSet.has(token.id);
               return (
