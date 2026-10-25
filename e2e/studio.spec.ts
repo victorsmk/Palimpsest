@@ -98,8 +98,8 @@ test.describe('create, save, reopen', () => {
     await saveDraft(page, 'Doomed');
 
     await openCollection(page);
-    page.once('dialog', dialog => dialog.accept()); // the confirm() prompt
     await page.getByRole('button', { name: 'Delete draft Doomed' }).click();
+    await page.getByRole('alertdialog', { name: 'Delete “Doomed”?' }).getByRole('button', { name: 'Delete poem' }).click();
     await expect(page.getByText('No drafts yet')).toBeVisible();
   });
 });

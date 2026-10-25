@@ -529,6 +529,7 @@ function Studio({ passages }: { passages: Passage[] }) {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onLoadPoem={handleLoadPoem}
+        passages={passages}
       />
     </div>
   );

@@ -7,6 +7,7 @@ import { SaveDraftModal } from '@/components/SaveDraftModal';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
 import { StyleSelector } from '@/components/StyleSelector';
 import type { Poem } from '@/lib/models';
+import { bundledPassages } from '@/lib/library/bundled';
 import { click, render } from '../helpers/react';
 
 function press(target: Element, key: string, init: KeyboardEventInit = {}) {
@@ -209,7 +210,7 @@ describe('DraftsDrawer keyboard access', () => {
 
   async function mountDrawer(onLoadPoem = vi.fn(), onClose = vi.fn()) {
     localStorage.setItem('palimpsest:poems:v1', JSON.stringify({ p1: poem }));
-    const view = render(createElement(DraftsDrawer, { isOpen: true, onClose, onLoadPoem }));
+    const view = render(createElement(DraftsDrawer, { isOpen: true, onClose, onLoadPoem, passages: bundledPassages }));
     await act(async () => {
       await new Promise(r => setTimeout(r, 0));
     });
@@ -239,13 +240,47 @@ describe('DraftsDrawer keyboard access', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('asks for confirmation before deleting and does not open the draft', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('asks before deleting, in a dialog of its own, and does not open the draft', async () => {
     const { container, onLoadPoem } = await mountDrawer();
     click(container.querySelector('button[aria-label="Delete draft Pond"]'));
-    expect(window.confirm).toHaveBeenCalledOnce();
+    const confirm = container.querySelector('[role=alertdialog]')!;
+    expect(confirm).not.toBeNull();
+    expect(confirm.querySelector('h2')!.textContent).toBe('Delete “Pond”?');
     expect(onLoadPoem).not.toHaveBeenCalled();
+    expect(container.querySelectorAll('li')).toHaveLength(1); // nothing deleted yet
+  });
+
+  it('starts on Cancel, and Escape cancels without closing the collection or deleting anything', async () => {
+    const { container, onClose } = await mountDrawer();
+    click(container.querySelector('button[aria-label="Delete draft Pond"]'));
+    const confirm = container.querySelector('[role=alertdialog]')!;
+    expect(document.activeElement?.textContent).toBe('Cancel');
+
+    press(confirm, 'Escape');
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 0));
+    });
+    expect(container.querySelector('[role=alertdialog]')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled(); // the collection stays open
     expect(container.querySelectorAll('li')).toHaveLength(1);
+    expect(document.activeElement).toBe(container.querySelector('button[aria-label="Delete draft Pond"]'));
+  });
+
+  it('deletes only when confirmed, then keeps the reader inside the collection', async () => {
+    const { container } = await mountDrawer();
+    click(container.querySelector('button[aria-label="Delete draft Pond"]'));
+    const confirmButton = [...container.querySelectorAll('[role=alertdialog] button')].find(b => b.textContent === 'Delete poem')!;
+    click(confirmButton);
+    for (let i = 0; i < 2; i++) {
+      await act(async () => {
+        await new Promise(r => setTimeout(r, 0));
+      });
+    }
+    expect(container.querySelector('[role=alertdialog]')).toBeNull();
+    expect(container.querySelectorAll('li')).toHaveLength(0);
+    expect(container.textContent).toContain('No drafts yet');
+    expect(JSON.parse(localStorage.getItem('palimpsest:poems:v1') ?? '{}')).toEqual({});
+    expect(document.activeElement).toBe(container.querySelector('[role=dialog]'));
   });
 });
 

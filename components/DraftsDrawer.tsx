@@ -1,14 +1,18 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
-import type { Poem } from '@/lib/models';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { Passage, Poem } from '@/lib/models';
+import { poemPreview } from '@/lib/poems/preview';
 import { poemService } from '@/lib/services';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { useDialog } from './useDialog';
 
 interface DraftsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onLoadPoem: (poem: Poem) => void;
+  /** The library's passages, so each poem can show its book and its first lines. */
+  passages: Passage[];
 }
 
 export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
@@ -16,11 +20,18 @@ export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
   return isOpen ? <DraftsPanel {...panelProps} /> : null;
 }
 
-function DraftsPanel({ onClose, onLoadPoem }: Omit<DraftsDrawerProps, 'isOpen'>) {
+function DraftsPanel({ onClose, onLoadPoem, passages }: Omit<DraftsDrawerProps, 'isOpen'>) {
   // null while the first fetch is in flight
   const [drafts, setDrafts] = useState<Poem[] | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Poem | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  // The Delete button that asked the question, to give focus back to if the reader cancels. Not left
+  // to the dialog: Safari does not focus a button when it is clicked.
+  const deleteTrigger = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const dialogRef = useDialog<HTMLDivElement>(onClose);
+  const passageById = useMemo(() => new Map(passages.map(p => [p.id, p])), [passages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,10 +46,34 @@ function DraftsPanel({ onClose, onLoadPoem }: Omit<DraftsDrawerProps, 'isOpen'>)
     };
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this saved draft?')) {
-      await poemService.deletePoem(id);
+  // Focus is set once the dialog has gone, after React has finished with it.
+  const focusLater = (target: () => HTMLElement | null | undefined) => setTimeout(() => target()?.focus(), 0);
+
+  const askToDelete = (poem: Poem, trigger: HTMLElement) => {
+    deleteTrigger.current = trigger;
+    setDeleteError(null);
+    setPendingDelete(poem);
+  };
+
+  const cancelDelete = () => {
+    setPendingDelete(null);
+    focusLater(() => deleteTrigger.current);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await poemService.deletePoem(pendingDelete.id);
       setDrafts(await poemService.listPoems());
+      setPendingDelete(null);
+      // The Delete button that opened the question is gone with its poem, so keep the reader's
+      // place in the collection instead of dropping focus onto the page.
+      focusLater(() => dialogRef.current);
+    } catch {
+      setDeleteError('This poem could not be deleted. Please try again.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -103,6 +138,8 @@ function DraftsPanel({ onClose, onLoadPoem }: Omit<DraftsDrawerProps, 'isOpen'>)
                   minute: '2-digit',
                 });
                 const name = poem.title || 'Untitled Poem';
+                const passage = passageById.get(poem.passageId);
+                const preview = poemPreview(poem, passage);
 
                 return (
                   <li
@@ -118,8 +155,30 @@ function DraftsPanel({ onClose, onLoadPoem }: Omit<DraftsDrawerProps, 'isOpen'>)
                       <span className="block font-serif font-semibold text-sm text-[#24231F] group-hover:text-[#6C3438] transition-colors mb-1">
                         {name}
                       </span>
-                      <span className="block text-[11px] text-[#57544E] mb-3">
-                        Passage: <span className="font-medium text-[#24231F]">{poem.passageId}</span>
+                      <span className="block text-[11px] text-[#57544E] mb-2">
+                        {passage ? (
+                          <>
+                            From <span className="font-medium text-[#24231F]">{passage.attribution.title}</span>
+                          </>
+                        ) : (
+                          'Its book is no longer in the library'
+                        )}
+                      </span>
+                      <span className="mb-3 block font-literary text-[13px] leading-snug text-[#24231F]">
+                        {preview === null ? (
+                          <span className="italic text-[#57544E]">This poem can no longer be shown.</span>
+                        ) : preview.lines.length === 0 ? (
+                          <span className="italic text-[#57544E]">No words kept.</span>
+                        ) : (
+                          <>
+                            {preview.lines.map((line, i) => (
+                              <span key={i} className="block">
+                                {line}{' '}
+                              </span>
+                            ))}
+                            {preview.more && <span className="block text-[#57544E]">…</span>}
+                          </>
+                        )}
                       </span>
                       <span className="flex items-center justify-between text-[11px] pt-2 border-t border-[#E0D4BE]/60">
                         <span className="flex items-center gap-2">
@@ -133,7 +192,7 @@ function DraftsPanel({ onClose, onLoadPoem }: Omit<DraftsDrawerProps, 'isOpen'>)
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(poem.id)}
+                      onClick={event => askToDelete(poem, event.currentTarget)}
                       aria-label={`Delete draft ${name}`}
                       className="absolute top-3 right-3 text-xs text-[#605C53] hover:text-red-700 px-2 py-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
                     >
@@ -157,6 +216,16 @@ function DraftsPanel({ onClose, onLoadPoem }: Omit<DraftsDrawerProps, 'isOpen'>)
           </button>
         </div>
       </div>
+
+      {pendingDelete && (
+        <ConfirmDeleteDialog
+          name={pendingDelete.title || 'Untitled Poem'}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          error={deleteError}
+          busy={deleting}
+        />
+      )}
     </div>
   );
 }
