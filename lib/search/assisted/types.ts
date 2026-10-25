@@ -47,14 +47,22 @@ export interface AssistedSearchOptions {
   maxSharedWords?: number;
   /** Two returned poems may cover at most this fraction of the shorter one's stretch of the passage. Default 0.4. */
   maxSpanOverlap?: number;
+  /**
+   * Let words whose count is ambiguous or estimated take part (a word with several possible counts is
+   * tried with each). Poems that use one are flagged `hasUncertain` and rank lower. Off by default:
+   * only words with a definite count are used.
+   */
+  allowUncertain?: boolean;
   /** Checked between starting words; when it returns true the search stops and returns nothing. */
   shouldCancel?: () => boolean;
 }
 
 export interface AssistedSearchStats {
   wordCount: number;
-  /** Words with no known syllable count. They are never kept, only skipped over. */
+  /** Words with no usable count in this search. They are never kept, only skipped over. */
   wordsWithoutCount: number;
+  /** Words that have a count only through a dictionary disagreement or an estimate. */
+  uncertainWords: number;
   /** 5- and 7-syllable lines the search kept (the best few for each starting word). */
   linesKept: { five: number; seven: number };
   /** Poems put together and ranked before the diverse set was chosen. */

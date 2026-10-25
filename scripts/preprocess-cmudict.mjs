@@ -46,7 +46,8 @@ async function processDict() {
 
   console.log(`Aggregated ${countsMap.size} unique words.`);
 
-  // Build the compact map: word -> number | 'ambiguous'
+  // Build the compact map: word -> number (one count in every pronunciation) or an ascending
+  // array of the counts the pronunciations disagree on, e.g. "deliberately" -> [4, 5].
   const output = {};
   let definiteCount = 0;
   let ambiguousCount = 0;
@@ -56,7 +57,7 @@ async function processDict() {
       output[word] = Array.from(counts)[0];
       definiteCount++;
     } else {
-      output[word] = 'ambiguous';
+      output[word] = Array.from(counts).sort((a, b) => a - b);
       ambiguousCount++;
     }
   }

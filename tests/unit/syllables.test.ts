@@ -50,6 +50,12 @@ describe('Syllable Counter module', () => {
     expect(delib.confidence).toBe('ambiguous');
   });
 
+  it('keeps every count an ambiguous word may have, in ascending order', async () => {
+    expect((await countSyllables('deliberately')).counts).toEqual([4, 5]);
+    expect((await countSyllables('hour')).counts).toEqual([1, 2]);
+    expect((await countSyllables('especially')).counts).toEqual([3, 4]);
+  });
+
   it('marks unknown words and non-words explicitly as unknown', async () => {
     const gibberish = await countSyllables('xkwzql');
     expect(gibberish.count).toBeNull();

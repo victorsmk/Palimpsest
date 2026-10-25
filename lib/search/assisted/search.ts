@@ -1,5 +1,5 @@
 import type { Token } from '@/lib/models';
-import type { SyllableResult } from '@/lib/syllables';
+import { countChoices, type CountChoice, type SyllableResult } from '@/lib/syllables';
 import { scoreLine, scorePoem } from './score';
 import { selectDiverse } from './select';
 import type {
@@ -60,60 +60,64 @@ export function assistedSearch(
   const syllables: SyllableResult[] = words.map(
     t => syllableMap.get(t.id) ?? { word: t.word, count: null, confidence: 'unknown' }
   );
-  const counts = syllables.map(s => s.count);
+  const allowUncertain = options.allowUncertain ?? false;
+  const choices: CountChoice[][] = syllables.map(s => countChoices(s, allowUncertain));
 
   const stats = {
     wordCount: n,
-    wordsWithoutCount: counts.filter(c => c === null).length,
+    wordsWithoutCount: choices.filter(c => c.length === 0).length,
+    uncertainWords: syllables.filter(s => s.confidence !== 'definite' && countChoices(s, true).length > 0).length,
     linesKept: { five: 0, seven: 0 },
     poemsConsidered: 0,
     workLimitReached: false,
     cancelled: false,
   };
 
-  function makeLine(indices: number[], totalSyllables: number): KeptLine {
+  function makeLine(indices: number[], results: SyllableResult[], totalSyllables: number): KeptLine {
     const start = indices[0];
     const end = indices[indices.length - 1];
     const line: AssistedLine = {
       tokens: indices.map(i => words[i]),
-      syllableResults: indices.map(i => syllables[i]),
+      syllableResults: [...results],
       totalSyllables,
       gapCount: end - start + 1 - indices.length,
-      hasUncertain: indices.some(i => syllables[i].confidence !== 'definite'),
+      hasUncertain: results.some(r => r.confidence !== 'definite'),
     };
     return { line, start, end, score: scoreLine(line) };
   }
 
   /** The best lines of `target` syllables that begin with word `start`. */
   function linesFrom(start: number, target: number): KeptLine[] {
-    const first = counts[start];
-    if (first === null || first > target) return [];
-
     const found: KeptLine[] = [];
-    const chosen = [start];
+    const chosen: number[] = [];
+    const chosenResults: SyllableResult[] = [];
     const lastAllowed = Math.min(start + o.maxSpanPerLine - 1, n - 1);
     let steps = 0;
     let outOfWork = false;
 
-    const walk = (last: number, sum: number) => {
-      if (sum === target) {
-        found.push(makeLine(chosen, target));
-        return;
-      }
-      const reach = Math.min(last + 1 + o.maxGapBetweenWords, lastAllowed);
-      for (let next = last + 1; next <= reach && !outOfWork; next++) {
-        const c = counts[next];
-        if (c === null || sum + c > target) continue;
+    // Add word `index` once for each count it may take, then carry on from there.
+    const take = (index: number, sum: number) => {
+      for (const choice of choices[index]) {
+        if (outOfWork) return;
+        if (sum + choice.count > target) continue;
         if (++steps > o.maxWorkPerStart) {
           outOfWork = true;
           return;
         }
-        chosen.push(next);
-        walk(next, sum + c);
+        chosen.push(index);
+        chosenResults.push(choice.result);
+        if (sum + choice.count === target) found.push(makeLine(chosen, chosenResults, target));
+        else walk(index, sum + choice.count);
         chosen.pop();
+        chosenResults.pop();
       }
     };
-    walk(start, first);
+
+    const walk = (last: number, sum: number) => {
+      const reach = Math.min(last + 1 + o.maxGapBetweenWords, lastAllowed);
+      for (let next = last + 1; next <= reach && !outOfWork; next++) take(next, sum);
+    };
+    take(start, 0);
 
     if (outOfWork) stats.workLimitReached = true;
     // Best first; among equals the one that ends sooner. Ties beyond that keep the order found.

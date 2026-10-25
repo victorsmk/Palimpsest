@@ -27,7 +27,7 @@ export class FoundService {
     const syllables = new Map<string, SyllableResult>(
       words.map(token => [token.id, lookupWord(token.word, dictionary)])
     );
-    const candidates = foundSearch(passage.tokens, syllables, passage.id);
+    const candidates = foundSearch(passage.tokens, syllables, passage.id, { allowUncertain: true });
     return analyzeFound(passage.tokens, candidates);
   }
 }

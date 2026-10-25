@@ -40,6 +40,10 @@ export function selectFoundFamilies(
  * Everything a Found page needs about a passage: the families to list, the Page DNA (poems to
  * find, where they are, how dense), and what was left out. `tokens` is the passage's full token
  * list and `candidates` are the results of `foundSearch` on it.
+ *
+ * Candidates that rely on an uncertain syllable count (an ambiguous or estimated word) are kept
+ * apart: the families, Page DNA and counts describe only candidates whose counts are all definite,
+ * and the uncertain ones are grouped separately into `uncertainFamilies`.
  */
 export function analyzeFound(
   tokens: Token[],
@@ -50,7 +54,9 @@ export function analyzeFound(
   const wordIndex = new Map(words.map((word, i) => [word.id, i]));
   const wordCount = words.length;
 
-  const families = selectFoundFamilies(candidates, options);
+  const definite = candidates.filter(c => !c.hasUncertain);
+  const uncertain = candidates.filter(c => c.hasUncertain);
+  const families = selectFoundFamilies(definite, options);
 
   const blocks: PageDnaBlock[] = families.map(family => {
     const representative = foundCandidateTokens(family.representative);
@@ -79,7 +85,13 @@ export function analyzeFound(
       wordsPerPoem: families.length > 0 ? Math.round(wordCount / families.length) : null,
       blocks,
     },
-    hiddenByWeakEnding: excludeWeak ? candidates.filter(hasWeakEnding).length : 0,
-    totalCandidates: candidates.length,
+    hiddenByWeakEnding: excludeWeak ? definite.filter(hasWeakEnding).length : 0,
+    totalCandidates: definite.length,
+    // Their own ids, so a family here never shares an id with one of the definite families.
+    uncertainFamilies: selectFoundFamilies(uncertain, options).map(family => ({
+      ...family,
+      id: family.id.replace('-family-', '-uncertain-'),
+    })),
+    uncertainCandidates: uncertain.length,
   };
 }

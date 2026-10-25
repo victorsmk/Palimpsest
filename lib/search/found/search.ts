@@ -1,5 +1,5 @@
 import type { Token } from '@/lib/models';
-import type { SyllableResult } from '@/lib/syllables';
+import { countChoices, type SyllableResult } from '@/lib/syllables';
 import type { FoundCandidate, FoundLine } from './types';
 
 function buildLine(tokens: Token[], syllableResults: SyllableResult[]): FoundLine {
@@ -21,6 +21,18 @@ function makeFingerprint(l1: Token[], l2: Token[], l3: Token[]): string {
   ].join('|');
 }
 
+export interface FoundSearchOptions {
+  /**
+   * Let words whose count is ambiguous (the dictionary's pronunciations disagree) or estimated (not in
+   * the dictionary, worked out by a rule) take part. A word with several possible counts is tried
+   * with each. Candidates that use one are flagged `hasUncertain`. Off by default: only words with a
+   * definite count are used, exactly as before.
+   */
+  allowUncertain?: boolean;
+}
+
+const TARGETS = [5, 7, 5] as const;
+
 /**
  * Searches for contiguous 5–7–5 syllable sequences in a tokenized passage.
  * Intervening words within lines and between lines cannot be skipped.
@@ -28,108 +40,77 @@ function makeFingerprint(l1: Token[], l2: Token[], l3: Token[]): string {
 export function foundSearch(
   tokens: Token[],
   syllableMap: Map<string, SyllableResult>,
-  passageId: string
+  passageId: string,
+  options: FoundSearchOptions = {}
 ): FoundCandidate[] {
+  const allowUncertain = options.allowUncertain ?? false;
   // Only search across selectable word tokens
   const wordTokens = tokens.filter(t => t.isSelectable && t.kind === 'word');
+  const choices = wordTokens.map(token =>
+    countChoices(
+      syllableMap.get(token.id) ?? { word: token.word, count: null, confidence: 'unknown' },
+      allowUncertain
+    )
+  );
   const candidates: FoundCandidate[] = [];
   const seenFingerprints = new Set<string>();
 
   for (let startIdx = 0; startIdx < wordTokens.length; startIdx++) {
-    // ─── Line 1 (Target: 5 syllables) ───────────────────────────
-    let sum1 = 0;
-    const l1Tokens: Token[] = [];
-    const l1Syls: SyllableResult[] = [];
+    const lines: { tokens: Token[]; syllables: SyllableResult[] }[] = [];
+    let lineTokens: Token[] = [];
+    let lineSyllables: SyllableResult[] = [];
 
-    for (let i = startIdx; i < wordTokens.length; i++) {
-      const tok1 = wordTokens[i];
-      const syl1 = syllableMap.get(tok1.id) ?? {
-        word: tok1.word,
-        count: null,
-        confidence: 'unknown',
-      };
+    // Extend the current line with word i, once for each count the word may have. A line ends the
+    // first time it reaches its target exactly; going past it, or meeting a word with no usable
+    // count, ends that branch.
+    const walk = (lineIdx: number, i: number, sum: number) => {
+      if (i >= wordTokens.length) return;
+      for (const choice of choices[i]) {
+        const next = sum + choice.count;
+        if (next > TARGETS[lineIdx]) continue;
 
-      if (syl1.count === null) break; // Cannot count accurately through an unknown word
-      sum1 += syl1.count;
-      l1Tokens.push(tok1);
-      l1Syls.push(syl1);
+        lineTokens.push(wordTokens[i]);
+        lineSyllables.push(choice.result);
 
-      if (sum1 === 5) {
-        // ─── Line 2 (Target: 7 syllables) ─────────────────────────
-        const line2Start = i + 1;
-        if (line2Start >= wordTokens.length) break;
+        if (next < TARGETS[lineIdx]) {
+          walk(lineIdx, i + 1, next);
+        } else if (lineIdx < 2) {
+          lines.push({ tokens: lineTokens, syllables: lineSyllables });
+          const [keptTokens, keptSyllables] = [lineTokens, lineSyllables];
+          lineTokens = [];
+          lineSyllables = [];
+          walk(lineIdx + 1, i + 1, 0);
+          lineTokens = keptTokens;
+          lineSyllables = keptSyllables;
+          lines.pop();
+        } else {
+          const [l1, l2] = lines;
+          const fp = makeFingerprint(l1.tokens, l2.tokens, lineTokens);
+          if (!seenFingerprints.has(fp)) {
+            seenFingerprints.add(fp);
 
-        let sum2 = 0;
-        const l2Tokens: Token[] = [];
-        const l2Syls: SyllableResult[] = [];
+            const line1 = buildLine([...l1.tokens], [...l1.syllables]);
+            const line2 = buildLine([...l2.tokens], [...l2.syllables]);
+            const line3 = buildLine([...lineTokens], [...lineSyllables]);
 
-        for (let j = line2Start; j < wordTokens.length; j++) {
-          const tok2 = wordTokens[j];
-          const syl2 = syllableMap.get(tok2.id) ?? {
-            word: tok2.word,
-            count: null,
-            confidence: 'unknown',
-          };
-
-          if (syl2.count === null) break;
-          sum2 += syl2.count;
-          l2Tokens.push(tok2);
-          l2Syls.push(syl2);
-
-          if (sum2 === 7) {
-            // ─── Line 3 (Target: 5 syllables) ───────────────────────
-            const line3Start = j + 1;
-            if (line3Start >= wordTokens.length) break;
-
-            let sum3 = 0;
-            const l3Tokens: Token[] = [];
-            const l3Syls: SyllableResult[] = [];
-
-            for (let k = line3Start; k < wordTokens.length; k++) {
-              const tok3 = wordTokens[k];
-              const syl3 = syllableMap.get(tok3.id) ?? {
-                word: tok3.word,
-                count: null,
-                confidence: 'unknown',
-              };
-
-              if (syl3.count === null) break;
-              sum3 += syl3.count;
-              l3Tokens.push(tok3);
-              l3Syls.push(syl3);
-
-              if (sum3 === 5) {
-                const fp = makeFingerprint(l1Tokens, l2Tokens, l3Tokens);
-                if (!seenFingerprints.has(fp)) {
-                  seenFingerprints.add(fp);
-
-                  const line1 = buildLine(l1Tokens, l1Syls);
-                  const line2 = buildLine(l2Tokens, l2Syls);
-                  const line3 = buildLine(l3Tokens, l3Syls);
-
-                  candidates.push({
-                    id: fp,
-                    passageId,
-                    line1,
-                    line2,
-                    line3,
-                    startPosition: l1Tokens[0].position,
-                    endPosition: l3Tokens[l3Tokens.length - 1].position,
-                    hasUncertain: line1.hasUncertain || line2.hasUncertain || line3.hasUncertain,
-                  });
-                }
-                break; // Found valid line 3 for this line 2
-              }
-              if (sum3 > 5) break; // Exceeded line 3 target
-            }
-            break; // Found valid line 2 for this line 1
+            candidates.push({
+              id: fp,
+              passageId,
+              line1,
+              line2,
+              line3,
+              startPosition: l1.tokens[0].position,
+              endPosition: line3.tokens[line3.tokens.length - 1].position,
+              hasUncertain: line1.hasUncertain || line2.hasUncertain || line3.hasUncertain,
+            });
           }
-          if (sum2 > 7) break; // Exceeded line 2 target
         }
-        break; // Found valid line 1 for this start position
+
+        lineTokens.pop();
+        lineSyllables.pop();
       }
-      if (sum1 > 5) break; // Exceeded line 1 target
-    }
+    };
+    walk(0, startIdx, 0);
   }
 
   return candidates;

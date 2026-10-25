@@ -258,6 +258,8 @@ describe('DiscoverBody: when there is nothing to show', () => {
       pageDna: { poemsToFind: 0, per100Words: 0, wordsPerPoem: null, blocks: [] },
       hiddenByWeakEnding: 0,
       totalCandidates: 0,
+      uncertainFamilies: [],
+      uncertainCandidates: 0,
       ...overrides,
     });
 

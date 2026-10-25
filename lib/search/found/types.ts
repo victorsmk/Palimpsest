@@ -65,8 +65,16 @@ export interface FoundAnalysis {
   pageDna: PageDna;
   /** Candidates left out because a line ends on a weak word. */
   hiddenByWeakEnding: number;
-  /** Every distinct candidate the search found, before anything is hidden or grouped. */
+  /** Every distinct candidate with definite counts that the search found, before anything is hidden or grouped. */
   totalCandidates: number;
+  /**
+   * Poems that depend on a word whose syllable count is uncertain (ambiguous, or estimated from a
+   * related word): weak endings excluded and grouped like `families`, but kept apart from them and
+   * from the Page DNA, which describe only candidates with definite counts.
+   */
+  uncertainFamilies: FoundFamily[];
+  /** Candidates that rely on an uncertain count, before anything is hidden or grouped. */
+  uncertainCandidates: number;
 }
 
 export interface FoundCandidate {
