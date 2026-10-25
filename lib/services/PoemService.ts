@@ -12,6 +12,23 @@ export interface SavePoemInput {
   erasureStyle: ErasureStyle;
 }
 
+/** The longest title a poem can be given when it is renamed or copied. */
+export const MAX_TITLE_LENGTH = 120;
+
+const UNTITLED = 'Untitled Poem';
+const COPY_SUFFIX = ' (copy)';
+
+/** A title as it is stored: trimmed, never empty, never longer than the limit. */
+export function cleanTitle(title: string): string {
+  return title.trim().slice(0, MAX_TITLE_LENGTH).trimEnd() || UNTITLED;
+}
+
+/** The title of a copy: "Quiet Woods (copy)", with the original cut short if the result would be too long. */
+export function copyTitle(title: string | undefined): string {
+  const base = (title?.trim() || UNTITLED).slice(0, MAX_TITLE_LENGTH - COPY_SUFFIX.length).trimEnd();
+  return `${base}${COPY_SUFFIX}`;
+}
+
 export class PoemService {
   private repo: PoemRepository;
 
@@ -51,6 +68,30 @@ export class PoemService {
     const list = await this.repo.list();
     // Sort by most recently updated first
     return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+
+  /**
+   * Gives a poem a new title and nothing else: its words, breaks, style and notes are kept. It counts
+   * as a change, so the poem moves to the top of the list.
+   */
+  async renamePoem(id: string, title: string): Promise<Poem> {
+    const poem = await this.repo.get(id);
+    if (!poem) throw new Error('That poem is no longer in your collection.');
+    return this.savePoem({ ...poem, title: cleanTitle(title) });
+  }
+
+  /** Saves a separate copy of a poem, titled "... (copy)". The original is not touched. */
+  async duplicatePoem(id: string): Promise<Poem> {
+    const poem = await this.repo.get(id);
+    if (!poem) throw new Error('That poem is no longer in your collection.');
+    return this.savePoem({
+      passageId: poem.passageId,
+      title: copyTitle(poem.title),
+      notes: poem.notes,
+      retainedTokenIds: poem.retainedTokenIds,
+      lineBreaks: poem.lineBreaks,
+      erasureStyle: poem.erasureStyle,
+    });
   }
 
   async deletePoem(id: string): Promise<void> {

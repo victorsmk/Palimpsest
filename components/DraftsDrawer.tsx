@@ -5,6 +5,7 @@ import type { Passage, Poem } from '@/lib/models';
 import { poemPreview } from '@/lib/poems/preview';
 import { poemService } from '@/lib/services';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
+import { RenamePoemForm } from './RenamePoemForm';
 import { useDialog } from './useDialog';
 
 interface DraftsDrawerProps {
@@ -13,19 +14,32 @@ interface DraftsDrawerProps {
   onLoadPoem: (poem: Poem) => void;
   /** The library's passages, so each poem can show its book and its first lines. */
   passages: Passage[];
+  /** Called after a poem is renamed here, so the Studio can follow if that poem is the one open. */
+  onRenamed?: (poem: Poem) => void;
 }
+
+/** A small text button on a poem's card. Tall enough to touch (at least 24 px). */
+const ACTION =
+  'rounded px-2.5 py-1 text-xs text-[#57544E] hover:bg-[#E4D8C2]/60 hover:text-[#24231F] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
 
 export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
   // The panel mounts fresh on every open, so it always starts in the loading state.
   return isOpen ? <DraftsPanel {...panelProps} /> : null;
 }
 
-function DraftsPanel({ onClose, onLoadPoem, passages }: Omit<DraftsDrawerProps, 'isOpen'>) {
+function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDrawerProps, 'isOpen'>) {
   // null while the first fetch is in flight
   const [drafts, setDrafts] = useState<Poem[] | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Poem | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  // What the last rename or copy did, said on screen and aloud; or why it failed.
+  const [notice, setNotice] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   // The Delete button that asked the question, to give focus back to if the reader cancels. Not left
   // to the dialog: Safari does not focus a button when it is clicked.
   const deleteTrigger = useRef<HTMLElement | null>(null);
@@ -77,6 +91,60 @@ function DraftsPanel({ onClose, onLoadPoem, passages }: Omit<DraftsDrawerProps, 
     }
   };
 
+  // A card's action buttons are found by poem, since the list is reordered by every rename and copy.
+  const actionButton = (action: 'rename' | 'duplicate', id: string) =>
+    [...(dialogRef.current?.querySelectorAll<HTMLElement>(`[data-${action}-for]`) ?? [])].find(
+      el => el.dataset[`${action}For`] === id
+    );
+
+  const startRename = (poem: Poem) => {
+    setRenameError(null);
+    setNotice(null);
+    setRenamingId(poem.id);
+  };
+
+  const stopRename = (poem: Poem) => {
+    setRenamingId(null);
+    focusLater(() => actionButton('rename', poem.id));
+  };
+
+  const saveRename = async (poem: Poem, title: string) => {
+    setRenameBusy(true);
+    try {
+      const renamed = await poemService.renamePoem(poem.id, title);
+      setDrafts(await poemService.listPoems());
+      setRenamingId(null);
+      setNotice({ text: `Renamed to “${renamed.title}”.`, tone: 'ok' });
+      onRenamed?.(renamed);
+      focusLater(() => actionButton('rename', poem.id));
+    } catch {
+      setRenameError('Could not rename this poem. Please try again.');
+    } finally {
+      setRenameBusy(false);
+    }
+  };
+
+  const duplicate = async (poem: Poem) => {
+    if (duplicatingId) return;
+    setDuplicatingId(poem.id);
+    setNotice(null);
+    try {
+      const copy = await poemService.duplicatePoem(poem.id);
+      setDrafts(await poemService.listPoems());
+      setNotice({ text: `Duplicated as “${copy.title}”.`, tone: 'ok' });
+      // The copy is the newest poem, so it is first in the list: bring it into view.
+      setTimeout(() => {
+        if (listRef.current) listRef.current.scrollTop = 0;
+      }, 0);
+    } catch {
+      setNotice({ text: 'Could not duplicate this poem. Please try again.', tone: 'error' });
+    } finally {
+      // Not released at once: the new copy takes the top of the list and moves every card down, so a
+      // second click of a double click would land on a different poem's Duplicate button.
+      setTimeout(() => setDuplicatingId(null), 700);
+    }
+  };
+
   const handleSelect = (poem: Poem) => {
     onLoadPoem(poem);
     onClose();
@@ -112,13 +180,21 @@ function DraftsPanel({ onClose, onLoadPoem, passages }: Omit<DraftsDrawerProps, 
             </button>
           </div>
 
-          <p className="text-xs text-[#57544E] mb-4">
+          <p className="text-xs text-[#57544E] mb-2">
             Select a draft to resume editing on the book page:
           </p>
+          <p role="status" className="mb-2 min-h-4 text-xs text-[#5B5D45]">
+            {notice?.tone === 'ok' ? notice.text : ''}
+          </p>
+          {notice?.tone === 'error' && (
+            <p role="alert" className="mb-2 text-xs text-[#6C3438]">
+              {notice.text}
+            </p>
+          )}
         </div>
 
         {/* Drafts List */}
-        <div className="flex-1 overflow-y-auto pr-1 py-1">
+        <div ref={listRef} className="flex-1 overflow-y-auto pr-1 py-1">
           {drafts === null ? (
             <div role="status" className="text-center py-12 text-xs text-[#605C53]">
               Loading your collection...
@@ -146,58 +222,90 @@ function DraftsPanel({ onClose, onLoadPoem, passages }: Omit<DraftsDrawerProps, 
                     key={poem.id}
                     className="relative bg-[#F3EBDD] hover:bg-[#E4D8C2]/80 border border-[#E0D4BE] rounded-lg transition-all shadow-sm hover:shadow group"
                   >
-                    {/* Opening the draft and deleting it are separate buttons: a button cannot nest another. */}
-                    <button
-                      type="button"
-                      onClick={() => handleSelect(poem)}
-                      className="block w-full text-left p-4 pr-20 rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
-                    >
-                      <span className="block font-serif font-semibold text-sm text-[#24231F] group-hover:text-[#6C3438] transition-colors mb-1">
-                        {name}
-                      </span>
-                      <span className="block text-[11px] text-[#57544E] mb-2">
-                        {passage ? (
-                          <>
-                            From <span className="font-medium text-[#24231F]">{passage.attribution.title}</span>
-                          </>
-                        ) : (
-                          'Its book is no longer in the library'
-                        )}
-                      </span>
-                      <span className="mb-3 block font-literary text-[13px] leading-snug text-[#24231F]">
-                        {preview === null ? (
-                          <span className="italic text-[#57544E]">This poem can no longer be shown.</span>
-                        ) : preview.lines.length === 0 ? (
-                          <span className="italic text-[#57544E]">No words kept.</span>
-                        ) : (
-                          <>
-                            {preview.lines.map((line, i) => (
-                              <span key={i} className="block">
-                                {line}{' '}
-                              </span>
-                            ))}
-                            {preview.more && <span className="block text-[#57544E]">…</span>}
-                          </>
-                        )}
-                      </span>
-                      <span className="flex items-center justify-between text-[11px] pt-2 border-t border-[#E0D4BE]/60">
-                        <span className="flex items-center gap-2">
-                          <span className="bg-[#E4D8C2] px-2 py-0.5 rounded text-[#24231F] font-medium uppercase text-[9px] tracking-wider">
-                            {poem.erasureStyle}
+                    {renamingId === poem.id ? (
+                      <RenamePoemForm
+                        name={name}
+                        onSave={title => saveRename(poem, title)}
+                        onCancel={() => stopRename(poem)}
+                        busy={renameBusy}
+                        error={renameError}
+                      />
+                    ) : (
+                      <>
+                        {/* Opening the draft and the actions on it are separate buttons: a button cannot nest another. */}
+                        <button
+                          type="button"
+                          onClick={() => handleSelect(poem)}
+                          className="block w-full text-left p-4 pb-2 rounded-t-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
+                        >
+                          <span className="block font-serif font-semibold text-sm text-[#24231F] group-hover:text-[#6C3438] transition-colors mb-1">
+                            {name}
                           </span>
-                          <span className="text-[#57544E]">{poem.retainedTokenIds.length} words</span>
-                        </span>
-                        <span className="text-[#605C53] text-[10px]">{formattedDate}</span>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={event => askToDelete(poem, event.currentTarget)}
-                      aria-label={`Delete draft ${name}`}
-                      className="absolute top-3 right-3 text-xs text-[#605C53] hover:text-red-700 px-2 py-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]"
-                    >
-                      Delete
-                    </button>
+                          <span className="block text-[11px] text-[#57544E] mb-2">
+                            {passage ? (
+                              <>
+                                From <span className="font-medium text-[#24231F]">{passage.attribution.title}</span>
+                              </>
+                            ) : (
+                              'Its book is no longer in the library'
+                            )}
+                          </span>
+                          <span className="mb-3 block font-literary text-[13px] leading-snug text-[#24231F]">
+                            {preview === null ? (
+                              <span className="italic text-[#57544E]">This poem can no longer be shown.</span>
+                            ) : preview.lines.length === 0 ? (
+                              <span className="italic text-[#57544E]">No words kept.</span>
+                            ) : (
+                              <>
+                                {preview.lines.map((line, i) => (
+                                  <span key={i} className="block">
+                                    {line}{' '}
+                                  </span>
+                                ))}
+                                {preview.more && <span className="block text-[#57544E]">…</span>}
+                              </>
+                            )}
+                          </span>
+                          <span className="flex items-center justify-between text-[11px] pt-2 border-t border-[#E0D4BE]/60">
+                            <span className="flex items-center gap-2">
+                              <span className="bg-[#E4D8C2] px-2 py-0.5 rounded text-[#24231F] font-medium uppercase text-[9px] tracking-wider">
+                                {poem.erasureStyle}
+                              </span>
+                              <span className="text-[#57544E]">{poem.retainedTokenIds.length} words</span>
+                            </span>
+                            <span className="text-[#605C53] text-[10px]">{formattedDate}</span>
+                          </span>
+                        </button>
+                        <div className="flex justify-end gap-1 px-3 pb-3">
+                          <button
+                            type="button"
+                            data-rename-for={poem.id}
+                            onClick={() => startRename(poem)}
+                            aria-label={`Rename draft ${name}`}
+                            className={ACTION}
+                          >
+                            Rename
+                          </button>
+                          <button
+                            type="button"
+                            data-duplicate-for={poem.id}
+                            onClick={() => duplicate(poem)}
+                            aria-label={`Duplicate draft ${name}`}
+                            className={ACTION}
+                          >
+                            Duplicate
+                          </button>
+                          <button
+                            type="button"
+                            onClick={event => askToDelete(poem, event.currentTarget)}
+                            aria-label={`Delete draft ${name}`}
+                            className={`${ACTION} hover:!text-red-700`}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </li>
                 );
               })}

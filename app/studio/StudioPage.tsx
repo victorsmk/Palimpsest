@@ -265,6 +265,18 @@ function Studio({ passages }: { passages: Passage[] }) {
     );
   }, [passages, loadSnapshot, showNotice, askBeforeReplacing]);
 
+  // A poem renamed in My Collection: if it is the one open here, take its new title, and count that
+  // as part of what is saved so that the rename alone is not an unsaved change.
+  const handleRenamedElsewhere = useCallback(
+    (renamed: Poem) => {
+      if (renamed.id !== currentPoemId) return;
+      const title = renamed.title || '';
+      setTitle(title);
+      setBaseline(current => (current ? { ...current, snapshot: { ...current.snapshot, title } } : current));
+    },
+    [currentPoemId, setTitle]
+  );
+
   // Exports whichever view is showing: the erased page or the extracted poem.
   const handleExport = async () => {
     const frame = exportFrameRef.current;
@@ -613,6 +625,7 @@ function Studio({ passages }: { passages: Passage[] }) {
         onClose={() => setIsDrawerOpen(false)}
         onLoadPoem={handleLoadPoem}
         passages={passages}
+        onRenamed={handleRenamedElsewhere}
       />
 
       {pendingReplace && (
