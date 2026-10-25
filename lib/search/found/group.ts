@@ -1,6 +1,5 @@
 import type { Token } from '@/lib/models';
-import { calculatePageDNA } from './search';
-import type { FoundCandidate, FoundFamily, FoundSummary } from './types';
+import type { FoundCandidate, FoundFamily } from './types';
 
 /**
  * Two candidates are near-copies when they share MORE than this fraction of the words of the
@@ -66,20 +65,4 @@ export function groupFoundCandidates(
     }
   }
   return families;
-}
-
-/** Raw and grouped candidate counts and densities side by side. */
-export function summarizeFound(
-  candidates: FoundCandidate[],
-  wordCount: number,
-  minOverlap: number = DEFAULT_MIN_OVERLAP
-): FoundSummary {
-  const familyCount = groupFoundCandidates(candidates, minOverlap).length;
-  return {
-    wordCount,
-    candidateCount: candidates.length,
-    familyCount,
-    candidatesPer100Words: calculatePageDNA(candidates.length, wordCount),
-    familiesPer100Words: calculatePageDNA(familyCount, wordCount),
-  };
 }

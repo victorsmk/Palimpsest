@@ -4,26 +4,11 @@ import {
   foundSearch,
   getFoundContext,
   groupFoundCandidates,
-  summarizeFound,
   type FoundCandidate,
 } from '@/lib/search/found';
 import { tokenize } from '@/lib/tokenizer';
 import type { SyllableResult } from '@/lib/syllables';
-
-/**
- * A passage of `count` one-syllable words, w0 w1 w2 ... Every start position then yields exactly
- * one 17-word candidate (5 + 7 + 5), so a passage of N words has N - 16 candidates, the one that
- * starts at word i covering words i .. i + 16. That makes the expected grouping easy to work out
- * by hand: a candidate that started k words after another shares 17 - k words with it.
- */
-function slidingPassage(count: number, passageId = 'p') {
-  const words = Array.from({ length: count }, (_, i) => `w${i}`);
-  const tokens = tokenize(passageId, words.join(' '));
-  const syllables = new Map<string, SyllableResult>(
-    tokens.map(t => [t.id, { word: t.word, count: 1, confidence: 'definite' }])
-  );
-  return { tokens, candidates: foundSearch(tokens, syllables, passageId) };
-}
+import { slidingPassage } from '../helpers/found';
 
 /** The word index each candidate starts at, e.g. "w12" -> 12. */
 const startWord = (c: FoundCandidate) => Number(c.line1.tokens[0].word.slice(1));
@@ -108,24 +93,6 @@ describe('groupFoundCandidates', () => {
     const late = candidates.filter(c => startWord(c) === 40);
     const families = groupFoundCandidates([...early, ...late]);
     expect(families).toHaveLength(2);
-  });
-});
-
-describe('summarizeFound', () => {
-  it('reports raw and grouped counts and densities side by side', () => {
-    const { candidates } = slidingPassage(30);
-    expect(summarizeFound(candidates, 30)).toEqual({
-      wordCount: 30,
-      candidateCount: 14,
-      familyCount: 2,
-      candidatesPer100Words: 46.67,
-      familiesPer100Words: 6.67,
-    });
-  });
-
-  it('is all zeros for no candidates and survives an empty passage', () => {
-    expect(summarizeFound([], 100)).toMatchObject({ candidateCount: 0, familyCount: 0, candidatesPer100Words: 0, familiesPer100Words: 0 });
-    expect(summarizeFound([], 0)).toMatchObject({ candidatesPer100Words: 0, familiesPer100Words: 0 });
   });
 });
 

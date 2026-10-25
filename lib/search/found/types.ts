@@ -29,16 +29,44 @@ export interface FoundFamily {
   endPosition: number;
 }
 
-export interface FoundSummary {
+/** One poem to find, as a block on the Page DNA strip. */
+export interface PageDnaBlock {
+  familyId: string;
+  /** Index, among the passage's words, of the first and last word of the family's representative. */
+  startWord: number;
+  endWord: number;
+  /** Where the block sits along a strip as fractions of the passage's words: 0 is the start, 1 the end. */
+  startFraction: number;
+  endFraction: number;
+  /** Other ways to read this stretch (the family's remaining members). */
+  variants: number;
+}
+
+/**
+ * Page DNA: how many poems there are to find on a page, and where. A poem to find is a family
+ * of overlapping 5-7-5 candidates (one stretch of text) that has no line ending on a weak word.
+ * It measures how much there is to find, not how good it is.
+ */
+export interface PageDna {
+  /** Number of poems to find: the shown families. */
+  poemsToFind: number;
+  /** Poems to find per 100 words (to two decimals). For a hover detail, not a headline. */
+  per100Words: number;
+  /** "About one every N words": N rounded, or null when there is nothing to find. */
+  wordsPerPoem: number | null;
+  /** One block per poem to find, in reading order, ready to draw as a strip. */
+  blocks: PageDnaBlock[];
+}
+
+export interface FoundAnalysis {
   wordCount: number;
-  /** Every distinct candidate the search found. */
-  candidateCount: number;
-  /** Candidates after overlapping near-copies are grouped into families. */
-  familyCount: number;
-  /** Candidates per 100 words (Page DNA as defined by the spec). */
-  candidatesPer100Words: number;
-  /** Families per 100 words: density of distinct material, not of sliding windows. */
-  familiesPer100Words: number;
+  /** What a Discover list shows: weak-ending candidates excluded, then grouped. */
+  families: FoundFamily[];
+  pageDna: PageDna;
+  /** Candidates left out because a line ends on a weak word. */
+  hiddenByWeakEnding: number;
+  /** Every distinct candidate the search found, before anything is hidden or grouped. */
+  totalCandidates: number;
 }
 
 export interface FoundCandidate {

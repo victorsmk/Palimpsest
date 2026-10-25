@@ -3,13 +3,14 @@ import { bundledPassages } from '@/lib/library/bundled';
 import { getSyllableMap, lookupWord, type SyllableResult } from '@/lib/syllables';
 import {
   DEFAULT_MIN_OVERLAP,
+  analyzeFound,
   foundCandidateTokens,
   foundSearch,
   getFoundContext,
   groupFoundCandidates,
-  summarizeFound,
   type FoundCandidate,
 } from '@/lib/search/found';
+import { WEAK_LINE_ENDINGS } from '@/lib/search/lineEndings';
 import type { Passage, Token } from '@/lib/models';
 import golden from '../fixtures/found-families.json';
 
@@ -151,22 +152,75 @@ describe.each(bundledPassages.map(p => p.id))('Found mode on %s', id => {
     });
   });
 
+  describe('what is shown, and what is hidden', () => {
+    const lastWords = (c: FoundCandidate) =>
+      [c.line1, c.line2, c.line3].map(l => l.tokens[l.tokens.length - 1].word);
+    const hasWeak = (c: FoundCandidate) => lastWords(c).some(w => WEAK_LINE_ENDINGS.has(w));
+
+    it('shows no candidate that ends a line on a weak word, and hides every one that does', () => {
+      const { passage, candidates } = get();
+      const analysis = analyzeFound(passage.tokens, candidates);
+      const shown = analysis.families.flatMap(f => f.members);
+      const shownIds = new Set(shown.map(c => c.id));
+
+      expect(shown.some(hasWeak)).toBe(false);
+      for (const candidate of candidates) {
+        expect(shownIds.has(candidate.id), lastWords(candidate).join(',')).toBe(!hasWeak(candidate));
+      }
+      expect(analysis.hiddenByWeakEnding).toBe(candidates.filter(hasWeak).length);
+      expect(shown.length + analysis.hiddenByWeakEnding).toBe(candidates.length);
+    });
+
+    it('gives the Page DNA its figures from the shown families', () => {
+      const { passage, words, candidates } = get();
+      const { families, pageDna } = analyzeFound(passage.tokens, candidates);
+
+      expect(pageDna.poemsToFind).toBe(families.length);
+      expect(pageDna.per100Words).toBe(Math.round((families.length / words.length) * 10000) / 100);
+      expect(pageDna.wordsPerPoem).toBe(Math.round(words.length / families.length));
+      expect(pageDna.blocks).toHaveLength(families.length);
+    });
+
+    it('draws each block over exactly the words of its representative poem', () => {
+      const { passage, words, candidates } = get();
+      const { families, pageDna } = analyzeFound(passage.tokens, candidates);
+      const indexOf = new Map(words.map((w, i) => [w.id, i]));
+      families.forEach((family, i) => {
+        const tokens = foundCandidateTokens(family.representative);
+        const block = pageDna.blocks[i];
+        expect(block.startWord).toBe(indexOf.get(tokens[0].id));
+        expect(block.endWord).toBe(indexOf.get(tokens[tokens.length - 1].id));
+        expect(block.endWord - block.startWord + 1).toBe(tokens.length);
+        expect(block.startFraction).toBeCloseTo(block.startWord / words.length, 10);
+        expect(block.endFraction).toBeCloseTo((block.endWord + 1) / words.length, 10);
+        expect(block.variants).toBe(family.members.length - 1);
+      });
+    });
+  });
+
   describe('golden fixture (tests/fixtures/found-families.json)', () => {
     const expected = () => (golden as Golden)[id as keyof Golden];
 
-    it('matches the raw and grouped counts and densities', () => {
-      const { words, candidates } = get();
-      expect(summarizeFound(candidates, words.length)).toEqual(expected().summary);
+    it('matches the Page DNA: counts, density, and where each poem sits', () => {
+      const { passage, candidates } = get();
+      const analysis = analyzeFound(passage.tokens, candidates);
+      const { wordCount, totalCandidates, hiddenByWeakEnding, pageDna } = expected();
+      expect({
+        wordCount: analysis.wordCount,
+        totalCandidates: analysis.totalCandidates,
+        hiddenByWeakEnding: analysis.hiddenByWeakEnding,
+        pageDna: analysis.pageDna,
+      }).toEqual({ wordCount, totalCandidates, hiddenByWeakEnding, pageDna });
     });
 
-    it('matches every family: where it is, how many windows it holds, and what it says', () => {
+    it('matches every shown family: where it is, how many variants it has, and what it says', () => {
       const { passage, candidates } = get();
-      const actual: GoldenFamily[] = groupFoundCandidates(candidates).map(family => {
+      const actual: GoldenFamily[] = analyzeFound(passage.tokens, candidates).families.map(family => {
         const r = family.representative;
         const context = getFoundContext(r, passage.tokens, 4);
         return {
           id: family.id,
-          members: family.members.length,
+          variants: family.members.length - 1,
           span: [family.startPosition, family.endPosition],
           lines: [text(r.line1.tokens), text(r.line2.tokens), text(r.line3.tokens)],
           context: { before: text(context.before), after: text(context.after) },
@@ -178,16 +232,22 @@ describe.each(bundledPassages.map(p => p.id))('Found mode on %s', id => {
 });
 
 describe('Found mode across the library', () => {
-  it('grouping turns sliding-window noise into a manageable set', () => {
-    // 163 raw candidates become 56 families; Walden alone goes from 87 to 22.
-    const totals = [...analysed.values()].map(a => ({
-      raw: a.candidates.length,
-      families: groupFoundCandidates(a.candidates).length,
-    }));
+  it('turns sliding-window noise into a short list of poems to find', () => {
+    const totals = [...analysed.values()].map(a => {
+      const analysis = analyzeFound(a.passage.tokens, a.candidates);
+      return {
+        found: analysis.totalCandidates,
+        hidden: analysis.hiddenByWeakEnding,
+        poemsToFind: analysis.pageDna.poemsToFind,
+        wordsPerPoem: analysis.pageDna.wordsPerPoem,
+      };
+    });
+    // Jane Eyre, Walden, Dorian Gray: 163 candidates found, 121 hidden for weak endings,
+    // the rest grouped into 24 poems to find.
     expect(totals).toEqual([
-      { raw: 45, families: 19 },
-      { raw: 87, families: 22 },
-      { raw: 31, families: 15 },
+      { found: 45, hidden: 35, poemsToFind: 8, wordsPerPoem: 30 },
+      { found: 87, hidden: 65, poemsToFind: 9, wordsPerPoem: 24 },
+      { found: 31, hidden: 21, poemsToFind: 7, wordsPerPoem: 28 },
     ]);
   });
 });

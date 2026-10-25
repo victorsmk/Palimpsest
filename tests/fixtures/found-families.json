@@ -1,33 +1,83 @@
 {
   "jane-eyre-ch1": {
-    "summary": {
-      "wordCount": 237,
-      "candidateCount": 45,
-      "familyCount": 19,
-      "candidatesPer100Words": 18.99,
-      "familiesPer100Words": 8.02
+    "wordCount": 237,
+    "totalCandidates": 45,
+    "hiddenByWeakEnding": 35,
+    "pageDna": {
+      "poemsToFind": 8,
+      "per100Words": 3.38,
+      "wordsPerPoem": 30,
+      "blocks": [
+        {
+          "familyId": "jane-eyre-ch1-family-0022",
+          "startWord": 22,
+          "endWord": 33,
+          "startFraction": 0.09282700421940929,
+          "endFraction": 0.14345991561181434,
+          "variants": 1
+        },
+        {
+          "familyId": "jane-eyre-ch1-family-0031",
+          "startWord": 31,
+          "endWord": 43,
+          "startFraction": 0.1308016877637131,
+          "endFraction": 0.18565400843881857,
+          "variants": 1
+        },
+        {
+          "familyId": "jane-eyre-ch1-family-0054",
+          "startWord": 54,
+          "endWord": 66,
+          "startFraction": 0.22784810126582278,
+          "endFraction": 0.28270042194092826,
+          "variants": 0
+        },
+        {
+          "familyId": "jane-eyre-ch1-family-0075",
+          "startWord": 75,
+          "endWord": 86,
+          "startFraction": 0.31645569620253167,
+          "endFraction": 0.3670886075949367,
+          "variants": 0
+        },
+        {
+          "familyId": "jane-eyre-ch1-family-0115",
+          "startWord": 115,
+          "endWord": 123,
+          "startFraction": 0.48523206751054854,
+          "endFraction": 0.5232067510548524,
+          "variants": 0
+        },
+        {
+          "familyId": "jane-eyre-ch1-family-0131",
+          "startWord": 131,
+          "endWord": 141,
+          "startFraction": 0.5527426160337553,
+          "endFraction": 0.5991561181434599,
+          "variants": 0
+        },
+        {
+          "familyId": "jane-eyre-ch1-family-0164",
+          "startWord": 164,
+          "endWord": 173,
+          "startFraction": 0.6919831223628692,
+          "endFraction": 0.7341772151898734,
+          "variants": 0
+        },
+        {
+          "familyId": "jane-eyre-ch1-family-0203",
+          "startWord": 203,
+          "endWord": 211,
+          "startFraction": 0.8565400843881856,
+          "endFraction": 0.8945147679324894,
+          "variants": 0
+        }
+      ]
     },
     "families": [
       {
-        "id": "jane-eyre-ch1-family-0008",
-        "members": 1,
-        "span": [
-          8,
-          18
-        ],
-        "lines": [
-          "that day. We had been",
-          "wandering, indeed, in the",
-          "leafless shrubbery"
-        ],
-        "context": {
-          "before": "of taking a walk",
-          "after": "an hour in the"
-        }
-      },
-      {
         "id": "jane-eyre-ch1-family-0022",
-        "members": 2,
+        "variants": 1,
         "span": [
           22,
           37
@@ -43,62 +93,45 @@
         }
       },
       {
-        "id": "jane-eyre-ch1-family-0028",
-        "members": 3,
+        "id": "jane-eyre-ch1-family-0031",
+        "variants": 1,
         "span": [
-          28,
+          31,
           44
         ],
         "lines": [
-          "Reed, when there was no",
-          "company, dined early) the",
-          "cold winter wind had"
+          "was no company,",
+          "dined early) the cold winter",
+          "wind had brought with it"
         ],
         "context": {
-          "before": "but since dinner (Mrs.",
-          "after": "brought with it clouds"
+          "before": "(Mrs. Reed, when there",
+          "after": "clouds so sombre, and"
         }
       },
       {
-        "id": "jane-eyre-ch1-family-0051",
-        "members": 3,
+        "id": "jane-eyre-ch1-family-0054",
+        "variants": 0,
         "span": [
-          51,
+          54,
           66
         ],
         "lines": [
-          "penetrating, that",
-          "further outdoor exercise",
-          "was now out of the"
+          "outdoor exercise",
+          "was now out of the question.",
+          "I was glad of it:"
         ],
         "context": {
-          "before": "and a rain so",
-          "after": "question. I was glad"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0056",
-        "members": 1,
-        "span": [
-          56,
-          70
-        ],
-        "lines": [
-          "was now out of the",
-          "question. I was glad of it:",
-          "I never liked long"
-        ],
-        "context": {
-          "before": "that further outdoor exercise",
-          "after": "walks, especially on chilly"
+          "before": "so penetrating, that further",
+          "after": "I never liked long"
         }
       },
       {
         "id": "jane-eyre-ch1-family-0075",
-        "members": 3,
+        "variants": 0,
         "span": [
           75,
-          92
+          86
         ],
         "lines": [
           "afternoons: dreadful",
@@ -111,325 +144,230 @@
         }
       },
       {
-        "id": "jane-eyre-ch1-family-0081",
-        "members": 3,
+        "id": "jane-eyre-ch1-family-0115",
+        "variants": 0,
         "span": [
-          81,
-          97
+          115,
+          123
         ],
         "lines": [
-          "coming home in the",
-          "raw twilight, with nipped fingers",
-          "and toes, and a heart"
+          "and Georgiana",
+          "Reed. The said Eliza, John,",
+          "and Georgiana"
         ],
         "context": {
-          "before": "to me was the",
-          "after": "saddened by the chidings"
+          "before": "inferiority to Eliza, John,",
+          "after": "were now clustered round"
         }
       },
       {
-        "id": "jane-eyre-ch1-family-0100",
-        "members": 1,
+        "id": "jane-eyre-ch1-family-0131",
+        "variants": 0,
         "span": [
-          100,
-          110
-        ],
-        "lines": [
-          "Bessie, the nurse, and",
-          "humbled by the consciousness",
-          "of my physical"
-        ],
-        "context": {
-          "before": "by the chidings of",
-          "after": "inferiority to Eliza, John,"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0108",
-        "members": 1,
-        "span": [
-          108,
-          115
-        ],
-        "lines": [
-          "of my physical",
-          "inferiority to",
-          "Eliza, John, and"
-        ],
-        "context": {
-          "before": "humbled by the consciousness",
-          "after": "Georgiana Reed. The said"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0112",
-        "members": 4,
-        "span": [
-          112,
-          124
-        ],
-        "lines": [
-          "to Eliza, John,",
-          "and Georgiana Reed. The",
-          "said Eliza, John,"
-        ],
-        "context": {
-          "before": "of my physical inferiority",
-          "after": "and Georgiana were now"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0118",
-        "members": 2,
-        "span": [
-          118,
-          132
-        ],
-        "lines": [
-          "The said Eliza,",
-          "John, and Georgiana were",
-          "now clustered round their"
-        ],
-        "context": {
-          "before": "John, and Georgiana Reed.",
-          "after": "mama in the drawing-room:"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0125",
-        "members": 3,
-        "span": [
-          125,
+          131,
           141
         ],
         "lines": [
-          "now clustered round their",
-          "mama in the drawing-room:",
-          "she lay reclined on"
+          "the drawing-room: she",
+          "lay reclined on a sofa",
+          "by the fireside,"
         ],
         "context": {
-          "before": "John, and Georgiana were",
-          "after": "a sofa by the"
+          "before": "round their mama in",
+          "after": "and with her darlings"
         }
       },
       {
-        "id": "jane-eyre-ch1-family-0132",
-        "members": 3,
+        "id": "jane-eyre-ch1-family-0164",
+        "variants": 0,
         "span": [
-          132,
-          147
-        ],
-        "lines": [
-          "drawing-room: she lay",
-          "reclined on a sofa by",
-          "the fireside, and"
-        ],
-        "context": {
-          "before": "their mama in the",
-          "after": "with her darlings about"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0140",
-        "members": 1,
-        "span": [
-          140,
-          151
-        ],
-        "lines": [
-          "the fireside, and",
-          "with her darlings about her",
-          "(for the time neither"
-        ],
-        "context": {
-          "before": "on a sofa by",
-          "after": "quarrelling nor crying) looked"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0158",
-        "members": 3,
-        "span": [
-          158,
+          164,
           173
         ],
         "lines": [
-          "Me, she had dispensed",
-          "from joining the group; saying,",
-          "“She regretted to"
+          "the group; saying, “She",
+          "regretted to be under",
+          "the necessity"
         ],
         "context": {
-          "before": "crying) looked perfectly happy.",
-          "after": "be under the necessity"
+          "before": "had dispensed from joining",
+          "after": "of keeping me at"
         }
       },
       {
-        "id": "jane-eyre-ch1-family-0168",
-        "members": 2,
+        "id": "jane-eyre-ch1-family-0203",
+        "variants": 0,
         "span": [
-          168,
-          179
+          203,
+          211
         ],
         "lines": [
-          "regretted to be",
-          "under the necessity",
-          "of keeping me at"
+          "a more sociable",
+          "and childlike disposition,",
+          "a more attractive"
         ],
         "context": {
-          "before": "the group; saying, “She",
-          "after": "a distance; but that"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0173",
-        "members": 4,
-        "span": [
-          173,
-          189
-        ],
-        "lines": [
-          "necessity of",
-          "keeping me at a distance;",
-          "but that until she"
-        ],
-        "context": {
-          "before": "to be under the",
-          "after": "heard from Bessie, and"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0183",
-        "members": 2,
-        "span": [
-          183,
-          194
-        ],
-        "lines": [
-          "she heard from Bessie,",
-          "and could discover by her",
-          "own observation,"
-        ],
-        "context": {
-          "before": "distance; but that until",
-          "after": "that I was endeavouring"
-        }
-      },
-      {
-        "id": "jane-eyre-ch1-family-0201",
-        "members": 3,
-        "span": [
-          201,
-          212
-        ],
-        "lines": [
-          "to acquire a",
-          "more sociable and childlike",
-          "disposition, a"
-        ],
-        "context": {
-          "before": "endeavouring in good earnest",
-          "after": "more attractive and sprightly"
+          "before": "good earnest to acquire",
+          "after": "and sprightly manner — something"
         }
       }
     ]
   },
   "walden-woods": {
-    "summary": {
-      "wordCount": 213,
-      "candidateCount": 87,
-      "familyCount": 22,
-      "candidatesPer100Words": 40.85,
-      "familiesPer100Words": 10.33
+    "wordCount": 213,
+    "totalCandidates": 87,
+    "hiddenByWeakEnding": 65,
+    "pageDna": {
+      "poemsToFind": 9,
+      "per100Words": 4.23,
+      "wordsPerPoem": 24,
+      "blocks": [
+        {
+          "familyId": "walden-woods-family-0014",
+          "startWord": 14,
+          "endWord": 28,
+          "startFraction": 0.06572769953051644,
+          "endFraction": 0.13615023474178403,
+          "variants": 3
+        },
+        {
+          "familyId": "walden-woods-family-0024",
+          "startWord": 24,
+          "endWord": 38,
+          "startFraction": 0.11267605633802817,
+          "endFraction": 0.18309859154929578,
+          "variants": 3
+        },
+        {
+          "familyId": "walden-woods-family-0033",
+          "startWord": 33,
+          "endWord": 47,
+          "startFraction": 0.15492957746478872,
+          "endFraction": 0.22535211267605634,
+          "variants": 3
+        },
+        {
+          "familyId": "walden-woods-family-0042",
+          "startWord": 42,
+          "endWord": 57,
+          "startFraction": 0.19718309859154928,
+          "endFraction": 0.27230046948356806,
+          "variants": 1
+        },
+        {
+          "familyId": "walden-woods-family-0057",
+          "startWord": 57,
+          "endWord": 68,
+          "startFraction": 0.2676056338028169,
+          "endFraction": 0.323943661971831,
+          "variants": 0
+        },
+        {
+          "familyId": "walden-woods-family-0065",
+          "startWord": 65,
+          "endWord": 76,
+          "startFraction": 0.3051643192488263,
+          "endFraction": 0.3615023474178404,
+          "variants": 1
+        },
+        {
+          "familyId": "walden-woods-family-0089",
+          "startWord": 89,
+          "endWord": 105,
+          "startFraction": 0.41784037558685444,
+          "endFraction": 0.49765258215962443,
+          "variants": 1
+        },
+        {
+          "familyId": "walden-woods-family-0188",
+          "startWord": 188,
+          "endWord": 198,
+          "startFraction": 0.8826291079812206,
+          "endFraction": 0.9342723004694836,
+          "variants": 0
+        },
+        {
+          "familyId": "walden-woods-family-0196",
+          "startWord": 196,
+          "endWord": 208,
+          "startFraction": 0.92018779342723,
+          "endFraction": 0.9812206572769953,
+          "variants": 1
+        }
+      ]
     },
     "families": [
       {
-        "id": "walden-woods-family-0011",
-        "members": 5,
+        "id": "walden-woods-family-0014",
+        "variants": 3,
         "span": [
-          11,
-          33
+          14,
+          37
         ],
         "lines": [
-          "to front only the",
-          "essential facts of life, and",
-          "see if I could not"
+          "the essential facts",
+          "of life, and see if I could",
+          "not learn what it had"
         ],
         "context": {
-          "before": "wished to live deliberately,",
-          "after": "learn what it had"
+          "before": "deliberately, to front only",
+          "after": "to teach, and not,"
         }
       },
       {
-        "id": "walden-woods-family-0018",
-        "members": 7,
+        "id": "walden-woods-family-0024",
+        "variants": 3,
         "span": [
-          18,
-          40
+          24,
+          45
         ],
         "lines": [
-          "life, and see if I",
-          "could not learn what it had to",
-          "teach, and not, when I"
+          "not learn what it had",
+          "to teach, and not, when I came",
+          "to die, discover"
         ],
         "context": {
-          "before": "the essential facts of",
-          "after": "came to die, discover"
+          "before": "see if I could",
+          "after": "that I had not"
         }
       },
       {
-        "id": "walden-woods-family-0029",
-        "members": 6,
+        "id": "walden-woods-family-0033",
+        "variants": 3,
         "span": [
-          29,
-          50
+          33,
+          54
         ],
         "lines": [
-          "to teach, and not, when",
-          "I came to die, discover",
-          "that I had not lived."
+          "when I came to die,",
+          "discover that I had not",
+          "lived. I did not wish"
         ],
         "context": {
-          "before": "learn what it had",
-          "after": "I did not wish"
+          "before": "to teach, and not,",
+          "after": "to live what was"
         }
       },
       {
-        "id": "walden-woods-family-0037",
-        "members": 7,
+        "id": "walden-woods-family-0042",
+        "variants": 1,
         "span": [
-          37,
-          59
-        ],
-        "lines": [
-          "die, discover that",
-          "I had not lived. I did not",
-          "wish to live what was"
-        ],
-        "context": {
-          "before": "when I came to",
-          "after": "not life, living is"
-        }
-      },
-      {
-        "id": "walden-woods-family-0045",
-        "members": 4,
-        "span": [
-          45,
+          42,
           63
         ],
         "lines": [
-          "did not wish to live",
-          "what was not life, living is",
-          "so dear; nor did I"
+          "not lived. I did not",
+          "wish to live what was not life,",
+          "living is so dear;"
         ],
         "context": {
-          "before": "had not lived. I",
-          "after": "wish to practise resignation,"
+          "before": "discover that I had",
+          "after": "nor did I wish"
         }
       },
       {
         "id": "walden-woods-family-0057",
-        "members": 1,
+        "variants": 0,
         "span": [
           57,
           68
@@ -446,7 +384,7 @@
       },
       {
         "id": "walden-woods-family-0065",
-        "members": 2,
+        "variants": 1,
         "span": [
           65,
           80
@@ -462,232 +400,28 @@
         }
       },
       {
-        "id": "walden-woods-family-0071",
-        "members": 1,
+        "id": "walden-woods-family-0089",
+        "variants": 1,
         "span": [
-          71,
-          85
+          89,
+          112
         ],
         "lines": [
-          "wanted to live deep",
-          "and suck out all the marrow",
-          "of life, to live so"
+          "as to put to rout",
+          "all that was not life, to cut",
+          "a broad swath and shave"
         ],
         "context": {
-          "before": "was quite necessary. I",
-          "after": "sturdily and Spartan-like as"
-        }
-      },
-      {
-        "id": "walden-woods-family-0087",
-        "members": 7,
-        "span": [
-          87,
-          109
-        ],
-        "lines": [
-          "and Spartan-like as",
-          "to put to rout all that was",
-          "not life, to cut a"
-        ],
-        "context": {
-          "before": "to live so sturdily",
-          "after": "broad swath and shave"
-        }
-      },
-      {
-        "id": "walden-woods-family-0095",
-        "members": 5,
-        "span": [
-          95,
-          116
-        ],
-        "lines": [
-          "that was not life, to",
-          "cut a broad swath and shave close,",
-          "to drive life into"
-        ],
-        "context": {
-          "before": "put to rout all",
-          "after": "a corner, and reduce"
-        }
-      },
-      {
-        "id": "walden-woods-family-0104",
-        "members": 3,
-        "span": [
-          104,
-          120
-        ],
-        "lines": [
-          "and shave close, to drive",
-          "life into a corner, and",
-          "reduce it to its"
-        ],
-        "context": {
-          "before": "cut a broad swath",
-          "after": "lowest terms, and, if"
-        }
-      },
-      {
-        "id": "walden-woods-family-0112",
-        "members": 7,
-        "span": [
-          112,
-          133
-        ],
-        "lines": [
-          "corner, and reduce",
-          "it to its lowest terms, and,",
-          "if it proved to be"
-        ],
-        "context": {
-          "before": "drive life into a",
-          "after": "mean, why then to"
-        }
-      },
-      {
-        "id": "walden-woods-family-0120",
-        "members": 5,
-        "span": [
-          120,
-          140
-        ],
-        "lines": [
-          "and, if it proved to",
-          "be mean, why then to get the",
-          "whole and genuine"
-        ],
-        "context": {
-          "before": "to its lowest terms,",
-          "after": "meanness of it, and"
-        }
-      },
-      {
-        "id": "walden-woods-family-0132",
-        "members": 4,
-        "span": [
-          132,
-          150
-        ],
-        "lines": [
-          "whole and genuine",
-          "meanness of it, and publish",
-          "its meanness to the"
-        ],
-        "context": {
-          "before": "then to get the",
-          "after": "world; or if it"
-        }
-      },
-      {
-        "id": "walden-woods-family-0139",
-        "members": 3,
-        "span": [
-          139,
-          155
-        ],
-        "lines": [
-          "publish its meanness",
-          "to the world; or if it were",
-          "sublime, to know it"
-        ],
-        "context": {
-          "before": "meanness of it, and",
-          "after": "by experience, and be"
-        }
-      },
-      {
-        "id": "walden-woods-family-0147",
-        "members": 3,
-        "span": [
-          147,
-          160
-        ],
-        "lines": [
-          "it were sublime, to",
-          "know it by experience,",
-          "and be able to"
-        ],
-        "context": {
-          "before": "the world; or if",
-          "after": "give a true account"
-        }
-      },
-      {
-        "id": "walden-woods-family-0153",
-        "members": 4,
-        "span": [
-          153,
-          169
-        ],
-        "lines": [
-          "by experience,",
-          "and be able to give a",
-          "true account of it"
-        ],
-        "context": {
-          "before": "sublime, to know it",
-          "after": "in my next excursion."
-        }
-      },
-      {
-        "id": "walden-woods-family-0161",
-        "members": 4,
-        "span": [
-          161,
-          179
-        ],
-        "lines": [
-          "true account of it",
-          "in my next excursion. For",
-          "most men, it appears"
-        ],
-        "context": {
-          "before": "able to give a",
-          "after": "to me, are in"
-        }
-      },
-      {
-        "id": "walden-woods-family-0173",
-        "members": 3,
-        "span": [
-          173,
-          186
-        ],
-        "lines": [
-          "appears to me, are",
-          "in a strange uncertainty",
-          "about it, whether"
-        ],
-        "context": {
-          "before": "For most men, it",
-          "after": "it is of the"
-        }
-      },
-      {
-        "id": "walden-woods-family-0179",
-        "members": 1,
-        "span": [
-          179,
-          189
-        ],
-        "lines": [
-          "strange uncertainty",
-          "about it, whether it is",
-          "of the devil or"
-        ],
-        "context": {
-          "before": "me, are in a",
-          "after": "of God, and have"
+          "before": "so sturdily and Spartan-like",
+          "after": "close, to drive life"
         }
       },
       {
         "id": "walden-woods-family-0188",
-        "members": 2,
+        "variants": 0,
         "span": [
           188,
-          202
+          198
         ],
         "lines": [
           "devil or of God,",
@@ -700,155 +434,129 @@
         }
       },
       {
-        "id": "walden-woods-family-0194",
-        "members": 3,
+        "id": "walden-woods-family-0196",
+        "variants": 1,
         "span": [
-          194,
+          196,
           211
         ],
         "lines": [
-          "somewhat hastily",
-          "concluded that it is the",
-          "chief end of man here"
+          "concluded that it",
+          "is the chief end of man here",
+          "to “glorify God"
         ],
         "context": {
-          "before": "of God, and have",
-          "after": "to “glorify God and"
+          "before": "and have somewhat hastily",
+          "after": "and enjoy him forever.”"
         }
       }
     ]
   },
   "dorian-gray-ch1": {
-    "summary": {
-      "wordCount": 198,
-      "candidateCount": 31,
-      "familyCount": 15,
-      "candidatesPer100Words": 15.66,
-      "familiesPer100Words": 7.58
+    "wordCount": 198,
+    "totalCandidates": 31,
+    "hiddenByWeakEnding": 21,
+    "pageDna": {
+      "poemsToFind": 7,
+      "per100Words": 3.54,
+      "wordsPerPoem": 28,
+      "blocks": [
+        {
+          "familyId": "dorian-gray-ch1-family-0002",
+          "startWord": 2,
+          "endWord": 15,
+          "startFraction": 0.010101010101010102,
+          "endFraction": 0.08080808080808081,
+          "variants": 1
+        },
+        {
+          "familyId": "dorian-gray-ch1-family-0022",
+          "startWord": 22,
+          "endWord": 34,
+          "startFraction": 0.1111111111111111,
+          "endFraction": 0.17676767676767677,
+          "variants": 1
+        },
+        {
+          "familyId": "dorian-gray-ch1-family-0054",
+          "startWord": 54,
+          "endWord": 63,
+          "startFraction": 0.2727272727272727,
+          "endFraction": 0.32323232323232326,
+          "variants": 0
+        },
+        {
+          "familyId": "dorian-gray-ch1-family-0067",
+          "startWord": 67,
+          "endWord": 77,
+          "startFraction": 0.3383838383838384,
+          "endFraction": 0.3939393939393939,
+          "variants": 0
+        },
+        {
+          "familyId": "dorian-gray-ch1-family-0115",
+          "startWord": 115,
+          "endWord": 127,
+          "startFraction": 0.5808080808080808,
+          "endFraction": 0.6464646464646465,
+          "variants": 1
+        },
+        {
+          "familyId": "dorian-gray-ch1-family-0124",
+          "startWord": 124,
+          "endWord": 131,
+          "startFraction": 0.6262626262626263,
+          "endFraction": 0.6666666666666666,
+          "variants": 0
+        },
+        {
+          "familyId": "dorian-gray-ch1-family-0152",
+          "startWord": 152,
+          "endWord": 160,
+          "startFraction": 0.7676767676767676,
+          "endFraction": 0.8131313131313131,
+          "variants": 0
+        }
+      ]
     },
     "families": [
       {
-        "id": "dorian-gray-ch1-family-0000",
-        "members": 2,
+        "id": "dorian-gray-ch1-family-0002",
+        "variants": 1,
         "span": [
-          0,
-          15
+          2,
+          19
         ],
         "lines": [
-          "The studio was",
-          "filled with the rich odour of",
-          "roses, and when the"
+          "was filled with the rich",
+          "odour of roses, and when",
+          "the light summer wind"
         ],
         "context": {
-          "before": "",
-          "after": "light summer wind stirred"
+          "before": "The studio",
+          "after": "stirred amidst the trees"
         }
       },
       {
-        "id": "dorian-gray-ch1-family-0007",
-        "members": 3,
+        "id": "dorian-gray-ch1-family-0022",
+        "variants": 1,
         "span": [
-          7,
-          25
-        ],
-        "lines": [
-          "odour of roses,",
-          "and when the light summer wind",
-          "stirred amidst the trees"
-        ],
-        "context": {
-          "before": "filled with the rich",
-          "after": "of the garden, there"
-        }
-      },
-      {
-        "id": "dorian-gray-ch1-family-0015",
-        "members": 5,
-        "span": [
-          15,
-          34
-        ],
-        "lines": [
-          "wind stirred amidst the",
-          "trees of the garden, there came",
-          "through the open door"
-        ],
-        "context": {
-          "before": "when the light summer",
-          "after": "the heavy scent of"
-        }
-      },
-      {
-        "id": "dorian-gray-ch1-family-0024",
-        "members": 2,
-        "span": [
-          24,
+          22,
           39
         ],
         "lines": [
-          "came through the open",
-          "door the heavy scent of the",
-          "lilac, or the more"
+          "garden, there came through",
+          "the open door the heavy",
+          "scent of the lilac,"
         ],
         "context": {
-          "before": "of the garden, there",
-          "after": "delicate perfume of the"
-        }
-      },
-      {
-        "id": "dorian-gray-ch1-family-0033",
-        "members": 2,
-        "span": [
-          33,
-          43
-        ],
-        "lines": [
-          "the lilac, or the",
-          "more delicate perfume of",
-          "the pink-flowering"
-        ],
-        "context": {
-          "before": "the heavy scent of",
-          "after": "thorn. From the corner"
-        }
-      },
-      {
-        "id": "dorian-gray-ch1-family-0038",
-        "members": 2,
-        "span": [
-          38,
-          51
-        ],
-        "lines": [
-          "delicate perfume",
-          "of the pink-flowering thorn.",
-          "From the corner of"
-        ],
-        "context": {
-          "before": "lilac, or the more",
-          "after": "the divan of Persian"
-        }
-      },
-      {
-        "id": "dorian-gray-ch1-family-0043",
-        "members": 2,
-        "span": [
-          43,
-          59
-        ],
-        "lines": [
-          "thorn. From the corner",
-          "of the divan of Persian",
-          "saddle-bags on which"
-        ],
-        "context": {
-          "before": "perfume of the pink-flowering",
-          "after": "he was lying, smoking,"
+          "before": "the trees of the",
+          "after": "or the more delicate"
         }
       },
       {
         "id": "dorian-gray-ch1-family-0054",
-        "members": 1,
+        "variants": 0,
         "span": [
           54,
           63
@@ -865,7 +573,7 @@
       },
       {
         "id": "dorian-gray-ch1-family-0067",
-        "members": 1,
+        "variants": 0,
         "span": [
           67,
           77
@@ -881,25 +589,8 @@
         }
       },
       {
-        "id": "dorian-gray-ch1-family-0083",
-        "members": 2,
-        "span": [
-          83,
-          95
-        ],
-        "lines": [
-          "tremulous branches",
-          "seemed hardly able to bear",
-          "the burden of a"
-        ],
-        "context": {
-          "before": "of a laburnum, whose",
-          "after": "beauty so flamelike as"
-        }
-      },
-      {
         "id": "dorian-gray-ch1-family-0115",
-        "members": 2,
+        "variants": 1,
         "span": [
           115,
           129
@@ -916,7 +607,7 @@
       },
       {
         "id": "dorian-gray-ch1-family-0124",
-        "members": 1,
+        "variants": 0,
         "span": [
           124,
           131
@@ -932,28 +623,11 @@
         }
       },
       {
-        "id": "dorian-gray-ch1-family-0133",
-        "members": 2,
-        "span": [
-          133,
-          146
-        ],
-        "lines": [
-          "making him think of",
-          "those pallid, jade-faced painters",
-          "of Tokyo who,"
-        ],
-        "context": {
-          "before": "momentary Japanese effect, and",
-          "after": "through the medium of"
-        }
-      },
-      {
         "id": "dorian-gray-ch1-family-0152",
-        "members": 3,
+        "variants": 0,
         "span": [
           152,
-          166
+          160
         ],
         "lines": [
           "necessarily",
@@ -963,23 +637,6 @@
         "context": {
           "before": "an art that is",
           "after": "and motion. The sullen"
-        }
-      },
-      {
-        "id": "dorian-gray-ch1-family-0160",
-        "members": 1,
-        "span": [
-          160,
-          170
-        ],
-        "lines": [
-          "swiftness and motion.",
-          "The sullen murmur of the",
-          "bees shouldering their"
-        ],
-        "context": {
-          "before": "convey the sense of",
-          "after": "way through the long"
         }
       }
     ]

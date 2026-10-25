@@ -1,14 +1,7 @@
 import type { Token } from '@/lib/models';
 import type { SyllableResult } from '@/lib/syllables';
+import { WEAK_LINE_ENDINGS } from '@/lib/search/lineEndings';
 import type { AssistedCandidate, AssistedLine, AssistedSearchOptions } from './types';
-
-// Weak function words that make awkward line endings in English poetry
-const WEAK_LINE_ENDINGS = new Set([
-  'the', 'a', 'an', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by',
-  'and', 'or', 'but', 'nor', 'so', 'yet', 'if', 'as', 'than',
-  'is', 'are', 'was', 'were', 'be', 'been', 'being',
-  'that', 'which', 'who', 'whom', 'whose', 'from', 'into', 'my', 'his', 'her', 'their', 'its'
-]);
 
 function makeFingerprint(l1: Token[], l2: Token[], l3: Token[]): string {
   return [
