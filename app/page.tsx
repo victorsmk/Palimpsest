@@ -15,10 +15,10 @@ export default function Home() {
         </div>
         <nav className="flex items-center gap-4">
           <Link
-            href="/prototype"
+            href="/studio"
             className="px-4 py-2 bg-[#24231F] text-[#F3EBDD] rounded text-xs font-medium hover:bg-[#3D3A33] transition-colors shadow-sm"
           >
-            Open Studio Prototype →
+            Open the Studio →
           </Link>
         </nav>
       </header>
@@ -52,10 +52,10 @@ export default function Home() {
         </div>
 
         <Link
-          href="/prototype"
+          href="/studio"
           className="inline-flex items-center justify-center px-6 py-3 bg-[#6C3438] hover:bg-[#57292D] text-[#F3EBDD] rounded-md font-medium text-sm transition-all shadow-md hover:shadow-lg"
         >
-          Try the Interactive Book Page Prototype
+          Open the Studio
         </Link>
       </main>
 

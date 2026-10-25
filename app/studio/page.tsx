@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { tokenize } from '@/lib/tokenizer';
 import { useEditor, reopenPoem } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
 import { BookText } from '@/components/BookText';
@@ -10,51 +9,50 @@ import { ViewToggle, type StudioView } from '@/components/ViewToggle';
 import { ExtractedPoem } from '@/components/ExtractedPoem';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
-import { poemService } from '@/lib/services';
-import type { Poem } from '@/lib/models';
+import { usePageDna } from '@/components/usePageDna';
+import { bookService, poemService } from '@/lib/services';
+import type { Passage, Poem } from '@/lib/models';
 
-import janeEyreData from '@/data/texts/jane-eyre-ch1.json';
-import waldenData from '@/data/texts/walden-woods.json';
-import dorianGrayData from '@/data/texts/dorian-gray-ch1.json';
+type Library = { passages: Passage[] } | { error: string };
 
-interface PassageOption {
-  id: string;
-  title: string;
-  author: string;
-  year: number;
-  data: typeof janeEyreData;
-  pageDNA: number;
+function StudioMessage({ role, children }: { role: 'status' | 'alert'; children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-[#F3EBDD] text-[#24231F] flex items-center justify-center px-6">
+      <p role={role} className="text-sm text-[#57544E] text-center max-w-sm">
+        {children}
+      </p>
+    </div>
+  );
 }
 
-const PASSAGES: PassageOption[] = [
-  {
-    id: janeEyreData.id,
-    title: 'Jane Eyre — Chapter 1',
-    author: janeEyreData.attribution.author,
-    year: janeEyreData.attribution.year,
-    data: janeEyreData,
-    pageDNA: 18.99,
-  },
-  {
-    id: waldenData.id,
-    title: 'Walden — Where I Lived',
-    author: waldenData.attribution.author,
-    year: waldenData.attribution.year,
-    data: waldenData,
-    pageDNA: 40.85,
-  },
-  {
-    id: dorianGrayData.id,
-    title: 'Dorian Gray — Chapter 1',
-    author: dorianGrayData.attribution.author,
-    year: dorianGrayData.attribution.year,
-    data: dorianGrayData,
-    pageDNA: 15.66,
-  },
-];
+export default function StudioPage() {
+  const [library, setLibrary] = useState<Library | null>(null);
 
-export default function PrototypePage() {
-  const [selectedPassageId, setSelectedPassageId] = useState<string>(PASSAGES[0].id);
+  useEffect(() => {
+    let cancelled = false;
+    bookService
+      .listPassages()
+      .then(passages => {
+        if (!cancelled) setLibrary({ passages });
+      })
+      .catch(() => {
+        if (!cancelled) setLibrary({ error: 'The library could not be opened. Please reload the page.' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!library) return <StudioMessage role="status">Opening the library…</StudioMessage>;
+  if ('error' in library) return <StudioMessage role="alert">{library.error}</StudioMessage>;
+  if (library.passages.length === 0) {
+    return <StudioMessage role="alert">The library has no passages yet.</StudioMessage>;
+  }
+  return <Studio passages={library.passages} />;
+}
+
+function Studio({ passages }: { passages: Passage[] }) {
+  const [selectedPassageId, setSelectedPassageId] = useState<string>(passages[0].id);
   const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(undefined);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
@@ -69,14 +67,12 @@ export default function PrototypePage() {
   }, []);
 
   const activePassage = useMemo(
-    () => PASSAGES.find(p => p.id === selectedPassageId) ?? PASSAGES[0],
-    [selectedPassageId]
+    () => passages.find(p => p.id === selectedPassageId) ?? passages[0],
+    [passages, selectedPassageId]
   );
+  const pageDna = usePageDna(activePassage);
 
-  // Tokenize source passage text
-  const tokens = useMemo(() => {
-    return tokenize(activePassage.data.id, activePassage.data.sourceText);
-  }, [activePassage]);
+  const tokens = activePassage.tokens;
 
   // Hook into our dedicated Editor State & History engine
   const {
@@ -125,11 +121,8 @@ export default function PrototypePage() {
 
   // Handle loading a poem from My Collection
   const handleLoadPoem = useCallback((poem: Poem) => {
-    const passage = PASSAGES.find(p => p.id === poem.passageId);
-    const result = reopenPoem(
-      poem,
-      passage ? tokenize(passage.data.id, passage.data.sourceText) : null
-    );
+    const passage = passages.find(p => p.id === poem.passageId);
+    const result = reopenPoem(poem, passage?.tokens ?? null);
 
     // A draft that no longer fits its passage is refused; the page and the
     // stored draft are left exactly as they were.
@@ -143,7 +136,7 @@ export default function PrototypePage() {
     loadSnapshot(result.snapshot, passage.id);
 
     showNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
-  }, [loadSnapshot, showNotice]);
+  }, [passages, loadSnapshot, showNotice]);
 
   // Group tokens by paragraph for faithful book-page rendering
   const paragraphs = useMemo(() => {
@@ -169,7 +162,7 @@ export default function PrototypePage() {
         <div>
           <div className="flex items-center gap-3">
             <span className="text-xs uppercase tracking-widest text-[#6C3438] font-bold">
-              Phase 2 Studio
+              Studio
             </span>
             <span className="text-xs text-[#57544E]">|</span>
             <Link
@@ -198,7 +191,7 @@ export default function PrototypePage() {
 
           {/* Passage Selector Tabs */}
           <div className="flex flex-wrap gap-2">
-            {PASSAGES.map(p => {
+            {passages.map(p => {
               const isSelected = p.id === activePassage.id;
               return (
                 <button
@@ -215,7 +208,7 @@ export default function PrototypePage() {
                       : 'bg-[#E4D8C2]/60 hover:bg-[#E4D8C2] text-[#24231F]'
                   }`}
                 >
-                  {p.title.split('—')[0].trim()}
+                  {p.attribution.title}
                 </button>
               );
             })}
@@ -255,17 +248,17 @@ export default function PrototypePage() {
               lineBreakSet={lineBreakSet}
               onToggleLineBreak={toggleLineBreak}
               title={poemTitle}
-              attribution={activePassage.data.attribution}
+              attribution={activePassage.attribution}
             />
           ) : (
             <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 relative min-h-[500px]">
               {/* Page Header */}
               <div className="text-center mb-8 border-b border-[#ECE3D0] pb-4">
                 <span className="text-[11px] uppercase tracking-widest text-[#57544E]">
-                  {activePassage.data.attribution.author} ({activePassage.data.attribution.year})
+                  {activePassage.attribution.author} ({activePassage.attribution.year})
                 </span>
                 <h2 className="text-lg font-serif font-semibold text-[#24231F] mt-1">
-                  {activePassage.data.title}
+                  {activePassage.title}
                 </h2>
               </div>
 
@@ -281,7 +274,7 @@ export default function PrototypePage() {
               <div className="text-center mt-10 pt-4 border-t border-[#ECE3D0] text-[11px] text-[#605C53]">
                 Public domain source via{' '}
                 <a
-                  href={activePassage.data.attribution.url}
+                  href={activePassage.attribution.url}
                   target="_blank"
                   rel="noreferrer"
                   className="underline hover:text-[#24231F]"
@@ -360,7 +353,7 @@ export default function PrototypePage() {
             <div className="flex items-center justify-between text-xs text-[#57544E] bg-[#E4D8C2]/20 px-3 py-2 rounded">
               <span>Page DNA (Found Density):</span>
               <span className="font-semibold text-[#24231F]">
-                {activePassage.pageDNA} / 100w
+                {pageDna === null ? '…' : `${pageDna} / 100w`}
               </span>
             </div>
 
@@ -397,7 +390,7 @@ export default function PrototypePage() {
         isOpen={isSaveModalOpen}
         initialTitle={poemTitle}
         initialNotes={poemNotes}
-        passageTitle={activePassage.data.title}
+        passageTitle={activePassage.title}
         retainedCount={retainedCount}
         onSave={handleSaveDraft}
         onClose={() => setIsSaveModalOpen(false)}
@@ -412,7 +405,7 @@ export default function PrototypePage() {
 
       {/* Footer */}
       <footer className="max-w-4xl mx-auto w-full mt-10 text-center text-xs text-[#605C53] border-t border-[#E4D8C2] pt-4">
-        Palimpsest © 2026 — Found Poetry & Erasure Workshop · Phase 2 Functional Studio
+        Palimpsest © 2026 — Found Poetry & Erasure Workshop
       </footer>
     </div>
   );
