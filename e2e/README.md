@@ -53,6 +53,7 @@ where Firefox starts there.
   passage, blocks drawn at the right place and never over each other, number only as a hover detail.
 - `handoff.spec.ts`: a poem sent from Discover in the URL hash (`/studio#found=...`) opens with exactly
   its words and line breaks; the link is removed from the address bar; bad or stale links are refused.
+  The same for a poem of scattered words sent from the Assisted page (`/studio#assisted=...`).
 - `discover.spec.ts`: the Discover page: every poem found in each passage against the golden fixture,
   expandable variants, "Open in editor" landing in the Studio, the clickable strip, and a phone-sized screen.
 - `navigation.spec.ts`: page titles, the skip link, the links between Home, the Studio and Discover, the

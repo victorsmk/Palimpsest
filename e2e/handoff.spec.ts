@@ -160,3 +160,66 @@ test.describe('links the Studio will not open', () => {
     expect(await page.evaluate(() => window.location.hash)).toBe('#section-2');
   });
 });
+
+// Links the Assisted page will build. They are checked against the library in
+// tests/unit/assistedHandoff.test.ts. An Assisted poem keeps scattered words, so the words between
+// them are erased on the page.
+const ASSISTED_WALDEN = 'assisted=walden-woods:53-55,57,61,63,64,68,69:57,64';
+const ASSISTED_JANE = 'assisted=jane-eyre-ch1:49,51,55,57,58,61,68-71:51,61';
+
+test.describe('opening a poem sent from the Assisted page', () => {
+  test('keeps exactly the scattered words and erases the ones between, with the line breaks', async ({ page }) => {
+    await page.goto(`/studio#${ASSISTED_WALDEN}`);
+    await expect(page.locator('article')).toBeVisible();
+
+    await expect(passageButton(page, 'Walden')).toHaveAttribute('aria-pressed', 'true');
+    expect(await keptText(page)).toBe('life, living is dear; wish practise resignation, quite necessary.');
+    await expect(keptWords(page)).toHaveCount(9);
+    await expect(page.getByRole('status').filter({ hasText: '9 words kept, 204 erased.' })).toHaveCount(1);
+
+    await viewToggle(page, 'Extracted poem').click();
+    expect(await poemLines(page)).toEqual(['life, living is dear;', 'wish practise resignation,', 'quite necessary.']);
+  });
+
+  test('says the poem was made from the passage, and takes the link out of the address bar', async ({ page }) => {
+    await page.goto(`/studio#${ASSISTED_WALDEN}`);
+    await expect(notice(page, 'Opened a poem made from Walden. Edit it, then save it to your collection.')).toBeVisible();
+    expect(await page.evaluate(() => window.location.hash)).toBe('');
+  });
+
+  test('is an ordinary poem: it can be edited and undone', async ({ page }) => {
+    await page.goto(`/studio#${ASSISTED_WALDEN}`);
+    await expect(keptWords(page)).toHaveCount(9);
+    await keptWords(page).first().click(); // erase "life,"
+    await expect(keptWords(page)).toHaveCount(8);
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(keptWords(page)).toHaveCount(9);
+  });
+
+  test('opens while the Studio is already showing, one after the other, and a Found link still works', async ({ page }) => {
+    await openStudio(page);
+    await page.evaluate(hash => { window.location.hash = hash; }, ASSISTED_JANE);
+    await expect(notice(page, 'Opened a poem made from Jane Eyre.')).toBeVisible();
+    expect(await keptText(page)).toBe('rain penetrating, exercise now out question. never liked long walks,');
+    await expect(keptWords(page)).toHaveCount(10);
+
+    await page.evaluate(hash => { window.location.hash = hash; }, WALDEN_1);
+    await expect(notice(page, 'Opened a poem found in Walden.')).toBeVisible();
+    expect(await keptText(page)).toBe(WALDEN_1_WORDS);
+  });
+
+  for (const [name, hash, message] of [
+    ['words out of order', 'assisted=walden-woods:5,3:', /does not describe a poem/],
+    ['a break after a word that is not kept', 'assisted=walden-woods:3,5:4', /does not describe a poem/],
+    ['a passage that is not in the library', 'assisted=no-such-book:1,2:1', /no longer in the library/],
+    ['words that are not in the passage', 'assisted=walden-woods:1,9000:', /no longer matches the current text/],
+  ] as [string, string, RegExp][]) {
+    test(`refuses ${name} and leaves the Studio as it was`, async ({ page }) => {
+      await page.goto(`/studio#${hash}`);
+      await expect(page.locator('article')).toBeVisible();
+      await expect(alert(page, message)).toBeVisible();
+      await expect(passageButton(page, 'Jane Eyre')).toHaveAttribute('aria-pressed', 'true');
+      await expect(keptWords(page)).toHaveCount(237);
+    });
+  }
+});

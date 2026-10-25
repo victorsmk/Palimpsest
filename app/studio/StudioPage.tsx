@@ -16,16 +16,18 @@ import { poemService } from '@/lib/services';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
 import { downloadTextFile, poemLines, poemToMarkdown, poemToText } from '@/lib/export/text';
 import { PrintablePoem } from '@/components/PrintablePoem';
-import { discoverHref, readFoundHandoff, type ReadHandoff } from '@/lib/handoff';
+import { discoverHref, readHandoff, type ReadHandoff } from '@/lib/handoff';
 import type { Passage, Poem } from '@/lib/models';
 
 type Notice = { text: string; tone: 'ok' | 'error' };
 
-const openedMessage = (bookTitle: string) =>
-  `Opened a poem found in ${bookTitle}. Edit it, then save it to your collection.`;
+const openedMessage = (bookTitle: string, mode: 'found' | 'assisted') =>
+  `Opened a poem ${mode === 'found' ? 'found in' : 'made from'} ${bookTitle}. Edit it, then save it to your collection.`;
 
 function noticeForHandoff(handoff: ReadHandoff): Notice | null {
-  if (handoff.kind === 'open') return { text: openedMessage(handoff.passage.attribution.title), tone: 'ok' };
+  if (handoff.kind === 'open') {
+    return { text: openedMessage(handoff.passage.attribution.title, handoff.mode), tone: 'ok' };
+  }
   if (handoff.kind === 'invalid') return { text: handoff.message, tone: 'error' };
   return null;
 }
@@ -73,7 +75,7 @@ function Studio({ passages }: { passages: Passage[] }) {
   // A poem sent from Discover arrives in the URL hash. Studio only renders in the browser, after
   // the library has loaded, so the hash can be read while choosing the initial state: the poem is
   // open on the first render instead of the default page flashing first.
-  const [handoff] = useState<ReadHandoff>(() => readFoundHandoff(window.location.hash, passages));
+  const [handoff] = useState<ReadHandoff>(() => readHandoff(window.location.hash, passages));
   const [selectedPassageId, setSelectedPassageId] = useState<string>(() =>
     handoff.kind === 'open' ? handoff.passage.id : passages[0].id
   );
@@ -140,7 +142,7 @@ function Studio({ passages }: { passages: Passage[] }) {
   // A link that changes only the hash while the Studio is already open does not reload the page.
   useEffect(() => {
     function onHashChange() {
-      const next = readFoundHandoff(window.location.hash, passages);
+      const next = readHandoff(window.location.hash, passages);
       if (next.kind === 'none') return;
       clearHash();
       if (next.kind === 'invalid') {
@@ -150,7 +152,7 @@ function Studio({ passages }: { passages: Passage[] }) {
       setSelectedPassageId(next.passage.id);
       setCurrentPoemId(undefined);
       loadSnapshot(next.snapshot, next.passage.id);
-      showNotice(openedMessage(next.passage.attribution.title), 'ok', 8000);
+      showNotice(openedMessage(next.passage.attribution.title, next.mode), 'ok', 8000);
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);

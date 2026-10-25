@@ -125,7 +125,8 @@ export function resolveFoundHandoff(handoff: FoundHandoff, passages: Passage[]):
 export type ReadHandoff =
   | { kind: 'none' }
   | { kind: 'invalid'; message: string }
-  | { kind: 'open'; passage: Passage; snapshot: EditorSnapshot };
+  /** `mode` is where the poem came from: Discover (found) or the Assisted page. */
+  | { kind: 'open'; mode: 'found' | 'assisted'; passage: Passage; snapshot: EditorSnapshot };
 
 /**
  * What a page should do with its current URL hash. Hashes that are not a hand-off (page anchors,
@@ -140,6 +141,6 @@ export function readFoundHandoff(hash: string, passages: Passage[]): ReadHandoff
 
   const result = resolveFoundHandoff(handoff, passages);
   return result.ok
-    ? { kind: 'open', passage: result.passage, snapshot: result.snapshot }
+    ? { kind: 'open', mode: 'found', passage: result.passage, snapshot: result.snapshot }
     : { kind: 'invalid', message: result.message };
 }
