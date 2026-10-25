@@ -10,6 +10,7 @@ import { ExtractedPoem } from '@/components/ExtractedPoem';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
 import { usePageDna } from '@/components/usePageDna';
+import { PageDnaStrip } from '@/components/PageDnaStrip';
 import { bookService, poemService } from '@/lib/services';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
 import type { Passage, Poem } from '@/lib/models';
@@ -372,12 +373,7 @@ function Studio({ passages }: { passages: Passage[] }) {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-[#57544E] bg-[#E4D8C2]/20 px-3 py-2 rounded">
-              <span>Page DNA (Found Density):</span>
-              <span className="font-semibold text-[#24231F]">
-                {pageDna === null ? '…' : `${pageDna} / 100w`}
-              </span>
-            </div>
+            <PageDnaStrip state={pageDna} />
 
             {/* Save & Reset Actions */}
             <div className="space-y-2 pt-1">

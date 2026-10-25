@@ -75,29 +75,37 @@ describe('BookService', () => {
 });
 
 describe('PageDnaService', () => {
-  // The Studio used to hard-code these; they are now computed, and must still agree.
-  const expected: Record<string, number> = {
-    'jane-eyre-ch1': 18.99,
-    'walden-woods': 40.85,
-    'dorian-gray-ch1': 15.66,
+  // Poems to find per passage (weak line endings hidden, overlapping windows grouped). The raw
+  // sliding-window counts this used to report (18.99, 40.85, 15.66 per 100 words) are gone.
+  const expected: Record<string, { poemsToFind: number; wordsPerPoem: number; per100Words: number }> = {
+    'jane-eyre-ch1': { poemsToFind: 8, wordsPerPoem: 30, per100Words: 3.38 },
+    'walden-woods': { poemsToFind: 9, wordsPerPoem: 24, per100Words: 4.23 },
+    'dorian-gray-ch1': { poemsToFind: 7, wordsPerPoem: 28, per100Words: 3.54 },
   };
 
-  it('computes the same Page DNA the Studio used to hard-code', async () => {
+  it('works out how many poems there are to find in each passage', async () => {
     const service = new PageDnaService();
     for (const passage of bundledPassages) {
-      expect(await service.getPageDNA(passage), passage.id).toBe(expected[passage.id]);
+      const pageDna = await service.getPageDna(passage);
+      expect(pageDna, passage.id).toMatchObject(expected[passage.id]);
+      expect(pageDna.blocks, passage.id).toHaveLength(expected[passage.id].poemsToFind);
     }
   });
 
   it('caches per passage', () => {
     const service = new PageDnaService();
     const [first, second] = bundledPassages;
-    expect(service.getPageDNA(first)).toBe(service.getPageDNA(first));
-    expect(service.getPageDNA(first)).not.toBe(service.getPageDNA(second));
+    expect(service.getPageDna(first)).toBe(service.getPageDna(first));
+    expect(service.getPageDna(first)).not.toBe(service.getPageDna(second));
   });
 
-  it('is zero for a passage with no words', async () => {
+  it('has nothing to find in a passage with no words', async () => {
     const service = new PageDnaService();
-    expect(await service.getPageDNA({ id: 'empty', tokens: [] })).toBe(0);
+    expect(await service.getPageDna({ id: 'empty', tokens: [] })).toEqual({
+      poemsToFind: 0,
+      per100Words: 0,
+      wordsPerPoem: null,
+      blocks: [],
+    });
   });
 });

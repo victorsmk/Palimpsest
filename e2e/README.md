@@ -49,3 +49,5 @@ where Firefox starts there.
 - `keyboard.spec.ts`: Tab, arrow keys and Space on the passage; focus trapping, Escape and
   focus return in both dialogs.
 - `layout.spec.ts`: no word ever moves when words are erased or the erasure style changes.
+- `pagedna.spec.ts`: the Page DNA headline and strip in the Studio sidebar: poems to find per
+  passage, blocks drawn at the right place and never over each other, number only as a hover detail.

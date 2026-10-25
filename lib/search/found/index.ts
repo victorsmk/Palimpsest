@@ -3,6 +3,8 @@ export { DEFAULT_MIN_OVERLAP, foundCandidateTokens, groupFoundCandidates } from 
 export { analyzeFound, hasWeakEnding, selectFoundFamilies, weakEndingLines } from './analyze';
 export type { FoundSelectionOptions } from './analyze';
 export { DEFAULT_CONTEXT_WORDS, getFoundContext } from './context';
+export { layoutPageDnaBlocks } from './layout';
+export type { PlacedBlock } from './layout';
 export type {
   FoundAnalysis,
   FoundCandidate,
