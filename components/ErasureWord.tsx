@@ -31,19 +31,25 @@ export function ErasureWord({
     );
   }
 
-  let appearance: string;
+  // Every state shares one layout box (the padding and margin below). Only paint differs
+  // between states: colour, backgrounds, text decoration. Paint never moves text, so keeping,
+  // erasing or restoring a word, or changing the erasure style, leaves every word where it was.
+  // The bars are backgrounds inset from the box's top and bottom so that rows stay distinct.
+  let paint: string;
   if (isRetained) {
     // Crisp ink
-    appearance = 'px-0.5 rounded text-[#24231F] hover:bg-[#E4D8C2]/60 font-normal transition-colors';
+    paint = 'rounded text-[#24231F] hover:bg-[#E4D8C2]/60 transition-colors';
   } else if (style === 'blackout') {
-    appearance =
-      'px-1 py-0.5 rounded-[2px] bg-[#24231F] text-transparent select-none hover:opacity-75 transition-opacity';
+    paint =
+      'text-transparent select-none hover:opacity-75 transition-opacity ' +
+      '[background:linear-gradient(#24231F,#24231F)_center/100%_calc(100%_-_6px)_no-repeat]';
   } else if (style === 'whiteout') {
-    appearance =
-      'px-1 py-0.5 rounded-[2px] bg-[#FFFFFF] text-transparent border border-[#DDD5C5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] select-none hover:border-[#9C968A] transition-all';
+    paint =
+      'text-transparent select-none hover:opacity-80 transition-opacity ' +
+      '[background:linear-gradient(#FFFFFF,#FFFFFF)_center/calc(100%_-_2px)_calc(100%_-_8px)_no-repeat,linear-gradient(#DDD5C5,#DDD5C5)_center/100%_calc(100%_-_6px)_no-repeat]';
   } else {
-    appearance =
-      'px-0.5 rounded text-[#8B867C]/30 line-through decoration-[#B5B0A4]/40 hover:text-[#8B867C]/60 hover:bg-[#E4D8C2]/30 transition-all duration-150';
+    paint =
+      'rounded text-[#8B867C]/30 line-through decoration-[#B5B0A4]/40 hover:text-[#8B867C]/60 hover:bg-[#E4D8C2]/30 transition-colors duration-150';
   }
 
   return (
@@ -57,7 +63,7 @@ export function ErasureWord({
       onFocus={() => onFocus(token.id)}
       onClick={() => onToggle(token.id)}
       title={isRetained ? 'Press to erase this word' : 'Press to keep this word'}
-      className={`inline-block mr-1.5 cursor-pointer ${appearance} ${FOCUS_RING}`}
+      className={`inline-block mr-1.5 px-0.5 cursor-pointer ${paint} ${FOCUS_RING}`}
     >
       {token.text}
     </button>
