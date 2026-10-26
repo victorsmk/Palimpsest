@@ -1,6 +1,6 @@
 import type { PoemRepository } from '@/lib/repositories';
 import type { Poem } from '@/lib/models';
-import { parsePoem } from '@/lib/models/poemValidation';
+import { parseStoredPoem } from '@/lib/models/poemValidation';
 
 export interface StorageAdapter {
   getItem(key: string): string | null;
@@ -26,6 +26,31 @@ export class MemoryStorageAdapter implements StorageAdapter {
 
 const STORAGE_KEY = 'palimpsest:poems:v1';
 
+/**
+ * Poems made before schema version 2 are kept under their old ids. This hands them out as version 2
+ * poems under the id every poem now has, the same way every time (see legacyPoemId), so that reading
+ * needs no migration step and nothing is written. The first write after that stores the whole
+ * collection in its new form, which is the whole migration. Anything that is not a readable version 1
+ * poem is passed through untouched; so is a version 1 poem whose new id is already taken, which is
+ * kept rather than overwritten.
+ */
+function upgradeLegacyEntries(stored: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const legacy: { key: string; entry: unknown; poem: Poem }[] = [];
+  for (const [key, entry] of Object.entries(stored)) {
+    const parsed = parseStoredPoem(entry);
+    const isLegacy = (entry as { schemaVersion?: unknown } | null)?.schemaVersion === 1;
+    if (isLegacy && parsed && parsed.storedId === key) legacy.push({ key, entry, poem: parsed.poem });
+    else result[key] = entry;
+  }
+  for (const { key, entry, poem } of legacy) {
+    // If the new id is already held by another entry, the old poem stays exactly as it was stored.
+    if (Object.hasOwn(result, poem.id)) result[key] = entry;
+    else result[poem.id] = poem;
+  }
+  return result;
+}
+
 export class BrowserPoemRepository implements PoemRepository {
   private storage: StorageAdapter;
 
@@ -50,7 +75,7 @@ export class BrowserPoemRepository implements PoemRepository {
       if (!raw) return {};
       const parsed: unknown = JSON.parse(raw);
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
-      return parsed as Record<string, unknown>;
+      return upgradeLegacyEntries(parsed as Record<string, unknown>);
     } catch {
       return {};
     }
@@ -65,8 +90,8 @@ export class BrowserPoemRepository implements PoemRepository {
   }
 
   private readPoem(key: string, entry: unknown): Poem | null {
-    const poem = parsePoem(entry);
-    return poem && poem.id === key ? poem : null;
+    const parsed = parseStoredPoem(entry);
+    return parsed && parsed.poem.id === key ? parsed.poem : null;
   }
 
   async save(poem: Poem): Promise<void> {

@@ -21,7 +21,7 @@ const read = readHandoff('#found=walden-woods:14-28:16,23', bundledPassages);
 if (read.kind !== 'open') throw new Error('the fixture link does not open');
 const { retainedTokenIds, lineBreaks } = read.snapshot;
 
-const base = { schemaVersion: 1, erasureStyle: 'blackout', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z' };
+const base = { schemaVersion: 2, revision: 1, erasureStyle: 'blackout', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z' };
 
 async function show(drafts: Record<string, unknown>) {
   localStorage.setItem('palimpsest:poems:v1', JSON.stringify(drafts));

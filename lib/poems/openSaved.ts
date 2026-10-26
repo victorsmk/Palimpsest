@@ -25,7 +25,7 @@ export async function openSavedPoem(
   if (!poem) return { ok: false, message: SAVED_MISSING_MESSAGE };
 
   const passage = passages.find(p => p.id === poem.passageId);
-  const reopened = reopenPoem(poem, passage?.tokens ?? null);
+  const reopened = reopenPoem(poem, passage ?? null);
   if (!reopened.ok || !passage) {
     return { ok: false, message: reopened.ok ? 'Draft could not be opened.' : reopened.message };
   }

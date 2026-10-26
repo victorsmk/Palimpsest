@@ -1,5 +1,6 @@
 import { POEM_SCHEMA_VERSION, type ErasureStyle, type Poem } from './index';
 import { LIMITS } from './limits';
+import { legacyPoemId } from './versions';
 
 const ERASURE_STYLES: readonly ErasureStyle[] = ['blackout', 'faded', 'whiteout'];
 
@@ -19,6 +20,17 @@ function isIsoDate(value: unknown): value is string {
  * here; version 1 is the only one so far.
  */
 export function parsePoem(raw: unknown): Poem | null {
+  return parseStoredPoem(raw)?.poem ?? null;
+}
+
+const PASSAGE_VERSION = /^t\d{1,4}-[0-9a-f]{16}$/;
+
+/**
+ * Like `parsePoem`, and also says which id the entry was stored under. They differ for a poem made
+ * before version 2: it is read as a version 2 poem with the id every poem now has (worked out from
+ * the old one, the same way every time) and revision 1, and `storedId` is the id it was kept under.
+ */
+export function parseStoredPoem(raw: unknown): { poem: Poem; storedId: string } | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
 
@@ -39,13 +51,21 @@ export function parsePoem(raw: unknown): Poem | null {
   if (r.title !== undefined && typeof r.title !== 'string') return null;
   if (r.notes !== undefined && typeof r.notes !== 'string') return null;
 
+  // Version 2 adds a revision (required) and a passage version (optional). Version 1 has neither.
+  const legacy = r.schemaVersion === 1;
+  if (!legacy) {
+    if (typeof r.revision !== 'number' || !Number.isInteger(r.revision) || r.revision < 1 || r.revision > 1_000_000_000) return null;
+    if (r.passageVersion !== undefined && (typeof r.passageVersion !== 'string' || !PASSAGE_VERSION.test(r.passageVersion))) return null;
+  }
+
   // Line breaks only make sense after retained words.
   const retained = new Set(r.retainedTokenIds);
   if (!r.lineBreaks.every(id => retained.has(id))) return null;
 
   const poem: Poem = {
-    id: r.id,
+    id: legacy ? legacyPoemId(r.id) : r.id,
     schemaVersion: POEM_SCHEMA_VERSION,
+    revision: legacy ? 1 : (r.revision as number),
     passageId: r.passageId,
     retainedTokenIds: r.retainedTokenIds,
     lineBreaks: r.lineBreaks,
@@ -53,9 +73,10 @@ export function parsePoem(raw: unknown): Poem | null {
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   };
+  if (!legacy && r.passageVersion !== undefined) poem.passageVersion = r.passageVersion as string;
   if (r.title !== undefined) poem.title = r.title as string;
   if (r.notes !== undefined) poem.notes = r.notes as string;
-  return poem;
+  return { poem, storedId: r.id };
 }
 
 /**

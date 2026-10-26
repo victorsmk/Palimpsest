@@ -1,10 +1,10 @@
 import { LIMITS, type Poem } from '@/lib/models';
-import { parsePoem } from '@/lib/models/poemValidation';
+import { parseStoredPoem } from '@/lib/models/poemValidation';
 
 /** What a backup file says it is, so that another file is not mistaken for one. */
 export const BACKUP_FORMAT = 'palimpsest-backup';
-/** The version of the backup layout this build writes and understands. */
-export const BACKUP_VERSION = 1;
+/** The version of the backup layout this build writes. It also reads version 1 (poems made before schema version 2). */
+export const BACKUP_VERSION = 2;
 /** The largest backup that is read: a collection of thousands of poems is far smaller than this. */
 export const MAX_BACKUP_BYTES = LIMITS.backupBytesMax;
 /** The most poems one backup may hold. */
@@ -89,12 +89,15 @@ export function readBackup(text: string): ReadBackupResult {
   let unreadable = 0;
   let repeated = 0;
   for (const entry of file.poems) {
-    const poem = parsePoem(entry);
+    const parsed = parseStoredPoem(entry);
     // The id becomes a key in storage, so it is held to a plain, safe form ("__proto__" is not one).
-    if (!poem || !SAFE_ID.test(poem.id) || poem.id === '__proto__') {
+    // For a poem from a version 1 backup the id checked is the one written in the file, not the new
+    // one it is given when read.
+    if (!parsed || !SAFE_ID.test(parsed.storedId) || parsed.storedId === '__proto__') {
       unreadable++;
       continue;
     }
+    const { poem } = parsed;
     if (seen.has(poem.id)) {
       repeated++;
       continue;
@@ -114,6 +117,8 @@ export function samePoem(a: Poem, b: Poem): boolean {
       p.title ?? '',
       p.notes ?? '',
       p.erasureStyle,
+      p.revision,
+      p.passageVersion ?? '',
       p.retainedTokenIds,
       p.lineBreaks,
       p.createdAt,

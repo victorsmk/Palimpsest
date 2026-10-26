@@ -40,7 +40,7 @@ test.describe('backing up', () => {
     expect(download.suggestedFilename()).toMatch(/^palimpsest-backup-\d{4}-\d{2}-\d{2}\.json$/);
     await expect(status(page)).toHaveText(`Backed up 2 poems to ${download.suggestedFilename()}.`);
     const file = JSON.parse(readFileSync(path, 'utf8'));
-    expect(file).toMatchObject({ format: 'palimpsest-backup', version: 1 });
+    expect(file).toMatchObject({ format: 'palimpsest-backup', version: 2 });
     expect(file.poems.map((p: { id: string }) => p.id).sort()).toEqual(['a', 'b']);
     expect(file.poems.find((p: { id: string }) => p.id === 'b')).toMatchObject({ title: 'Old Pond', notes: 'keep me' });
   });
@@ -181,7 +181,7 @@ test.describe('files that are not good backups', () => {
     ['JSON that is not a backup', '{"poems": []}', 'That file is not a Palimpsest backup.'],
     ['a list', '[1, 2, 3]', 'That file is not a Palimpsest backup.'],
     ['an empty file', '', 'That file could not be read. It is not a Palimpsest backup.'],
-    ['a backup from a newer version', JSON.stringify({ format: 'palimpsest-backup', version: 2, poems: [] }), 'That backup was made by a newer version of Palimpsest, which this one cannot read.'],
+    ['a backup from a newer version', JSON.stringify({ format: 'palimpsest-backup', version: 3, poems: [] }), 'That backup was made by a newer version of Palimpsest, which this one cannot read.'],
   ];
 
   for (const [name, contents, message] of cases) {
@@ -223,7 +223,7 @@ test.describe('files that are not good backups', () => {
     await openStudio(page);
     await openCollection(page);
     const withExtras = { ...draft({ id: 'x', passageId: 'walden-woods', title: 'Plain', retainedTokenIds: P.slice(0, 3), lineBreaks: [] }), script: '<script>alert(1)</script>', nested: { deep: true } };
-    await chooseText(page, JSON.stringify({ format: 'palimpsest-backup', version: 1, poems: [withExtras] }));
+    await chooseText(page, JSON.stringify({ format: 'palimpsest-backup', version: 2, poems: [withExtras] }));
     await question(page).getByRole('button', { name: 'Add 1 poem' }).click();
     const raw = await page.evaluate(key => window.localStorage.getItem(key), STORAGE_KEY);
     expect(raw).not.toContain('script');
@@ -234,7 +234,7 @@ test.describe('files that are not good backups', () => {
     await seed(page);
     await openStudio(page);
     await openCollection(page);
-    await chooseText(page, JSON.stringify({ format: 'palimpsest-backup', version: 1, poems: [draft({ id: 'z', passageId: 'walden-woods', title: 'Z', retainedTokenIds: P.slice(0, 2), lineBreaks: [] })] }));
+    await chooseText(page, JSON.stringify({ format: 'palimpsest-backup', version: 2, poems: [draft({ id: 'z', passageId: 'walden-woods', title: 'Z', retainedTokenIds: P.slice(0, 2), lineBreaks: [] })] }));
     await expect(question(page)).toBeVisible();
     await page.evaluate(() => {
       Storage.prototype.setItem = () => {
@@ -260,7 +260,7 @@ test.describe('on a phone', () => {
       expect(box.x + box.width).toBeLessThanOrEqual(390);
       expect(box.height).toBeGreaterThanOrEqual(24);
     }
-    await chooseText(page, JSON.stringify({ format: 'palimpsest-backup', version: 1, poems: [draft({ id: 'z', passageId: 'walden-woods', title: 'Z', retainedTokenIds: P.slice(0, 2), lineBreaks: [] })] }));
+    await chooseText(page, JSON.stringify({ format: 'palimpsest-backup', version: 2, poems: [draft({ id: 'z', passageId: 'walden-woods', title: 'Z', retainedTokenIds: P.slice(0, 2), lineBreaks: [] })] }));
     const box = (await question(page).boundingBox())!;
     expect(box.x + box.width).toBeLessThanOrEqual(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);

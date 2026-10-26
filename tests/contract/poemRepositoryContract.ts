@@ -18,7 +18,7 @@ export interface PoemRepositoryUnderTest {
 
 export const poem = (id: string, overrides: Partial<Poem> = {}): Poem => ({
   id,
-  schemaVersion: 1,
+  schemaVersion: 2, revision: 1,
   passageId: 'walden-woods',
   title: `Poem ${id}`,
   notes: 'some notes',

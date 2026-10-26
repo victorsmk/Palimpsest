@@ -34,9 +34,9 @@ poem model to change (step 3), which is where the real backend work starts.
 
 | # | Gap | Status |
 |---|---|---|
-| 1 | Poem ids and timestamps are made by the browser (`poem-<time>-<random>`, the user's clock) | **Open** (step 3) |
-| 2 | No revision, owner or deleted marker on a poem; two tabs saving can overwrite each other | **Open** (step 3) |
-| 3 | Poems are tied to word ids made from the bundled text (`walden-woods-token-0014`); a changed text orphans them | **Open** (step 3) |
+| 1 | Poem ids and timestamps are made by the browser (`poem-<time>-<random>`, the user's clock) | **Part done** (3a): every poem now has a UUID id, old ones included. The store assigning ids and times is 3b |
+| 2 | No revision, owner or deleted marker on a poem; two tabs saving can overwrite each other | **Part done** (3a): a `revision` is counted on every save. Refusing a stale save is 3b. Owner and deleted marker are for the server |
+| 3 | Poems are tied to word ids made from the bundled text (`walden-woods-token-0014`); a changed text orphans them | **Done** (3a): each poem records the version of its passage text; one made from changed text is refused with a clear message |
 | 4 | Validation lived in the browser-only folder and the backup code reached into it | **Done**: `lib/models/poemValidation.ts` |
 | 5 | No single place chose the implementation; the poem service silently defaulted to the browser one | **Done**: `lib/services/container.ts`, setting `NEXT_PUBLIC_DATA_BACKEND` |
 | 6 | Limits were uneven (titles capped only on rename and copy) | **Done**: `lib/models/limits.ts`, one set, enforced when writing |
@@ -69,10 +69,18 @@ poem model to change (step 3), which is where the real backend work starts.
 
 1. ~~Shared validation, one set of limits, a contract test suite.~~ **Done.**
 2. ~~One place that chooses the implementation.~~ **Done.**
-3. **Poem model version 2.** Server-assigned id and timestamps (the client treats them as opaque),
-   a `revision` number for conflict detection, `passageVersion` (a hash of the passage text a poem was
-   made from), and later an owner and a deleted marker. A tested migration from today's poems
-   (schema version 1). *Needs a decision on the details before building.*
+3. **Poem model version 2**, in two parts.
+   - **3a, done:** schema version 2 with a `revision` (counted on every save) and a `passageVersion`
+     (a fingerprint of the passage text and the tokenizer's version); opening a poem whose text has
+     changed is refused. Every poem, old ones included, has the same kind of id (a UUID). A poem made by
+     version 1 is read as version 2 under an id worked out from its old one (`legacyPoemId`, UUID v5),
+     so reading needs no migration step, the first write stores the whole collection in the new form,
+     and an old backup restores without adding twice. Backups are now version 2 and version 1 files
+     are still read.
+   - **3b, next:** the repository owns identity: `save` returns the stored poem with the id, times and
+     revision it assigned; an update states the revision it started from and a stale one is refused
+     with a conflict (so two tabs cannot overwrite each other, and a server can do the same);
+     `saveMany` becomes `importMany`, used only to restore backups.
 4. **Typed repository errors:** not found, conflict, not signed in, offline, rate-limited, limit; and
    the matching screen messages.
 5. **Paging and on-demand passages** (when there are many books): summary lists, passages fetched when

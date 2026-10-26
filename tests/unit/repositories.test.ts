@@ -96,7 +96,7 @@ describe('BrowserBookRepository', () => {
 describe('BrowserPoemRepository', () => {
   const dummyPoem: Poem = {
     id: 'poem-1',
-    schemaVersion: 1,
+    schemaVersion: 2, revision: 1,
     passageId: 'passage-1',
     retainedTokenIds: ['tok-1', 'tok-2'],
     lineBreaks: ['tok-2'],
@@ -188,7 +188,7 @@ describe('BrowserPoemRepository', () => {
         fractional: { ...dummyPoem, id: 'fractional', schemaVersion: 1.5 },
         zero: { ...dummyPoem, id: 'zero', schemaVersion: 0 },
         stringy: { ...dummyPoem, id: 'stringy', schemaVersion: '1' },
-        future: { ...dummyPoem, id: 'future', schemaVersion: 2 },
+        future: { ...dummyPoem, id: 'future', schemaVersion: 3 },
       });
       expect(await repo.list()).toEqual([]);
     });

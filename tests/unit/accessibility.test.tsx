@@ -198,7 +198,7 @@ describe('SaveDraftModal as a dialog', () => {
 describe('DraftsDrawer keyboard access', () => {
   const poem: Poem = {
     id: 'p1',
-    schemaVersion: 1,
+    schemaVersion: 2, revision: 1,
     passageId: 'walden-woods',
     retainedTokenIds: ['walden-woods-token-0000'],
     lineBreaks: [],

@@ -18,7 +18,9 @@ describe('PoemService (Persistence & Draft Management)', () => {
     });
 
     expect(saved.id).toBeDefined();
-    expect(saved.schemaVersion).toBe(1);
+    expect(saved.schemaVersion).toBe(2);
+    expect(saved.revision).toBe(1);
+    expect(saved.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/); // a random UUID
     expect(saved.title).toBe('Winter Shadows');
     expect(saved.retainedTokenIds).toEqual(['tok-1', 'tok-2', 'tok-5']);
     expect(saved.lineBreaks).toEqual(['tok-2']);

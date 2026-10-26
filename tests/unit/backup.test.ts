@@ -17,7 +17,7 @@ import type { Poem } from '@/lib/models';
 
 const poem = (id: string, overrides: Partial<Poem> = {}): Poem => ({
   id,
-  schemaVersion: 1,
+  schemaVersion: 2, revision: 1,
   passageId: 'walden-woods',
   title: `Poem ${id}`,
   notes: '',
@@ -38,7 +38,7 @@ describe('a backup file', () => {
   it('holds the format, the version, when it was made, and every poem whole', () => {
     expect(createBackup([poem('a'), poem('b')], now)).toEqual({
       format: 'palimpsest-backup',
-      version: 1,
+      version: 2,
       exportedAt: now.toISOString(),
       poems: [poem('a'), poem('b')],
     });
@@ -132,7 +132,7 @@ describe('reading a backup file', () => {
     const read = readBackup(fileOf([{ ...poem('a'), evil: '<script>', __extra: { deep: 1 } }]));
     expect(read.ok && read.poems[0]).toEqual(poem('a'));
     expect(read.ok && Object.keys(read.poems[0]).sort()).toEqual(
-      ['createdAt', 'erasureStyle', 'id', 'lineBreaks', 'notes', 'passageId', 'retainedTokenIds', 'schemaVersion', 'title', 'updatedAt']
+      ['createdAt', 'erasureStyle', 'id', 'lineBreaks', 'notes', 'passageId', 'retainedTokenIds', 'revision', 'schemaVersion', 'title', 'updatedAt']
     );
   });
 

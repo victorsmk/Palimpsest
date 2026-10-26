@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { passageVersionOf } from '@/lib/models';
 import { useEditor, reopenPoem, createDefaultSnapshot, snapshotsEqual, type EditorSnapshot } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
 import { BookText } from '@/components/BookText';
@@ -249,6 +250,7 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
       retainedTokenIds: snapshot.retainedTokenIds,
       lineBreaks: snapshot.lineBreaks,
       erasureStyle: snapshot.erasureStyle,
+      passageVersion: passageVersionOf(activePassage),
     });
 
     setCurrentPoemId(saved.id);
@@ -271,7 +273,7 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
   // Handle loading a poem from My Collection
   const handleLoadPoem = useCallback((poem: Poem) => {
     const passage = passages.find(p => p.id === poem.passageId);
-    const result = reopenPoem(poem, passage?.tokens ?? null);
+    const result = reopenPoem(poem, passage ?? null);
 
     // A draft that no longer fits its passage is refused; the page and the
     // stored draft are left exactly as they were.

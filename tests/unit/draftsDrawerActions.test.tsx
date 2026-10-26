@@ -8,7 +8,7 @@ import { click, render } from '../helpers/react';
 
 const STORAGE_KEY = 'palimpsest:poems:v1';
 const ids = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => `walden-woods-token-${String(from + i).padStart(4, '0')}`);
-const base = { schemaVersion: 1, passageId: 'walden-woods', erasureStyle: 'blackout', lineBreaks: [] };
+const base = { schemaVersion: 2, revision: 1, passageId: 'walden-woods', erasureStyle: 'blackout', lineBreaks: [] };
 
 const drafts = {
   newer: { ...base, id: 'newer', title: 'Quiet Woods', retainedTokenIds: ids(14, 16), createdAt: '2026-02-01T00:00:00.000Z', updatedAt: '2026-02-02T00:00:00.000Z' },

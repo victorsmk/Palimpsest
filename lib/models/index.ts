@@ -52,13 +52,29 @@ export interface PoemLine {
   tokenIds: string[];     // Retained token IDs for this line in source order
 }
 
-/** Current persisted-poem schema version; bump when the Poem shape changes. */
-export const POEM_SCHEMA_VERSION = 1;
+/**
+ * Current persisted-poem schema version; bump when the Poem shape changes.
+ *  1  the first shape: ids made by the browser, no revision, no passage version.
+ *  2  an id from the store (a UUID), a revision, and the version of the passage text it was made from.
+ * Version 1 poems are still read (see poemValidation.ts) and become version 2 in memory.
+ */
+export const POEM_SCHEMA_VERSION = 2;
 
 export interface Poem {
+  /** Opaque: made by the store, a UUID. Nothing should read anything into it. */
   id: string;
   schemaVersion: number;  // For future data migration support
+  /**
+   * Counts saves: 1 when the poem is created, and one more each time it is saved. A save says which
+   * revision it started from, so that it cannot silently overwrite a newer one.
+   */
+  revision: number;
   passageId: string;
+  /**
+   * Fingerprint of the exact passage text (and tokenizer) the poem was made from; see passageVersionOf.
+   * Missing on poems made before it was recorded, which are checked by their words alone.
+   */
+  passageVersion?: string;
   retainedTokenIds: string[];  // In source order
   lineBreaks: string[];        // Token IDs after which a line break is rendered
   erasureStyle: ErasureStyle;
@@ -77,5 +93,7 @@ export interface Collection {
 }
 
 export { LIMITS } from './limits';
+export { TOKENIZER_VERSION, legacyPoemId, passageVersionOf } from './versions';
+export { fingerprint, newId, uuidV5 } from './uuid';
 export { PoemLimitError } from './errors';
 export { parsePoem, poemLimitProblem } from './poemValidation';

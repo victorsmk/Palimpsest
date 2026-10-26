@@ -15,7 +15,7 @@ vi.mock('@/lib/export/text', async importOriginal => ({
 const STORAGE_KEY = 'palimpsest:poems:v1';
 const ids = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => `walden-woods-token-${String(from + i).padStart(4, '0')}`);
 const poem = (id: string, title: string, overrides = {}) => ({
-  id, schemaVersion: 1, passageId: 'walden-woods', title, notes: '', retainedTokenIds: ids(14, 17), lineBreaks: [],
+  id, schemaVersion: 2, revision: 1, passageId: 'walden-woods', title, notes: '', retainedTokenIds: ids(14, 17), lineBreaks: [],
   erasureStyle: 'blackout', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z', ...overrides,
 });
 

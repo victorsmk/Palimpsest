@@ -61,6 +61,9 @@ where Firefox starts there.
   24px touch targets. In WebKit (like Safari) Tab skips links, so those checks adapt per browser.
 - `export.spec.ts`: the text download (name, lines as broken, source, no notes), the disabled state with nothing kept, Print / Save as PDF (the dialog is called; in print
   media only the poem is visible; Chromium renders a one-page PDF), and the notice timer.
+- `poem-v2.spec.ts`: poems saved by the first version of the app (listed, opened, saved into the new form with
+  new ids, renamed, copied, restored from an old backup without adding twice), a new poem's id, revision
+  and passage version, and a poem made from a book whose text has changed being refused.
 - `collection-pages.spec.ts`: My Collection on the home, Discover and Assisted pages (the same panel),
   opening a saved poem in the Studio by `#open=<id>` (as the same poem, with its notes), refused links,
   the unsaved-changes question, managing and backing up from those pages, keyboard and phone.

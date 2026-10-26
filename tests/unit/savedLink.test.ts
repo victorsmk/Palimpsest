@@ -60,7 +60,7 @@ describe('a link to one of your saved poems', () => {
 describe('opening a saved poem', () => {
   const ids = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => `walden-woods-token-${String(from + i).padStart(4, '0')}`);
   const poem = (overrides: Partial<Poem> = {}): Poem => ({
-    id: 'a', schemaVersion: 1, passageId: 'walden-woods', title: 'Quiet Woods', notes: 'my notes', retainedTokenIds: ids(14, 28),
+    id: 'a', schemaVersion: 2, revision: 1, passageId: 'walden-woods', title: 'Quiet Woods', notes: 'my notes', retainedTokenIds: ids(14, 28),
     lineBreaks: [ids(14, 28)[2], ids(14, 28)[9]], erasureStyle: 'faded', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z', ...overrides,
   });
   const collectionOf = (...poems: Poem[]) => ({ getPoem: async (id: string) => poems.find(p => p.id === id) ?? null });

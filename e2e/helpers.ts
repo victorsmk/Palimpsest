@@ -76,7 +76,8 @@ export async function seedDrafts(page: Page, drafts: Record<string, unknown>) {
 export function draft(overrides: Record<string, unknown>) {
   const now = new Date().toISOString();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    revision: 1,
     lineBreaks: [],
     erasureStyle: 'blackout',
     createdAt: now,

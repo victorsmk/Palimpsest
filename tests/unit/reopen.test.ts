@@ -5,11 +5,12 @@ import type { Poem } from '@/lib/models';
 
 const tokens = tokenize('p1', 'Where the sea—wild and grey—meets sky.');
 const ids = tokens.filter(t => t.isSelectable).map(t => t.id);
+const passage = { tokens, sourceText: 'Where the sea—wild and grey—meets sky.' };
 
 function poemWith(overrides: Partial<Poem> = {}): Poem {
   return {
     id: 'poem-1',
-    schemaVersion: 1,
+    schemaVersion: 2, revision: 1,
     passageId: 'p1',
     retainedTokenIds: [ids[1], ids[3], ids[5]],
     lineBreaks: [ids[3]],
@@ -24,7 +25,7 @@ function poemWith(overrides: Partial<Poem> = {}): Poem {
 
 describe('reopenPoem', () => {
   it('turns a matching poem into an editor snapshot', () => {
-    const result = reopenPoem(poemWith(), tokens);
+    const result = reopenPoem(poemWith(), passage);
     expect(result).toEqual({
       ok: true,
       snapshot: {
@@ -39,7 +40,7 @@ describe('reopenPoem', () => {
 
   it('copies the arrays so editing never mutates the stored poem', () => {
     const poem = poemWith();
-    const result = reopenPoem(poem, tokens);
+    const result = reopenPoem(poem, passage);
     if (!result.ok) throw new Error('expected ok');
     result.snapshot.retainedTokenIds.push('x');
     expect(poem.retainedTokenIds).toHaveLength(3);
@@ -49,7 +50,7 @@ describe('reopenPoem', () => {
     const poem = poemWith();
     delete poem.title;
     delete poem.notes;
-    const result = reopenPoem(poem, tokens);
+    const result = reopenPoem(poem, passage);
     expect(result.ok && result.snapshot.title).toBe('');
     expect(result.ok && result.snapshot.notes).toBe('');
   });
@@ -60,20 +61,20 @@ describe('reopenPoem', () => {
   });
 
   it('refuses a poem that references a token the passage does not have', () => {
-    const result = reopenPoem(poemWith({ retainedTokenIds: [ids[1], 'p1-token-9999'] }), tokens);
+    const result = reopenPoem(poemWith({ retainedTokenIds: [ids[1], 'p1-token-9999'] }), passage);
     expect(result).toMatchObject({ ok: false, reason: 'token-mismatch' });
   });
 
   it('refuses a poem that references a separator token', () => {
     const dash = tokens.find(t => t.kind === 'separator')!;
-    const result = reopenPoem(poemWith({ retainedTokenIds: [ids[1], dash.id], lineBreaks: [] }), tokens);
+    const result = reopenPoem(poemWith({ retainedTokenIds: [ids[1], dash.id], lineBreaks: [] }), passage);
     expect(result).toMatchObject({ ok: false, reason: 'token-mismatch' });
   });
 
   it('refuses retained tokens that are out of source order', () => {
     const result = reopenPoem(
       poemWith({ retainedTokenIds: [ids[3], ids[1]], lineBreaks: [] }),
-      tokens
+      passage
     );
     expect(result).toMatchObject({ ok: false, reason: 'token-mismatch' });
   });
@@ -81,13 +82,13 @@ describe('reopenPoem', () => {
   it('refuses duplicate retained tokens', () => {
     const result = reopenPoem(
       poemWith({ retainedTokenIds: [ids[1], ids[1]], lineBreaks: [] }),
-      tokens
+      passage
     );
     expect(result).toMatchObject({ ok: false, reason: 'token-mismatch' });
   });
 
   it('accepts a poem with nothing retained', () => {
-    const result = reopenPoem(poemWith({ retainedTokenIds: [], lineBreaks: [] }), tokens);
+    const result = reopenPoem(poemWith({ retainedTokenIds: [], lineBreaks: [] }), passage);
     expect(result.ok).toBe(true);
   });
 });

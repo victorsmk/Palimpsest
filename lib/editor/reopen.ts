@@ -1,25 +1,36 @@
-import type { Poem, Token } from '@/lib/models';
+import { passageVersionOf, type Passage, type Poem } from '@/lib/models';
 import type { EditorSnapshot } from './types';
 
 export type ReopenResult =
   | { ok: true; snapshot: EditorSnapshot }
-  | { ok: false; reason: 'passage-missing' | 'token-mismatch'; message: string };
+  | { ok: false; reason: 'passage-missing' | 'passage-changed' | 'token-mismatch'; message: string };
 
 /**
  * Checks that a saved poem still fits the passage it was made from and, if so,
  * turns it into an editor snapshot. The poem is never modified or repaired: a
  * draft that no longer matches is refused and stays in storage untouched.
  *
- * `passageTokens` is null when the poem's passage is not in the library.
+ * `passage` is null when the poem's passage is not in the library. A poem that recorded the version
+ * of the text it was made from is refused when the text has changed since, even if its words happen
+ * to be found: the words it points at may no longer be the ones it was made from.
  */
-export function reopenPoem(poem: Poem, passageTokens: Token[] | null): ReopenResult {
+export function reopenPoem(poem: Poem, passage: Pick<Passage, 'tokens' | 'sourceText'> | null): ReopenResult {
   const title = poem.title || 'Untitled';
+  const passageTokens = passage?.tokens ?? null;
 
-  if (!passageTokens) {
+  if (!passage || !passageTokens) {
     return {
       ok: false,
       reason: 'passage-missing',
       message: `"${title}" was made from a passage that is no longer in the library.`,
+    };
+  }
+
+  if (poem.passageVersion && poem.passageVersion !== passageVersionOf(passage)) {
+    return {
+      ok: false,
+      reason: 'passage-changed',
+      message: `"${title}" was made from an earlier version of this text, which has since changed, so it cannot be opened safely.`,
     };
   }
 

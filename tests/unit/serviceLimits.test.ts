@@ -14,7 +14,7 @@ const base = {
 const stored = (id: string): Poem => ({
   ...base,
   id,
-  schemaVersion: 1,
+  schemaVersion: 2, revision: 1,
   title: id,
   notes: '',
   createdAt: '2026-01-01T00:00:00.000Z',

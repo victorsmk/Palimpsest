@@ -1,5 +1,5 @@
 import type { PoemRepository } from '@/lib/repositories';
-import { LIMITS, POEM_SCHEMA_VERSION, PoemLimitError, poemLimitProblem, type ErasureStyle, type Poem } from '@/lib/models';
+import { LIMITS, POEM_SCHEMA_VERSION, PoemLimitError, newId, poemLimitProblem, type ErasureStyle, type Poem } from '@/lib/models';
 import { backupFilename, createBackup, planRestore, serializeBackup, type RestorePlan } from '@/lib/backup';
 
 export interface SavePoemInput {
@@ -10,6 +10,8 @@ export interface SavePoemInput {
   retainedTokenIds: string[];
   lineBreaks: string[];
   erasureStyle: ErasureStyle;
+  /** The version of the passage text the poem was made from (see passageVersionOf). Kept as it was if left out. */
+  passageVersion?: string;
 }
 
 /** The longest title a poem can be given. A longer one is cut to this. */
@@ -54,8 +56,9 @@ export class PoemService {
     if (!existing && (await this.repo.list()).length >= LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
 
     const poem: Poem = {
-      id: input.id || `poem-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: input.id || newId(),
       schemaVersion: POEM_SCHEMA_VERSION,
+      revision: existing ? existing.revision + 1 : 1,
       passageId: input.passageId,
       title: cleanTitle(input.title ?? ''),
       notes,
@@ -65,6 +68,8 @@ export class PoemService {
       createdAt: existing ? existing.createdAt : now,
       updatedAt: now,
     };
+    const passageVersion = input.passageVersion ?? existing?.passageVersion;
+    if (passageVersion) poem.passageVersion = passageVersion;
 
     await this.repo.save(poem);
     return poem;
@@ -101,6 +106,7 @@ export class PoemService {
       retainedTokenIds: poem.retainedTokenIds,
       lineBreaks: poem.lineBreaks,
       erasureStyle: poem.erasureStyle,
+      passageVersion: poem.passageVersion,
     });
   }
 
