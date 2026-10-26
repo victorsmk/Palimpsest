@@ -1,5 +1,6 @@
-import { LIMITS, type PoemDraft } from '@/lib/models';
+import { LIMITS, UnavailableError, type PoemDraft } from '@/lib/models';
 import type { PoemRepository } from '@/lib/repositories';
+import type { AccountStore } from './accounts';
 import type { Authenticator } from './auth';
 import { RequestProblem, errorResponse, json, noContent, problem } from './http';
 import { SAFE_ID, pageRequestOf, revisionOfIfMatch, validateDraft, validateIds, validatePoems, type Checked } from './validate';
@@ -14,6 +15,8 @@ export interface ApiDeps {
   authenticate: Authenticator;
   /** The poems of one user. */
   poemsOf(userId: string): PoemRepository;
+  /** Deleting an account. Left out, deleting is answered as not available. */
+  accounts?: AccountStore;
 }
 
 /** The body of a request as JSON: it must say it is JSON, must not be larger than `max`, and must parse. */
@@ -101,6 +104,18 @@ export function createPoemsApi(deps: ApiDeps) {
         if (safe) await poems.delete(safe);
         return noContent();
       }),
+
+    /** DELETE /api/account — deletes the signed-in user's poems and then the user. 204. Nothing is deleted if it cannot all be. */
+    deleteAccount: async (request: Request) => {
+      try {
+        const userId = await deps.authenticate(request);
+        if (!deps.accounts?.canDelete()) throw new UnavailableError({ cause: new Error('Accounts cannot be deleted here') });
+        await deps.accounts.deleteAccount(userId);
+        return noContent();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    },
 
     /** GET /api/collection/count */
     count: (request: Request) => handle(request, async poems => json({ count: await poems.count() })),

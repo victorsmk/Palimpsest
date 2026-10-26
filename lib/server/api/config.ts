@@ -6,12 +6,16 @@ import { UnavailableError } from '@/lib/models';
  *   DATABASE_URL         the Postgres connection string (Supabase: Project settings, Database)
  *   SUPABASE_URL         the project's address, such as https://abcd.supabase.co
  *   SUPABASE_ANON_KEY    the project's public "anon" key (it is only used to ask Supabase who a token belongs to)
+ *   SUPABASE_SERVICE_ROLE_KEY  the project's SECRET key, only for deleting an account (it can do anything to the project:
+ *                        server only, never in a NEXT_PUBLIC_ setting, never in the browser)
  *   PALIMPSEST_TEST_AUTH set to "1" to sign in with a fake token in development and in tests. Refused in production.
  */
 export interface ServerConfig {
   databaseUrl: string;
   /** Present when sign-in goes through Supabase. */
   supabase: { url: string; anonKey: string } | null;
+  /** The secret key for deleting accounts. Without it, accounts cannot be deleted (and nothing is deleted when one is tried). */
+  serviceRoleKey: string | null;
   testAuth: boolean;
 }
 
@@ -47,5 +51,5 @@ export function readServerConfig(env: Env): ServerConfig {
       throw new ConfigError('SUPABASE_URL is not a valid address.');
     }
   }
-  return { databaseUrl, supabase, testAuth };
+  return { databaseUrl, supabase, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null, testAuth };
 }

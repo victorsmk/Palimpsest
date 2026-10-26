@@ -1,6 +1,8 @@
 import { BookService } from './BookService';
 import { PoemService } from './PoemService';
 import { createRepositories, readBackendKind } from './container';
+import { getAuth } from '@/lib/auth/runtime';
+import { setSessionSource } from '@/lib/auth/session';
 
 export { PoemService, MAX_TITLE_LENGTH, cleanTitle, copyTitle } from './PoemService';
 export type { SavePoemInput } from './PoemService';
@@ -11,6 +13,9 @@ export { DEFAULT_BACKEND, createRepositories, readBackendKind } from './containe
 export type { BackendKind, Repositories } from './container';
 
 // The services the screens use, built on the repositories the container chooses.
-const repositories = createRepositories(readBackendKind(process.env.NEXT_PUBLIC_DATA_BACKEND));
+export const backendKind = readBackendKind(process.env.NEXT_PUBLIC_DATA_BACKEND);
+const repositories = createRepositories(backendKind);
+// With the poems on the server, the data layer gets its token from whoever is signed in (browser only: nothing asks before then).
+if (backendKind === 'server') setSessionSource({ getToken: () => getAuth().getToken() });
 export const poemService = new PoemService(repositories.poems);
 export const bookService = new BookService(repositories.books);

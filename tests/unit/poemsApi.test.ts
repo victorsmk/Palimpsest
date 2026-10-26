@@ -2,6 +2,7 @@ import { describe, it, expect, afterAll, vi } from 'vitest';
 import { LIMITS, type Poem } from '@/lib/models';
 import { PostgresPoemRepository } from '@/lib/server/PostgresPoemRepository';
 import { createPoemsApi } from '@/lib/server/api/handlers';
+import { createAccountStore } from '@/lib/server/api/accounts';
 import { supabaseAuthenticator, testAuthenticator } from '@/lib/server/api/auth';
 import { readServerConfig } from '@/lib/server/api/config';
 import { createTestDb } from '../helpers/pgliteDb';
@@ -148,6 +149,7 @@ describe('the server’s settings', () => {
     expect(readServerConfig({ ...good, SUPABASE_URL: 'https://abc.supabase.co/some/path/' })).toEqual({
       databaseUrl: 'postgres://u:p@h/db',
       supabase: { url: 'https://abc.supabase.co', anonKey: 'k' },
+      serviceRoleKey: null,
       testAuth: false,
     });
   });
@@ -174,7 +176,13 @@ describe('the server’s settings', () => {
   });
 
   it('allow the test sign-in outside production, with no Supabase settings', () => {
-    expect(readServerConfig({ DATABASE_URL: 'postgres://x', PALIMPSEST_TEST_AUTH: '1', NODE_ENV: 'development' })).toEqual({ databaseUrl: 'postgres://x', supabase: null, testAuth: true });
+    expect(readServerConfig({ DATABASE_URL: 'postgres://x', PALIMPSEST_TEST_AUTH: '1', NODE_ENV: 'development' })).toEqual({ databaseUrl: 'postgres://x', supabase: null, serviceRoleKey: null, testAuth: true });
+  });
+
+  it('read the secret key for deleting accounts, and take a blank one as none', () => {
+    expect(readServerConfig({ ...good, SUPABASE_SERVICE_ROLE_KEY: ' secret ' }).serviceRoleKey).toBe('secret');
+    expect(readServerConfig({ ...good, SUPABASE_SERVICE_ROLE_KEY: '  ' }).serviceRoleKey).toBeNull();
+    expect(readServerConfig(good).serviceRoleKey).toBeNull();
   });
 
   it('never allow the test sign-in in production, whatever else is set', () => {
@@ -553,5 +561,95 @@ describe('the collection limit through the API', () => {
     expect(response.status).toBe(422);
     expect(await readError(response)).toEqual({ code: 'limit', message: 'Your collection is full: it can hold up to 2,000 poems. Delete some to save more.' });
     expect(await repo.count()).toBe(LIMITS.poemsMax);
+  });
+});
+
+describe('deleting an account', () => {
+  const del = (apiUnderTest: typeof api, user?: string) => apiUnderTest.deleteAccount(request('DELETE', '/api/account', { user }));
+  const apiWith = (accounts: ReturnType<typeof createAccountStore> | undefined) =>
+    createPoemsApi({ authenticate: testAuthenticator(), poemsOf: userId => new PostgresPoemRepository(db, userId), accounts });
+  const countOf = (user: string) => new PostgresPoemRepository(db, user).count();
+
+  it('needs a sign-in', async () => {
+    expect((await del(apiWith(createAccountStore({ db, noAuthUser: true })))).status).toBe(401);
+  });
+
+  it('deletes every poem of the user and nobody else’s, and answers 204 again when repeated', async () => {
+    const accounts = apiWith(createAccountStore({ db, noAuthUser: true }));
+    const mine = newUser();
+    const theirs = newUser();
+    await new PostgresPoemRepository(db, mine).importMany([poem('a'), poem('b')]);
+    await new PostgresPoemRepository(db, theirs).importMany([poem('a')]);
+    const first = await del(accounts, mine);
+    expect(first.status).toBe(204);
+    expect(await countOf(mine)).toBe(0);
+    expect(await countOf(theirs)).toBe(1);
+    expect((await del(accounts, mine)).status).toBe(204);
+  });
+
+  describe('at Supabase', () => {
+    const user = newUser();
+    const store = (respond: () => Response | Promise<Response>) => {
+      const fetcher = vi.fn(async () => respond());
+      return { fetcher, accounts: apiWith(createAccountStore({ db, supabase: { url: 'https://abc.supabase.co', serviceRoleKey: 'secret-key', fetch: fetcher as unknown as typeof fetch } })) };
+    };
+    const stored = async () => new PostgresPoemRepository(db, user).importMany([poem('a')]);
+
+    it('removes the user with the secret key, after the poems, and the key goes nowhere else', async () => {
+      await stored();
+      const { fetcher, accounts } = store(() => new Response(null, { status: 200 }));
+      const response = await del(accounts, user);
+      expect(response.status).toBe(204);
+      const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe(`https://abc.supabase.co/auth/v1/admin/users/${user}`);
+      expect(init.method).toBe('DELETE');
+      expect(init.headers).toEqual({ Authorization: 'Bearer secret-key', apikey: 'secret-key' });
+      expect(await countOf(user)).toBe(0);
+      expect(await response.text()).not.toContain('secret-key');
+    });
+
+    it('counts a user Supabase no longer has as deleted', async () => {
+      expect((await del(store(() => new Response('', { status: 404 })).accounts, user)).status).toBe(204);
+    });
+
+    it.each([500, 502, 401, 403])('says unavailable if Supabase answers %i, with the poems already gone, so trying again finishes it', async status => {
+      await stored();
+      const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const failing = store(() => new Response('no', { status }));
+      const response = await del(failing.accounts, user);
+      expect(response.status).toBe(503);
+      expect(JSON.stringify(await response.json())).not.toContain('secret-key');
+      expect(await countOf(user)).toBe(0);
+      quiet.mockRestore();
+      expect((await del(store(() => new Response(null, { status: 200 })).accounts, user)).status).toBe(204);
+    });
+
+    it('says unavailable if Supabase cannot be reached', async () => {
+      const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { accounts } = store(() => Promise.reject(new TypeError('fetch failed')));
+      expect((await del(accounts, user)).status).toBe(503);
+      quiet.mockRestore();
+    });
+  });
+
+  it('deletes nothing at all where it could not delete the user too (no secret key, or no accounts store)', async () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    for (const accounts of [createAccountStore({ db }), undefined]) {
+      const user = newUser();
+      await new PostgresPoemRepository(db, user).importMany([poem('a')]);
+      expect((await del(apiWith(accounts), user)).status).toBe(503);
+      expect(await countOf(user)).toBe(1);
+    }
+    quiet.mockRestore();
+  });
+
+  it('says unavailable if the database fails', async () => {
+    const test = await createTestDb();
+    const failing = createPoemsApi({ authenticate: testAuthenticator(), poemsOf: userId => new PostgresPoemRepository(test, userId), accounts: createAccountStore({ db: test, noAuthUser: true }) });
+    test.failWrites();
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await del(failing, newUser())).status).toBe(503);
+    quiet.mockRestore();
+    await test.close();
   });
 });

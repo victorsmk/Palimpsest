@@ -1,4 +1,5 @@
 import { createPgDb } from '../pgDb';
+import { createAccountStore } from './accounts';
 import { PostgresPoemRepository } from '../PostgresPoemRepository';
 import { supabaseAuthenticator, testAuthenticator } from './auth';
 import { readServerConfig } from './config';
@@ -15,7 +16,13 @@ const keep = globalThis as { __palimpsestPoemsApi?: PoemsApi };
 function build(): PoemsApi {
   const config = readServerConfig(process.env);
   const db = createPgDb(config.databaseUrl);
+  const accounts = createAccountStore({
+    db,
+    noAuthUser: config.testAuth,
+    supabase: !config.testAuth && config.supabase && config.serviceRoleKey ? { url: config.supabase.url, serviceRoleKey: config.serviceRoleKey } : undefined,
+  });
   return createPoemsApi({
+    accounts,
     authenticate: config.testAuth ? testAuthenticator() : supabaseAuthenticator(config.supabase!),
     poemsOf: userId => new PostgresPoemRepository(db, userId),
   });
@@ -43,6 +50,7 @@ export const poemsApi = {
   update: lazy<[string]>(api => api.update),
   remove: lazy<[string]>(api => api.remove),
   count: lazy(api => api.count),
+  deleteAccount: lazy(api => api.deleteAccount),
   lookup: lazy(api => api.lookup),
   importPoems: lazy(api => api.importPoems),
 };
