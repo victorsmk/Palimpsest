@@ -90,7 +90,44 @@ the page and lose an unsaved poem). Supabase's emails contain a link unless you 
    terms), and a From address. Supabase then starts at 30 emails an hour, which you can raise on the Rate
    Limits page.
 
-Google sign-in is not built yet (see [ROADMAP.md](ROADMAP.md)); it would also remove the email limits.
+Google sign-in (next part) needs no email at all, so it also gets around these limits for everyone who uses it.
+
+## 2b. Let people sign in with Google (optional, no email service needed)
+
+A "Continue with Google" button appears above the email form when a Google client id is set. Google opens its
+own popup and hands the page a signed token, which Supabase checks with Google; the page never leaves, so an
+unsaved poem stays. If the setting is not there, there is simply no Google button, and nothing else changes.
+These steps follow Supabase's Google documentation as read on 2026-10-27; **I have not been able to try them
+against real Google or Supabase**, so the checklist in part 7 is how you find out.
+
+1. In **Google Cloud Console** (console.cloud.google.com), make a project (or pick one).
+2. **APIs & Services → OAuth consent screen**: choose **External**, fill in the app name (people see it in the
+   Google popup), your support email and developer email. The only things the app asks Google for are the
+   basics (the person's name and email address); those need no review by Google.
+   - While the screen's **publishing status is "Testing"**, only the **test users you list** (up to 100) can
+     sign in. To let anyone in, **publish** it ("In production"). Google may ask for things such as a link to
+     a privacy policy or the site's address; follow what the console says.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**:
+   - **Authorized JavaScript origins**: your site's address, such as `https://YOUR-SITE.vercel.app` (no path, no
+     trailing slash). Add `http://localhost:3000` too if you want to try it from `npm run dev` with a real
+     Supabase project.
+   - **Authorized redirect URIs**: Supabase's callback address, which the Google provider page in the
+     Supabase dashboard shows for copying (like `https://YOUR-PROJECT.supabase.co/auth/v1/callback`). The
+     button flow does not use it, but Supabase's setup asks for it.
+   - Save, and copy the **Client ID** and the **Client secret**.
+4. In **Supabase → Authentication → Providers → Google**: switch it on, put the **Client ID** in "Client IDs"
+   and the **Client secret** in the secret field, and save.
+5. In Vercel add `NEXT_PUBLIC_GOOGLE_CLIENT_ID` = the Client ID (it is public, like the other `NEXT_PUBLIC_`
+   settings) and **redeploy** (it is read when the app is built).
+
+Good to know:
+- **Same address, two ways in:** if someone signed in with an email code and later uses Google with the same
+  address, Supabase links them into **one account** (it does this for verified emails, per its documentation),
+  so their poems are still there.
+- The button's look and text are Google's, not ours. Browsers with strict privacy settings, or extensions
+  that block Google's script, may stop it from loading: the dialog then says Google sign-in did not work, and
+  the email code is still there.
+- The popup can be closed by the person without choosing an account; nothing happens then.
 
 ## 3. Get the code to Vercel
 
@@ -114,6 +151,7 @@ Preview too, if you will use previews). The names are in [`.env.example`](.env.e
 | `NEXT_PUBLIC_DATA_BACKEND` | `server` | public, read at **build** |
 | `NEXT_PUBLIC_SUPABASE_URL` | the Project URL | public, read at **build** |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the anon key | public, read at **build** |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | the Google client id (optional: part 2b) | public, read at **build** |
 | `DATABASE_URL` | the transaction pooler string from part 1 | secret |
 | `SUPABASE_URL` | the Project URL | config |
 | `SUPABASE_ANON_KEY` | the anon key | config |
@@ -187,6 +225,21 @@ Supabase organization, unless you set up SMTP). Tell me which lines fail and wha
       address* template) and works.
 - [ ] Ask for codes quickly, one after another: after a few tries it says to wait.
 
+**Signing in with Google** (only if you did part 2b)
+- [ ] The sign-in dialog shows Google's "Continue with Google" button above the email form, with "or" under it.
+- [ ] Press it: Google's popup opens, you choose an account, the popup closes, and the page shows **Account**.
+      The page did not reload or move.
+- [ ] In the Studio with some words kept, press Save while signed out, then use Google: the save form opens and
+      the words are still on the page.
+- [ ] Sign out, then sign in **by email code with the same address** as the Google account: you are in the same
+      account, with the same poems. (If you are given a separate empty account instead, tell me.)
+- [ ] Sign in with Google on a **different** Google account: an empty collection of its own.
+- [ ] With the consent screen in "Testing", a Google account that is **not** a listed test user is refused by
+      Google; once published, anyone can.
+- [ ] Close the Google popup without choosing: nothing breaks, and the email form still works.
+- [ ] **Account → Delete my account…** for a Google-created account removes it in Supabase (Authentication →
+      Users) as for any other.
+
 **Saving and the collection**
 - [ ] In the Studio keep some words, press **Save Draft** while signed out: it asks you to sign in, then opens
       the save form. The form says drafts are saved to your account. Save.
@@ -219,6 +272,17 @@ app kept them; if you have none, skip)
 
 ## 8. Troubleshooting
 
+- **Google: "Error 400: origin_mismatch" (or "invalid_client") in Google's popup.** The site's address is not in
+  the OAuth client's **Authorized JavaScript origins** (exact scheme, host and port, no trailing slash), or the
+  Client ID in `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is not the one from that client. The `NEXT_PUBLIC_` setting needs a
+  redeploy.
+- **Google: "access blocked" or "this app is not verified".** The consent screen is in "Testing" and you are not
+  a listed test user, or it needs publishing (part 2b, step 2).
+- **Google: the button shows, you choose an account, then "Google sign-in did not work".** Supabase refused the
+  token: check that the Client ID is in **Supabase → Authentication → Providers → Google → Client IDs** (the
+  same one), and that the provider is switched on. The Supabase auth logs say why.
+- **Google: no button at all.** `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is missing from the deployed build (redeploy
+  after adding it), or Google's script is blocked.
 - **"self signed certificate in certificate chain" (or similar) in the Vercel logs.** Supabase's certificate is
   signed by its own authority, which Node does not know. The app handles `?sslmode=require` by encrypting
   without checking the certificate (this is what most hosted setups do). To check it too, download the

@@ -1,4 +1,4 @@
-import { AuthError, type AuthClient, type AuthSession, type AuthState } from './types';
+import { AuthError, type AuthClient, type AuthSession, type AuthState, type GoogleSignIn } from './types';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CODE = /^\d{6,10}$/;
@@ -56,6 +56,33 @@ export class AuthManager {
     } catch (cause) {
       throw new AuthError('unavailable', 'Sign-in is not set up yet.', { cause });
     }
+  }
+
+  /**
+   * Signing in with Google, or null when it is not set up (or there is no sign-in service at all). The
+   * state is right by the time `onSignedIn` is called.
+   */
+  async googleSignIn(): Promise<GoogleSignIn | null> {
+    let client: AuthClient;
+    try {
+      client = await this.clientPromise;
+    } catch {
+      return null;
+    }
+    const google = client.google;
+    if (!google) return null;
+    return {
+      renderButton: (element, handlers) =>
+        google.renderButton(element, {
+          onError: handlers.onError,
+          onSignedIn: () => {
+            void client.getSession().then(session => {
+              this.set(session);
+              handlers.onSignedIn();
+            });
+          },
+        }),
+    };
   }
 
   /** Asks for a one-time code to be emailed. */

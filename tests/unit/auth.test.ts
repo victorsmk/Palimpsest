@@ -269,6 +269,7 @@ describe('Supabase sign-in', () => {
         },
         signInWithOtp: async args => (calls.push(['otp', args]), maybeThrow(), { error: answers.send as never }),
         verifyOtp: async args => (calls.push(['verify', args]), maybeThrow(), { error: answers.verify as never }),
+        signInWithIdToken: async args => (calls.push(['idtoken', args]), maybeThrow(), { error: answers.send as never }),
         signOut: async () => (calls.push(['signout']), maybeThrow(), { error: answers.out as never }),
       },
     };
@@ -377,6 +378,13 @@ describe('choosing the sign-in service', () => {
     await expect(createAuthClient({})).rejects.toThrow('are not set');
     await expect(createAuthClient({ NEXT_PUBLIC_SUPABASE_URL: 'https://a.supabase.co' })).rejects.toThrow('are not set');
     await expect(createAuthClient({ NEXT_PUBLIC_SUPABASE_ANON_KEY: 'k', NEXT_PUBLIC_SUPABASE_URL: '  ' })).rejects.toThrow('are not set');
+  });
+
+  it('offers Google sign-in only when a Google client id is set, and ignores a blank one', async () => {
+    const base = { NEXT_PUBLIC_SUPABASE_URL: 'https://abc.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key' };
+    expect((await createAuthClient(base)).google).toBeUndefined();
+    expect((await createAuthClient({ ...base, NEXT_PUBLIC_GOOGLE_CLIENT_ID: '   ' })).google).toBeUndefined();
+    expect((await createAuthClient({ ...base, NEXT_PUBLIC_GOOGLE_CLIENT_ID: '123.apps.googleusercontent.com' })).google).toBeDefined();
   });
 
   it('makes a Supabase sign-in from the two settings', async () => {

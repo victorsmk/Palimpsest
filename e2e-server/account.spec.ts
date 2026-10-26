@@ -106,6 +106,66 @@ test.describe('signing in with a code', () => {
   });
 });
 
+test.describe('signing in with Google (the demo stand-in for its button)', () => {
+  const googleButton = (page: Page) => signInDialog(page).getByRole('button', { name: 'Continue with Google (demo)' });
+  const GOOGLE = 'google-demo@example.com';
+
+  test('is offered above the email form, and signs in without leaving the page', async ({ page }) => {
+    await openStudio(page);
+    await keepFirstWords(page, 3);
+    await headerButton(page, 'Sign in').click();
+    await expect(googleButton(page)).toBeVisible();
+    await expect(signInDialog(page).getByLabel('Email address')).toBeVisible();
+    await googleButton(page).click();
+    await expect(signInDialog(page)).toHaveCount(0);
+    await expect(headerButton(page, 'Account')).toBeVisible();
+    await expect(page).toHaveURL(/\/studio$/);
+    await expect(keptWords(page)).toHaveCount(3); // the poem on the page is as it was
+    await headerButton(page, 'Account').click();
+    await expect(page.getByRole('dialog', { name: 'Your account' })).toContainText(GOOGLE);
+  });
+
+  test('saving while signed out can be finished with Google, and opens the save form after', async ({ page, server }) => {
+    await openStudio(page);
+    await keepFirstWords(page, 4);
+    await page.getByRole('button', { name: 'Save Draft to Collection' }).click();
+    await googleButton(page).click();
+    await expect(saveForm(page)).toBeVisible();
+    await saveForm(page).getByLabel('Poem Title').fill('Through Google');
+    await saveForm(page).getByRole('button', { name: 'Save Draft', exact: true }).click();
+    await expect(page.getByText('Draft "Through Google" saved.')).toBeVisible();
+    expect(await server.poemsOf(GOOGLE).count()).toBe(1);
+  });
+
+  test('the same address by email code is the same account, with the same poems', async ({ page }) => {
+    await openStudio(page);
+    await headerButton(page, 'Sign in').click();
+    await googleButton(page).click();
+    await keepFirstWords(page, 3);
+    await saveOne(page, 'Saved by the Google sign-in');
+    await expect(page.getByText('Draft "Saved by the Google sign-in" saved.')).toBeVisible();
+
+    await headerButton(page, 'Account').click();
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await headerButton(page, 'Sign in').click();
+    await completeSignIn(page, GOOGLE);
+    await openCollection(page);
+    await expect(panel(page).getByRole('listitem')).toHaveCount(1);
+    await expect(panel(page)).toContainText('Saved by the Google sign-in');
+  });
+
+  test('is not offered once the email code has been asked for, and comes back with "Use another address"', async ({ page }) => {
+    await openStudio(page);
+    await headerButton(page, 'Sign in').click();
+    await expect(googleButton(page)).toBeVisible();
+    await signInDialog(page).getByLabel('Email address').fill(ME);
+    await signInDialog(page).getByRole('button', { name: 'Send code' }).click();
+    await expect(googleButton(page)).toHaveCount(0);
+    await signInDialog(page).getByRole('button', { name: 'Use another address' }).click();
+    await expect(googleButton(page)).toBeVisible();
+  });
+});
+
 test.describe('saving a poem', () => {
   test('needs an account: the sign-in comes first, the poem stays, and the save form opens after', async ({ page, server }) => {
     await openStudio(page);

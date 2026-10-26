@@ -119,4 +119,4 @@ over a real SQL database (PGlite), a fresh one for every test; a test can make t
 vanish (`server.answerWith`, `server.offline`). `account.spec.ts`: signing in with a code (every error), saving
 needing an account, My Collection signed out and in, each account's own poems, a link to a saved poem, backup
 and restore, a server that is down or a sign-in that has run out, two tabs, bringing the poems of the browser
-across (offered, added, "not now", twice, a failure), and deleting the account.
+across (offered, added, "not now", twice, a failure), signing in with Google (a stand-in button: no page change, the same account as the same address by email code), and deleting the account.

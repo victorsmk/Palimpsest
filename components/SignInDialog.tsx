@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { AuthManager } from '@/lib/auth/AuthManager';
 import { demoSignInHint } from '@/lib/auth/runtime';
-import { AuthError } from '@/lib/auth/types';
+import { AuthError, type GoogleSignIn } from '@/lib/auth/types';
 import { useDialog } from './useDialog';
 
 interface SignInDialogProps {
@@ -42,6 +42,50 @@ export function SignInDialog({ manager, reason, onClose, onSignedIn }: SignInDia
   const [sentNotice, setSentNotice] = useState<string | null>(null);
   const emailField = useRef<HTMLInputElement>(null);
   const codeField = useRef<HTMLInputElement>(null);
+
+  // Signing in with Google, if it is set up: Google draws its own button in the box below.
+  const [google, setGoogle] = useState<GoogleSignIn | null>(null);
+  const googleBox = useRef<HTMLDivElement>(null);
+  const finished = useRef({ onSignedIn, onClose });
+  useEffect(() => {
+    finished.current = { onSignedIn, onClose };
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    void manager.googleSignIn().then(found => {
+      if (!cancelled) setGoogle(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [manager]);
+
+  useEffect(() => {
+    const box = googleBox.current;
+    if (!google || !box || step !== 'email') return;
+    let cancelled = false;
+    let remove: (() => void) | undefined;
+    google
+      .renderButton(box, {
+        onSignedIn: () => {
+          finished.current.onSignedIn?.();
+          finished.current.onClose();
+        },
+        onError: err => setError(err.message),
+      })
+      .then(dispose => {
+        if (cancelled) dispose();
+        else remove = dispose;
+      })
+      .catch(err => {
+        if (!cancelled) setError(messageOf(err));
+      });
+    return () => {
+      cancelled = true;
+      remove?.();
+    };
+  }, [google, step]);
 
   // Moving between the two steps replaces the form, and whatever had focus goes with it: put focus on the new step's field.
   useEffect(() => {
@@ -101,6 +145,17 @@ export function SignInDialog({ manager, reason, onClose, onSignedIn }: SignInDia
         {reason && <p className="mb-3 text-sm text-[#57544E]">{reason}</p>}
         {demoSignInHint() && (
           <p className="mb-3 rounded border border-[#E0D4BE] bg-[#E4D8C2]/40 px-3 py-2 text-xs text-[#57544E]">{demoSignInHint()}</p>
+        )}
+
+        {step === 'email' && google && (
+          <div className="mb-4">
+            <div ref={googleBox} className="flex min-h-[44px] items-center justify-center" />
+            <div className="mt-4 flex items-center gap-3 text-xs text-[#605C53]" aria-hidden="true">
+              <span className="h-px flex-1 bg-[#E0D4BE]" />
+              or
+              <span className="h-px flex-1 bg-[#E0D4BE]" />
+            </div>
+          </div>
         )}
 
         {step === 'email' ? (

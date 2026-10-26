@@ -119,3 +119,15 @@ test('deleting the account removes its poems, and the address starts empty again
   await openCollection(page);
   await expect(panel(page)).toContainText('No drafts yet');
 });
+
+test('signing in with the demo Google button keeps a poem on the server', async ({ page }) => {
+  await openStudio(page);
+  await keepFirstWords(page, 3);
+  await header(page, 'Sign in').click();
+  await dialog(page).getByRole('button', { name: 'Continue with Google (demo)' }).click();
+  await expect(header(page, 'Account')).toBeVisible();
+  await save(page, 'Google in the demo');
+  await page.reload();
+  await openCollection(page);
+  await expect(panel(page)).toContainText('Google in the demo');
+});

@@ -23,6 +23,8 @@ interface Storage {
  * user is made from the address, so the same address is the same user every time. Its token is the one
  * the server's test sign-in accepts (and the server refuses it in production).
  */
+export const GOOGLE_DEMO_EMAIL = 'google-demo@example.com';
+
 export function createTestAuthClient(storage: Storage = window.localStorage): AuthClient {
   const listeners = new Set<(session: AuthSession | null) => void>();
   const read = (): AuthSession | null => {
@@ -37,7 +39,28 @@ export function createTestAuthClient(storage: Storage = window.localStorage): Au
     const session = read();
     for (const listener of [...listeners]) listener(session);
   };
+  const signInAs = (email: string) => {
+    const id = testUserId(email);
+    storage.setItem(KEY, JSON.stringify({ token: `test-user:${id}`, user: { id, email: email.trim() } } satisfies AuthSession));
+    tell();
+  };
   return {
+    // A stand-in for Google's button, so that the way in through Google can be tried without Google.
+    google: {
+      async renderButton(element, handlers) {
+        const button = element.ownerDocument.createElement('button');
+        button.type = 'button';
+        button.textContent = 'Continue with Google (demo)';
+        button.className =
+          'w-full rounded border border-[#DDD5C5] bg-white px-3 py-2 text-sm font-medium text-[#24231F] hover:bg-[#F3EBDD] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
+        button.addEventListener('click', () => {
+          signInAs(GOOGLE_DEMO_EMAIL);
+          handlers.onSignedIn();
+        });
+        element.replaceChildren(button);
+        return () => element.replaceChildren();
+      },
+    },
     async getSession() {
       return read();
     },
@@ -48,9 +71,7 @@ export function createTestAuthClient(storage: Storage = window.localStorage): Au
     async sendCode() {},
     async verifyCode(email, code) {
       if (code !== TEST_CODE) throw new AuthError('wrong-code');
-      const id = testUserId(email);
-      storage.setItem(KEY, JSON.stringify({ token: `test-user:${id}`, user: { id, email: email.trim() } } satisfies AuthSession));
-      tell();
+      signInAs(email);
     },
     async signOut() {
       storage.removeItem(KEY);

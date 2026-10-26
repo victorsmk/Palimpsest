@@ -51,7 +51,7 @@ on demand instead of bundled with the app (the three passages are bundled today,
 dictionary is already 1.5 MB), verifying each text's source and licence as the spec requires, and the
 cost of running the searches on longer or more passages. This goes naturally with the backend item.
 
-## Google sign-in, as well as the email code (raised 2026-10-27)
+## Google sign-in, as well as the email code (raised 2026-10-27; built 2026-10-27, see BACKEND.md and DEPLOYMENT.md part 2b; the real Google flow is still to be tried)
 
 The first sign-in will be an email one-time code (BACKEND.md, step 6). The user would like Google sign-in
 as well, once the basics work: it also avoids the small free-tier email limit. Things to settle: setting up

@@ -21,7 +21,8 @@ export async function createAuthClient(env: Env): Promise<AuthClient> {
   if (!url || !key) throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set.');
   const { createClient } = await import('@supabase/supabase-js');
   const supabase = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
-  return createSupabaseAuthClient(supabase as unknown as SupabaseLike);
+  const googleClientId = env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
+  return createSupabaseAuthClient(supabase as unknown as SupabaseLike, googleClientId ? { google: { clientId: googleClientId } } : {});
 }
 
 /**
@@ -44,6 +45,7 @@ export function getAuth(): AuthManager {
       NEXT_PUBLIC_TEST_AUTH: process.env.NEXT_PUBLIC_TEST_AUTH,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
       NODE_ENV: process.env.NODE_ENV,
     })
   );

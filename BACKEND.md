@@ -223,6 +223,18 @@ poem model to change (step 3), which is where the real backend work starts.
      (`serverExternalPackages`), and the sign-in dialog says what to type. Tested: the real script started and
      asked over HTTP, and `e2e-demo/` (`npm run test:e2e:demo`, 5 browser tests with nothing standing in for
      the server: saving, a fresh browser seeing the same poem, separate accounts, a conflict, deleting an account).
+   - **Google sign-in, done** (decided 2026-10-27): "Continue with Google" above the email form, when
+     `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set. Google's own button (its script is loaded only when the dialog
+     opens; `lib/auth/googleIdentity.ts`) opens Google's popup and calls back with a signed token; the app
+     gives it to Supabase's `signInWithIdToken` with a one-time nonce (Google gets the SHA-256, Supabase the raw
+     value). The page never leaves, so an unsaved poem stays. The server is unchanged: it asks Supabase who a
+     token belongs to, whichever way it was got, and account deletion is the same. The same address by email
+     code and by Google is one account (Supabase links verified emails, per its documentation). The made-up sign-in
+     of the demo and the tests has a stand-in button, "Continue with Google (demo)", signing in as
+     google-demo@example.com. Tested: 29 unit tests (script loader, nonce, the call to Supabase and every error,
+     the stand-in, the manager, the dialog), 4 tests in `e2e-server/` and 1 in `e2e-demo/`. **Not verified:**
+     the real Google popup, Google's token, Supabase checking it, and the linking. DEPLOYMENT.md part 2b has the
+     Google Cloud and Supabase steps, and checklist lines for each of those.
    - **6e, done:** [DEPLOYMENT.md](DEPLOYMENT.md): the steps for Supabase (database, the two SQL files, the email
      templates that must show the code, the keys) and Vercel (settings, region), a health page to check the result,
      a checklist to run once on the live site, and troubleshooting. `GET /api/health` (no sign-in needed) says by
