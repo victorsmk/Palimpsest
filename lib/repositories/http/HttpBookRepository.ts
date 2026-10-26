@@ -24,6 +24,16 @@ function isAttribution(value: unknown): value is Passage['attribution'] {
   );
 }
 
+function isPosition(value: unknown): value is NonNullable<Passage['position']> {
+  return (
+    isRecord(value) &&
+    Number.isInteger(value.ordinal) &&
+    Number.isInteger(value.count) &&
+    (value.previousId === null || isText(value.previousId)) &&
+    (value.nextId === null || isText(value.nextId))
+  );
+}
+
 const isBook = (value: unknown): value is Book => isRecord(value) && isText(value.id) && isText(value.title) && isText(value.author) && typeof value.year === 'number' && isAttribution(value.attribution);
 
 const isSummary = (value: unknown): value is PassageSummary =>
@@ -98,7 +108,8 @@ export class HttpBookRepository implements BookRepository {
     if (body === null) return null;
     if (!isSummary(body)) return this.wrong('a passage');
     const sourceText = (body as unknown as Record<string, unknown>).sourceText;
-    if (!isText(sourceText)) return this.wrong('a passage');
+    const position = (body as unknown as Record<string, unknown>).position;
+    if (!isText(sourceText) || (position !== undefined && !isPosition(position))) return this.wrong('a passage');
     return {
       id: body.id,
       bookId: body.bookId,
@@ -107,6 +118,7 @@ export class HttpBookRepository implements BookRepository {
       sourceText,
       tokens: tokenize(body.id, sourceText),
       attribution: body.attribution,
+      ...(position === undefined ? {} : { position }),
     };
   }
 

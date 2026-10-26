@@ -7,10 +7,13 @@ import { AssistBody } from '@/components/AssistBody';
 import { AccountControl } from '@/components/AccountControl';
 import { CollectionForPage } from '@/components/CollectionLink';
 import { useAssistedPoems } from '@/components/useAssistedPoems';
-import { discoverHash, readDiscoverPassage } from '@/lib/handoff';
+import { discoverHash, passageIdFromHash, readDiscoverPassage } from '@/lib/handoff';
 import { plural } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
 import { usePassageChoice } from '@/components/usePassageChoice';
+import { PassageSwitcher } from '@/components/PassageSwitcher';
+import { ChooseBookScreen } from '@/components/ChooseBookScreen';
+import { bookService } from '@/lib/services';
 import type { PassageLibrary } from '@/lib/library/passageLibrary';
 
 function AssistMessage({ role, children }: { role: 'status' | 'alert'; children: React.ReactNode }) {
@@ -28,7 +31,7 @@ export default function AssistPage() {
 
   if (library.status === 'loading') return <AssistMessage role="status">Opening the library…</AssistMessage>;
   if (library.status === 'error') return <AssistMessage role="alert">{library.message}</AssistMessage>;
-  if (library.library.summaries.length === 0) {
+  if (!bookService.hasRemoteLibrary && library.library.summaries.length === 0) {
     return <AssistMessage role="alert">The library has no passages yet.</AssistMessage>;
   }
   return <Assist library={library.library} />;
@@ -37,12 +40,27 @@ export default function AssistPage() {
 function Assist({ library }: { library: PassageLibrary }) {
   // This only renders in the browser, once the library has been listed, so the URL hash (a link, a
   // reload, the back button) can choose the passage while the initial state is set.
-  const [initialId] = useState<string>(
-    () => readDiscoverPassage(window.location.hash, library.summaries)?.id ?? library.summaries[0].id
+  const remote = bookService.hasRemoteLibrary;
+  const [initialId] = useState<string | null>(() =>
+    remote ? passageIdFromHash(window.location.hash) : (readDiscoverPassage(window.location.hash, library.summaries)?.id ?? library.summaries[0].id)
   );
   const choice = usePassageChoice(library, initialId);
 
   if (!choice.passage) {
+    // With a library of books, nothing is picked for the reader: they choose, and the choice goes in the address.
+    if (remote && (!choice.chosenId || choice.error)) {
+      return (
+        <ChooseBookScreen
+          page="Assisted"
+          library={library}
+          message={choice.error}
+          onChoose={id => {
+            choice.choose(id);
+            window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + discoverHash(id));
+          }}
+        />
+      );
+    }
     return choice.error ? (
       <AssistMessage role="alert">{choice.error}</AssistMessage>
     ) : (
@@ -62,6 +80,7 @@ interface ViewProps {
 
 function AssistView({ library, passage, chosenId, error, onChoose }: ViewProps) {
   const summaries = library.summaries;
+  const remote = bookService.hasRemoteLibrary;
   const state = useAssistedPoems(passage);
 
   // Choosing a passage also puts it in the address bar, so the page can be reloaded or shared as is.
@@ -106,28 +125,36 @@ function AssistView({ library, passage, chosenId, error, onChoose }: ViewProps) 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <CollectionForPage library={library} />
           <AccountControl />
-          <div role="group" aria-label="Passage" className="flex flex-wrap gap-2">
-            {summaries.map(p => {
-              const isSelected = p.id === chosenId;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => choosePassage(p.id)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438] ${
-                    isSelected
-                      ? 'bg-[#24231F] text-[#F3EBDD] shadow-sm'
-                      : 'bg-[#E4D8C2]/60 hover:bg-[#E4D8C2] text-[#24231F]'
-                  }`}
-                >
-                  {p.attribution.title}
-                </button>
-              );
-            })}
-          </div>
+          {!remote && (
+            <div role="group" aria-label="Passage" className="flex flex-wrap gap-2">
+              {summaries.map(p => {
+                const isSelected = p.id === chosenId;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => choosePassage(p.id)}
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438] ${
+                      isSelected
+                        ? 'bg-[#24231F] text-[#F3EBDD] shadow-sm'
+                        : 'bg-[#E4D8C2]/60 hover:bg-[#E4D8C2] text-[#24231F]'
+                    }`}
+                  >
+                    {p.attribution.title}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </header>
+
+      {remote && (
+        <div className="max-w-4xl mx-auto w-full mb-6">
+          <PassageSwitcher passage={passage} onChoose={choosePassage} />
+        </div>
+      )}
 
       <p role="status" className="sr-only">
         {announcement}
@@ -149,7 +176,7 @@ function AssistView({ library, passage, chosenId, error, onChoose }: ViewProps) 
           key={passage.id}
           passage={passage}
           state={state}
-          otherPassages={summaries.filter(p => p.id !== passage.id)}
+          otherPassages={remote ? [] : summaries.filter(p => p.id !== passage.id)}
           onChoosePassage={choosePassage}
         />
       </main>

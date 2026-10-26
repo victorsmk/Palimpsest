@@ -11,6 +11,18 @@ import { seedRealBooks } from '../tests/helpers/library';
 
 export { expect, TEST_CODE, testUserId };
 
+/** The excerpt the server tests open the Studio on: the first of Dorian Gray, in the server's library. */
+export const START_EXCERPT = 'pg174-0001';
+
+/**
+ * Opens the Studio on an excerpt of the server's library. With a library of books the Studio does not choose
+ * a book for the writer (it asks), so the tests name one in the address, as a link would.
+ */
+export async function openStudio(page: Page, excerpt = START_EXCERPT) {
+  await page.goto(`/studio#passage=${excerpt}`);
+  await expect(page.locator('article')).toBeVisible();
+}
+
 /** What a test can do to the server it is talking to. */
 export interface FakeServer {
   /** One user's poems in the server's database. */
@@ -31,7 +43,7 @@ export interface FakeServer {
 export const test = base.extend<{ server: FakeServer }>({
   server: [async ({ context }, use) => {
     const db = await createTestDb();
-    await seedRealBooks(db, 'dorianGray'); // a book in the server's library, besides the ones bundled with the app
+    await seedRealBooks(db, 'dorianGray', 'janeEyre'); // a book in the server's library, besides the ones bundled with the app
     const api = createPoemsApi({
       authenticate: testAuthenticator(),
       poemsOf: userId => new PostgresPoemRepository(db, userId),

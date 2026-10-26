@@ -16,6 +16,12 @@ export function discoverHash(passageId: string): string {
   return `#passage=${passageId}`;
 }
 
+/** The id of the passage a hash names, if it has the shape of one, whether or not a library has it. */
+export function passageIdFromHash(hash: string): string | null {
+  const match = PATTERN.exec(hash.startsWith('#') ? hash.slice(1) : hash);
+  return match ? match[1] : null;
+}
+
 /** The passage a hash names, or null if it names none (or one that is not in the library). */
 export function readDiscoverPassage<T extends { id: string }>(hash: string, passages: readonly T[]): T | null {
   const match = PATTERN.exec(hash.startsWith('#') ? hash.slice(1) : hash);

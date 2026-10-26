@@ -38,6 +38,19 @@ describe('an excerpt read from the server', () => {
     expect(passage.bookId).toBe('pg174');
   });
 
+  it('has its place in its book, for stepping to the one before or after', async () => {
+    const total = excerptsOf('dorianGray').length;
+    expect((await real.getPassage('pg174-0001'))?.position).toEqual({ ordinal: 1, count: total, previousId: null, nextId: 'pg174-0002' });
+    expect((await real.getPassage('pg174-0002'))?.position).toMatchObject({ ordinal: 2, previousId: 'pg174-0001', nextId: 'pg174-0003' });
+  });
+
+  it('is an unavailable server, and not a passage, when the place it sends makes no sense', async () => {
+    const odd = (position: unknown) => answering(200, { id: 'x', bookId: 'b', title: 't', description: 'd', sourceText: 'one two', attribution: { title: 'B', author: 'A', year: 1900, source: 's', url: 'u', licenseNote: 'l' }, position });
+    await expect(odd({ ordinal: 'one', count: 3, previousId: null, nextId: null }).getPassage('x')).rejects.toBeInstanceOf(UnavailableError);
+    await expect(odd({ ordinal: 1, count: 3, previousId: 5, nextId: null }).getPassage('x')).rejects.toBeInstanceOf(UnavailableError);
+    expect((await odd(undefined).getPassage('x'))?.position).toBeUndefined();
+  });
+
   it('is nothing for an excerpt that is not there', async () => {
     expect(await real.getPassage('pg174-9999')).toBeNull();
     expect(await real.getBook('pg1')).toBeNull();

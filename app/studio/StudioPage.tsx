@@ -19,7 +19,9 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { usePageDna } from '@/components/usePageDna';
 import { PageDnaStrip } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
-import { poemService } from '@/lib/services';
+import { bookService, poemService } from '@/lib/services';
+import { PassageSwitcher } from '@/components/PassageSwitcher';
+import { ChooseBookScreen } from '@/components/ChooseBookScreen';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
 import { downloadTextFile, poemLines, poemToText } from '@/lib/export/text';
 import { PrintablePoem } from '@/components/PrintablePoem';
@@ -27,6 +29,7 @@ import {
   SAVED_MISSING_MESSAGE,
   discoverHref,
   handoffPassageId,
+  passageIdFromHash,
   readHandoff,
   readOpenRequest,
   sharedPoemFromEditor,
@@ -91,7 +94,7 @@ export default function StudioPage() {
 
   if (library.status === 'loading') return <StudioMessage role="status">Opening the library…</StudioMessage>;
   if (library.status === 'error') return <StudioMessage role="alert">{library.message}</StudioMessage>;
-  if (library.library.summaries.length === 0) {
+  if (!bookService.hasRemoteLibrary && library.library.summaries.length === 0) {
     return <StudioMessage role="alert">The library has no passages yet.</StudioMessage>;
   }
   return <StudioEntry library={library.library} />;
@@ -103,8 +106,12 @@ export default function StudioPage() {
  * default page showing first.
  */
 function StudioEntry({ library }: { library: PassageLibrary }) {
+  const remote = bookService.hasRemoteLibrary;
   // Only rendered in the browser, after the library has been listed, so the hash can be read here.
   const [request] = useState(() => readOpenRequest(window.location.hash));
+  // With a library of books, the excerpt the writer picked on the start screen (or a link named, as #passage=<id>).
+  const [picked, setPicked] = useState<string | null>(null);
+  const [pickMessage, setPickMessage] = useState<string | null>(null);
   const [start, setStart] = useState<{ status: 'loading' } | { status: 'ready'; opened: OpenedSavedPoem | null } | { status: 'error' }>({
     status: 'loading',
   });
@@ -116,7 +123,8 @@ function StudioEntry({ library }: { library: PassageLibrary }) {
     (async () => {
       const opened = request.kind === 'poem' ? await openSavedPoem(request.id, library, poemService) : null;
       const handoffId = handoffPassageId(window.location.hash);
-      await library.ensure([library.summaries[0].id, ...(handoffId ? [handoffId] : [])]);
+      const hashId = bookService.hasRemoteLibrary ? passageIdFromHash(window.location.hash) : null;
+      await library.ensure([...(bookService.hasRemoteLibrary ? [] : [library.summaries[0].id]), ...(handoffId ? [handoffId] : []), ...(hashId ? [hashId] : [])]);
       return opened;
     })().then(
       opened => {
@@ -136,17 +144,40 @@ function StudioEntry({ library }: { library: PassageLibrary }) {
     return <StudioMessage role="status">{request.kind === 'poem' ? 'Opening your poem…' : 'Opening the passage…'}</StudioMessage>;
   }
   const result: OpenedSavedPoem | null = request.kind === 'invalid' ? { ok: false, message: request.message } : start.opened;
-  return <Studio library={library} opened={result} />;
+  if (!remote) return <Studio library={library} opened={result} />;
+
+  const handoff = readHandoff(window.location.hash, library.passages());
+  const hashId = passageIdFromHash(window.location.hash);
+  const startId = picked ?? (hashId && library.get(hashId) ? hashId : null);
+  if (result?.ok || handoff.kind === 'open' || startId) {
+    return <Studio library={library} opened={result} startPassageId={startId ?? undefined} />;
+  }
+  const message = pickMessage ?? (result && !result.ok ? result.message : handoff.kind === 'invalid' ? handoff.message : hashId ? 'That excerpt is not in the library.' : null);
+  return (
+    <ChooseBookScreen
+      page="Studio"
+      library={library}
+      message={message}
+      onChoose={id => {
+        setPickMessage(null);
+        library.ensure([id]).then(
+          () => (library.get(id) ? setPicked(id) : setPickMessage(PASSAGE_UNAVAILABLE_MESSAGE)),
+          () => setPickMessage(PASSAGE_UNAVAILABLE_MESSAGE)
+        );
+      }}
+    />
+  );
 }
 
-function Studio({ library, opened }: { library: PassageLibrary; opened: OpenedSavedPoem | null }) {
+function Studio({ library, opened, startPassageId }: { library: PassageLibrary; opened: OpenedSavedPoem | null; startPassageId?: string }) {
   const summaries = library.summaries;
+  const remote = bookService.hasRemoteLibrary;
   // A poem sent from Discover arrives in the URL hash. Studio only renders in the browser, after
   // the library has loaded, so the hash can be read while choosing the initial state: the poem is
   // open on the first render instead of the default page flashing first.
   const [handoff] = useState<ReadHandoff>(() => readHandoff(window.location.hash, library.passages()));
   const [selectedPassageId, setSelectedPassageId] = useState<string>(() =>
-    handoff.kind === 'open' ? handoff.passage.id : opened?.ok ? opened.passage.id : summaries[0].id
+    handoff.kind === 'open' ? handoff.passage.id : opened?.ok ? opened.passage.id : (startPassageId ?? summaries[0].id)
   );
   const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(() => (opened?.ok ? opened.poem.id : undefined));
   // The revision of the open poem as this tab last saw it. A save says so, and is refused if the poem
@@ -235,6 +266,27 @@ function Studio({ library, opened }: { library: PassageLibrary; opened: OpenedSa
     },
     [isDirty]
   );
+
+  // Goes to another passage: loads it first, and asks first if the poem on screen has changes that are not saved.
+  const changePassage = async (id: string) => {
+    if (id === activePassage.id) return;
+    try {
+      await library.ensure([id]);
+    } catch {
+      showNotice(PASSAGE_UNAVAILABLE_MESSAGE, 'error');
+      return;
+    }
+    const target = library.get(id);
+    if (!target) {
+      showNotice(PASSAGE_UNAVAILABLE_MESSAGE, 'error');
+      return;
+    }
+    askBeforeReplacing(`Switching to ${target.attribution.title} will replace the poem you are editing, which has changes you haven't saved.`, () => {
+      setSelectedPassageId(id);
+      setCurrentPoemId(undefined);
+      setCurrentRevision(undefined);
+    });
+  };
 
   // Closing or reloading the tab with unsaved changes gets the browser's own warning.
   useEffect(() => {
@@ -525,45 +577,37 @@ function Studio({ library, opened }: { library: PassageLibrary; opened: OpenedSa
           <MyCollectionButton library={library} onOpenPoem={handleLoadPoem} onRenamed={handleRenamedElsewhere} />
           <AccountControl />
 
-          {/* Passage Selector Tabs */}
-          <div className="flex flex-wrap gap-2">
-            {summaries.map(p => {
-              const isSelected = p.id === activePassage.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={async () => {
-                    if (isSelected) return;
-                    try {
-                      await library.ensure([p.id]);
-                    } catch {
-                      showNotice(PASSAGE_UNAVAILABLE_MESSAGE, 'error');
-                      return;
-                    }
-                    askBeforeReplacing(
-                      `Switching to ${p.attribution.title} will replace the poem you are editing, which has changes you haven't saved.`,
-                      () => {
-                        setSelectedPassageId(p.id);
-                        setCurrentPoemId(undefined);
-                        setCurrentRevision(undefined);
-                      }
-                    );
-                  }}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
-                    isSelected
-                      ? 'bg-[#24231F] text-[#F3EBDD] shadow-sm'
-                      : 'bg-[#E4D8C2]/60 hover:bg-[#E4D8C2] text-[#24231F]'
-                  }`}
-                >
-                  {p.attribution.title}
-                </button>
-              );
-            })}
-          </div>
+          {/* Passage Selector: tabs for the bundled passages, or the book picker when there is a library of books */}
+          {!remote && (
+            <div className="flex flex-wrap gap-2">
+              {summaries.map(p => {
+                const isSelected = p.id === activePassage.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => void changePassage(p.id)}
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-[#24231F] text-[#F3EBDD] shadow-sm'
+                        : 'bg-[#E4D8C2]/60 hover:bg-[#E4D8C2] text-[#24231F]'
+                    }`}
+                  >
+                    {p.attribution.title}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </header>
+
+      {remote && (
+        <div className="print:hidden max-w-4xl mx-auto w-full mb-6 -mt-2">
+          <PassageSwitcher passage={activePassage} onChoose={id => void changePassage(id)} />
+        </div>
+      )}
 
       {/* Floating Status Notification Toast */}
       {statusNotice && (

@@ -200,6 +200,14 @@ describe('one excerpt', () => {
     expect(body.attribution.url).toBe('https://www.gutenberg.org/ebooks/174');
   });
 
+  it('says where it sits in its book, and which excerpts come before and after', async () => {
+    const total = excerptsOf('dorianGray').length;
+    const read = async (id: string) => ((await (await api.passage(get('/x'), id)).json()) as { position: { ordinal: number; count: number; previousId: string | null; nextId: string | null } }).position;
+    expect(await read('pg174-0001')).toEqual({ ordinal: 1, count: total, previousId: null, nextId: 'pg174-0002' });
+    expect(await read('pg174-0050')).toEqual({ ordinal: 50, count: total, previousId: 'pg174-0049', nextId: 'pg174-0051' });
+    expect(await read(`pg174-${String(total).padStart(4, '0')}`)).toEqual({ ordinal: total, count: total, previousId: `pg174-${String(total - 1).padStart(4, '0')}`, nextId: null });
+  });
+
   it('is not found when there is none', async () => {
     for (const id of ['pg174-9999', 'walden-woods', '../x']) expect((await api.passage(get('/api/library/passages/x'), id)).status, id).toBe(404);
   });

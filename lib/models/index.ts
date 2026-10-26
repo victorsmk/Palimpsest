@@ -34,6 +34,16 @@ export interface Book {
   attribution: Attribution;
 }
 
+/** Where an excerpt of a long book sits in it, so that a reader can step to the one before or after. */
+export interface PassagePosition {
+  /** 1 for the first excerpt of the book. */
+  ordinal: number;
+  /** How many excerpts the book has. */
+  count: number;
+  previousId: string | null;
+  nextId: string | null;
+}
+
 export interface Passage {
   id: string;
   bookId: string;
@@ -42,6 +52,8 @@ export interface Passage {
   sourceText: string;     // Immutable original text
   tokens: Token[];
   attribution: Attribution;
+  /** Only for an excerpt of a book in the server's library. */
+  position?: PassagePosition;
 }
 
 /** A passage without its text and words: what a list of passages needs, small enough to list them all. */

@@ -20,7 +20,17 @@ list and searched by title or author. This file is how books get in. The plan is
      there is a server library). My Collection fetches the excerpts of the poems on a page one at a time (cached),
      and a batch endpoint is the thing to add if that is ever slow.
    - `/api/health` has a `library` line (the tables exist).
-3. **Search and browse screens** (not started).
+3. **Search and browse screens (done 2026-10-28).** With a server library (`NEXT_PUBLIC_DATA_BACKEND=server`),
+   Discover, Assisted and the Studio open on **"Choose a book to begin"** and pick nothing for the reader (the user
+   chose this over opening a starting excerpt). A search box finds books by title or author (any case, accents
+   ignored, every word must match, after a quarter-second pause), 20 books at a time; a book shows its excerpts,
+   50 at a time, with chapter, first words and size. Once an excerpt is open, the page has a bar with the book, "Chapter
+   III (2 of 4) · excerpt 17 of 255", **Previous excerpt**, **Next excerpt** and **Change book or excerpt** (which
+   opens at the book being read). The excerpt is in the address (`#passage=pg174-0002`), so reload and links keep
+   it; on the Studio the address names it only on arrival, since the Studio keeps no state across a reload. Changing
+   excerpt in the Studio asks first when the poem has unsaved changes. The three bundled passages are no longer
+   offered anywhere (they remain only so that old poems open). Without a server library (the browser-only version)
+   nothing changed: the buttons for the bundled passages are still there.
 4. **The full list of about 200 books** (not started): drafted by Claude, reviewed by you, imported with the
    same command.
 

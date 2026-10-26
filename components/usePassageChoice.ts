@@ -19,11 +19,13 @@ export interface PassageChoice {
 /**
  * Which passage a page that shows one at a time (Discover, Assisted) is on. Choosing a passage
  * loads it first, so the page never shows a passage whose text is not there. A choice made before
- * the last one arrived is dropped when the last one does.
+ * the last one arrived is dropped when the last one does. With `initialId` null nothing is open
+ * until `choose` is called.
  */
-export function usePassageChoice(library: PassageLibrary, initialId: string): PassageChoice {
-  const [chosenId, setChosenId] = useState(initialId);
-  const [passage, setPassage] = useState<Passage | null>(() => library.get(initialId) ?? null);
+export function usePassageChoice(library: PassageLibrary, initialId: string | null): PassageChoice {
+  // With no initial passage nothing has been chosen yet: the page asks the reader to choose one.
+  const [chosenId, setChosenId] = useState(initialId ?? '');
+  const [passage, setPassage] = useState<Passage | null>(() => (initialId ? (library.get(initialId) ?? null) : null));
   const [error, setError] = useState<string | null>(null);
   const latest = useRef(0);
 
@@ -49,7 +51,7 @@ export function usePassageChoice(library: PassageLibrary, initialId: string): Pa
   );
 
   useEffect(() => {
-    if (!library.get(initialId)) load(initialId);
+    if (initialId && !library.get(initialId)) load(initialId);
   }, [library, initialId, load]);
 
   const choose = useCallback(

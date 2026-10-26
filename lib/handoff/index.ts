@@ -32,7 +32,7 @@ export {
   sharedPoemHref,
 } from './shared';
 export type { ShareResult, SharedPoem } from './shared';
-export { discoverHash, discoverHref, readDiscoverPassage } from './discover';
+export { discoverHash, discoverHref, passageIdFromHash, readDiscoverPassage } from './discover';
 export {
   SAVED_MISSING_MESSAGE,
   SAVED_PREFIX,

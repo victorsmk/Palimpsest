@@ -22,6 +22,10 @@ interface PassageRow extends BookRow {
   description: string;
   source_text: string;
   word_count: number;
+  ordinal: number;
+  passage_count: number;
+  previous_id: string | null;
+  next_id: string | null;
 }
 
 const attributionOf = (row: BookRow) => ({ title: row.title, author: row.author, year: Number(row.year), source: row.source, url: row.url, licenseNote: row.license_note });
@@ -111,17 +115,28 @@ export class LibraryReader {
     };
   }
 
-  /** One excerpt with its text, or null if there is none with that id. */
+  /** One excerpt with its text, and where it sits in its book, or null if there is none with that id. */
   async getPassage(id: string): Promise<PassageText | null> {
     const { rows } = await this.db.query<PassageRow>(
-      `select b.id, b.title, b.author, b.year, b.source, b.url, b.license_note,
-              p.id as pid, p.title as ptitle, p.description, p.source_text, p.word_count
+      `select b.id, b.title, b.author, b.year, b.source, b.url, b.license_note, b.passage_count,
+              p.id as pid, p.title as ptitle, p.description, p.source_text, p.word_count, p.ordinal,
+              (select q.id from passages q where q.book_id = p.book_id and q.ordinal = p.ordinal - 1) as previous_id,
+              (select q.id from passages q where q.book_id = p.book_id and q.ordinal = p.ordinal + 1) as next_id
        from passages p join books b on b.id = p.book_id
        where p.id = $1`,
       [id]
     );
     const row = rows[0];
-    return row ? { id: row.pid, bookId: row.id, title: row.ptitle, description: row.description, sourceText: row.source_text, attribution: attributionOf(row) } : null;
+    if (!row) return null;
+    return {
+      id: row.pid,
+      bookId: row.id,
+      title: row.ptitle,
+      description: row.description,
+      sourceText: row.source_text,
+      attribution: attributionOf(row),
+      position: { ordinal: Number(row.ordinal), count: Number(row.passage_count), previousId: row.previous_id, nextId: row.next_id },
+    };
   }
 
   /** Whether the library's tables are there and can be read (for the health page). */

@@ -228,6 +228,11 @@ poem model to change (step 3), which is where the real backend work starts.
      rules in `scripts/library/cut.mjs` (frozen per CUTTER_VERSION; excerpts are never re-cut), and
      `npm run import:library` reading Gutenberg files saved by hand (no automated download, by Gutenberg's
      policy). Nothing on the site reads them yet.
+   - **Book picker, done** (step 3 of the book library, 2026-10-28): `BookBrowser` (search + a book's excerpts, in
+     the page or in a window), `PassageSwitcher` (current excerpt, Previous/Next from the server's `position`, Change),
+     `ChooseBookScreen` (what Discover, Assisted and the Studio show before a choice; option B, chosen by the user
+     over opening a starting excerpt), `usePagedList` (pages, a pause before searching, only the newest answer shown).
+     Only when there is a server library; the browser-only version is unchanged.
    - **Library endpoints, done** (step 2 of the book library, 2026-10-28; see LIBRARY.md): public read-only
      `/api/library/...` (books with accent- and case-insensitive search, a book's excerpts, one excerpt), cached
      at Vercel (an excerpt `immutable`), `HttpBookRepository` and an open-ended `PassageLibrary` in the browser,

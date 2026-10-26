@@ -1,5 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
-import { keepFirstWords, keptWords, openCollection, openStudio } from '../e2e/helpers';
+import { keepFirstWords, keptWords, openCollection } from '../e2e/helpers';
+
+/** The demo's library has books, and the Studio asks which to open; the tests name one in the address, as a link would. */
+async function openStudio(page: Page) {
+  await page.goto('/studio#passage=pg1260-0001');
+  await expect(page.locator('article')).toBeVisible();
+}
 
 // The whole stack, with nothing standing in for the server: the demo's database, the Next route handlers,
 // the made-up sign-in, and the screens.

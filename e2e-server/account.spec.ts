@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
-import { test, expect, completeSignIn, signIn, testUserId, TEST_CODE } from './fixture';
-import { STORAGE_KEY, draft, keepFirstWords, keptWords, openCollection, openStudio, seedDrafts } from '../e2e/helpers';
+import { test, expect, completeSignIn, openStudio, signIn, testUserId, TEST_CODE } from './fixture';
+import { STORAGE_KEY, draft, keepFirstWords, keptWords, openCollection, seedDrafts } from '../e2e/helpers';
 import { tokenize } from '@/lib/tokenizer';
 import { excerptsOf } from '../tests/helpers/library';
 
@@ -39,8 +39,8 @@ test.describe('a visitor', () => {
     await keepFirstWords(page, 3);
     await expect(keptWords(page)).toHaveCount(3);
     await page.goto('/discover');
-    await expect(page.getByRole('group', { name: 'Passage' })).toBeVisible();
-    expect(server.requests).toEqual([]); // nothing was asked of the server
+    await expect(page.getByRole('heading', { level: 1, name: 'Choose a book to begin' })).toBeVisible();
+    expect(server.requests.filter(r => !r.path.startsWith('/api/library/'))).toEqual([]); // nothing of the poems was asked of the server
   });
 });
 
@@ -121,7 +121,7 @@ test.describe('signing in with Google (the demo stand-in for its button)', () =>
     await googleButton(page).click();
     await expect(signInDialog(page)).toHaveCount(0);
     await expect(headerButton(page, 'Account')).toBeVisible();
-    await expect(page).toHaveURL(/\/studio$/);
+    await expect(page).toHaveURL(/\/studio(#passage=[\w-]+)?$/);
     await expect(keptWords(page)).toHaveCount(3); // the poem on the page is as it was
     await headerButton(page, 'Account').click();
     await expect(page.getByRole('dialog', { name: 'Your account' })).toContainText(GOOGLE);
