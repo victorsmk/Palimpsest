@@ -72,3 +72,35 @@ export function summarizePoem(poem: Poem): PoemSummary {
   if (poem.title !== undefined) summary.title = poem.title;
   return summary;
 }
+
+const STYLES: readonly ErasureStyle[] = ['blackout', 'faded', 'whiteout'];
+const isDate = (value: unknown): value is string => typeof value === 'string' && !Number.isNaN(Date.parse(value));
+const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
+/** A summary from untrusted data (a server's answer), or null if it is not exactly one. */
+export function parsePoemSummary(raw: unknown): PoemSummary | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== 'string' || r.id === '' || typeof r.passageId !== 'string' || r.passageId === '') return null;
+  if (!isCount(r.revision) || r.revision < 1 || !isCount(r.wordCount)) return null;
+  if (!STYLES.includes(r.erasureStyle as ErasureStyle) || !isDate(r.createdAt) || !isDate(r.updatedAt)) return null;
+  if (r.title !== undefined && typeof r.title !== 'string') return null;
+  if (r.passageVersion !== undefined && typeof r.passageVersion !== 'string') return null;
+  const preview = r.preview as { lines?: unknown; more?: unknown } | null;
+  if (typeof preview !== 'object' || preview === null || typeof preview.more !== 'boolean' || !Array.isArray(preview.lines)) return null;
+  if (!preview.lines.every(line => Array.isArray(line) && line.every(id => typeof id === 'string'))) return null;
+
+  const summary: PoemSummary = {
+    id: r.id,
+    passageId: r.passageId,
+    revision: r.revision,
+    erasureStyle: r.erasureStyle as ErasureStyle,
+    wordCount: r.wordCount,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    preview: { lines: preview.lines as string[][], more: preview.more },
+  };
+  if (r.title !== undefined) summary.title = r.title as string;
+  if (r.passageVersion !== undefined) summary.passageVersion = r.passageVersion as string;
+  return summary;
+}

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { BrowserBookRepository, BrowserPoemRepository } from '@/lib/repositories';
+import { HttpPoemRepository } from '@/lib/repositories/http/HttpPoemRepository';
 import { DEFAULT_BACKEND, PoemService, BookService, bookService, createRepositories, poemService, readBackendKind } from '@/lib/services';
 
 describe('choosing where the data lives', () => {
@@ -12,8 +13,13 @@ describe('choosing where the data lives', () => {
     expect(readBackendKind('  browser ')).toBe('browser');
   });
 
-  it.each(['server', 'Browser', 'BROWSER', 'http', 'postgres', 'null', 'false'])('refuses %j, plainly, naming the setting', name => {
-    expect(() => readBackendKind(name)).toThrow(`Unknown data backend "${name}". Set NEXT_PUBLIC_DATA_BACKEND to "browser"`);
+  it('can be the server', () => {
+    expect(readBackendKind('server')).toBe('server');
+    expect(readBackendKind(' server ')).toBe('server');
+  });
+
+  it.each(['Server', 'Browser', 'BROWSER', 'http', 'postgres', 'null', 'false'])('refuses %j, plainly, naming the setting', name => {
+    expect(() => readBackendKind(name)).toThrow(`Unknown data backend "${name}". Set NEXT_PUBLIC_DATA_BACKEND to "browser" or "server"`);
   });
 
   it('builds the browser\'s repositories, with the bundled library behind the books', async () => {
@@ -21,6 +27,14 @@ describe('choosing where the data lives', () => {
     expect(poems).toBeInstanceOf(BrowserPoemRepository);
     expect(books).toBeInstanceOf(BrowserBookRepository);
     expect((await books.listBooks()).items.map(b => b.title).sort()).toEqual(['Jane Eyre', 'The Picture of Dorian Gray', 'Walden']);
+  });
+
+  it('builds the repositories of the server: poems through the API for whoever is signed in, books still bundled', async () => {
+    const { poems, books } = createRepositories('server');
+    expect(poems).toBeInstanceOf(HttpPoemRepository);
+    expect(books).toBeInstanceOf(BrowserBookRepository);
+    // With nobody signed in, nothing is asked of the server: the writer is told to sign in.
+    await expect(poems.count()).rejects.toMatchObject({ code: 'unauthorized' });
   });
 
   it('gives the screens services built on them', async () => {

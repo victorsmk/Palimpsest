@@ -59,7 +59,7 @@ poem model to change (step 3), which is where the real backend work starts.
 - **A composition root.** `lib/services/container.ts` is the one place that decides where data lives.
   `PoemService` and `BookService` no longer default to anything: they are given a repository. An unknown
   setting stops the app at start-up with a plain message.
-- **A contract test suite** (`tests/contract/poemRepositoryContract.ts`, 42 rules) run against
+- **A contract test suite** (`tests/contract/poemRepositoryContract.ts`, 58 rules now) run against
   `MemoryPoemRepository`, `BrowserPoemRepository` on in-memory storage, and `BrowserPoemRepository` on
   the real `localStorage`. Any new repository must pass the same rules: copies not shared objects,
   saving many is all-or-nothing, a failed write leaves the data as it was, `__proto__` is refused,
@@ -169,7 +169,22 @@ poem model to change (step 3), which is where the real backend work starts.
      Supabase answer to `/auth/v1/user` (tested against a stand-in for what its documentation says), a real
      database, and no rate limiting yet (the `429` is defined but nothing sends it; Vercel and Supabase have
      their own limits).
-   - **6c:** `HttpPoemRepository` and the `server` backend kind, run through the contract suite against the routes.
+   - **6c, done:** `HttpPoemRepository` (`lib/repositories/http/`), the browser's `PoemRepository` over the API, and
+     the `server` backend kind (`NEXT_PUBLIC_DATA_BACKEND=server`; books stay bundled). Who is signed in comes
+     from `lib/auth/session.ts` (a token source that the sign-in of 6d fills in); with nobody signed in
+     nothing is sent and the writer gets `UnauthorizedError`. It sends only a draft's content, the token as a
+     bearer, and the revision as `If-Match`; it believes no answer it has not checked (a poem is read as
+     strictly as one from storage, a summary by `parsePoemSummary`, pages and counts by shape) and turns each
+     failure into a typed error: 401 unauthorized, 404 gone (a read of a missing poem is `null`), 409
+     conflict (with the stored poem) or exists, 422 limit (the server's own words), 429 rate limited, no answer
+     offline or unavailable, 5xx and anything that is not the API's own answer unavailable, and 400/413/415/428
+     (the app's own mistakes) a plain error. The poem contract suite passes through the whole road (this
+     repository, the real handlers, the Postgres repository, real SQL): five implementations now, 58 rules each.
+     Two things the road taught: the API gives a clear refusal for notes over the limit, so the contract's
+     "long notes" fixture is now near the limit (10,019 characters before), and a `limit` of zero or less is
+     passed on to be raised to the smallest page. Next's dynamic `:id` arrives decoded (checked on the real
+     server). **Not verified:** a real network, real CORS-free same-origin deployment, and the browser with the
+     `server` kind (no sign-in exists yet, so every screen would say "You need to sign in"; that is 6d).
    - **6d:** sign-in dialog (email code), signed-out behaviour, bringing local poems across, account deletion,
      the wording changes. Google sign-in is in ROADMAP.md.
    - **6e:** deployment guide and a manual checklist for the real Supabase and Vercel setup.

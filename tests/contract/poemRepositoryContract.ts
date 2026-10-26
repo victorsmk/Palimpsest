@@ -117,9 +117,9 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         expect((await repo.get(made.id))!.passageVersion).toBe('t1-0123456789abcdef');
       });
 
-      it('keeps text of any kind exactly: accents, symbols, other scripts, line breaks, long notes', async () => {
+      it('keeps text of any kind exactly: accents, symbols, other scripts, line breaks, notes near the limit', async () => {
         const { repo } = await make();
-        const text = draftOf(poem('text', { title: 'Café “quotes” 詩 <b>x</b> 100%', notes: `line one\nline two\n${'long '.repeat(2000)}` }));
+        const text = draftOf(poem('text', { title: 'Café “quotes” 詩 <b>x</b> 100%', notes: `line one\nline two\n${'long '.repeat(1900)}` }));
         const made = await repo.create(text);
         expect(await repo.get(made.id)).toMatchObject(text);
       });

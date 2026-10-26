@@ -316,6 +316,16 @@ describe('listing', () => {
     expect(seen).toEqual(['P4', 'P3', 'P2', 'P1', 'P0']);
   });
 
+  it('passes a limit of zero or less on, to be raised to the smallest page, and takes a fraction as no limit', async () => {
+    const user = newUser();
+    await createFor(user);
+    await createFor(user);
+    const count = async (query: string) => ((await (await api.list(request('GET', `/api/poems?limit=${query}`, { user }))).json()) as { items: unknown[] }).items.length;
+    expect(await count('0')).toBe(1);
+    expect(await count('-5')).toBe(1);
+    expect(await count('2.5')).toBe(2);
+  });
+
   it('takes a limit that is not a number, or a cursor that is nonsense, in its stride', async () => {
     const user = newUser();
     await createFor(user);
@@ -374,7 +384,6 @@ describe('importing poems (restoring a backup)', () => {
     ['a poem of the first version', { poems: [{ ...stored('a'), schemaVersion: 1 }] }],
     ['an id that is not allowed', { poems: [stored('a b')] }],
     ['the id __proto__', { poems: [stored('__proto__')] }],
-    ['the same id twice', { poems: [stored('a'), stored('a')] }],
     ['a line break after a word that is not kept', { poems: [stored('a', { lineBreaks: ['nope'] })] }],
     ['a NUL character', { poems: [stored('a', { notes: 'a\u0000b' })] }],
   ])('refuses %s with a 400, and adds none', async (_label, body) => {
@@ -390,6 +399,14 @@ describe('importing poems (restoring a backup)', () => {
     expect(((await (await api.get(request('GET', '/x', { user }), 'long')).json()) as Poem).title).toHaveLength(LIMITS.titleMax);
     const notes = await post(user, { poems: [stored('notes', { notes: 'n'.repeat(LIMITS.notesMax + 1) })] });
     expect(notes.status).toBe(422);
+  });
+
+  it('refuses the same id twice in one request as an id already stored, 409, and adds none', async () => {
+    const user = newUser();
+    const response = await post(user, { poems: [stored('a'), stored('a')] });
+    expect(response.status).toBe(409);
+    expect((await readError(response)).code).toBe('exists');
+    expect(await (await api.count(request('GET', '/x', { user }))).json()).toEqual({ count: 0 });
   });
 
   it('refuses more poems than a collection can hold, in the request or with what is already there', async () => {

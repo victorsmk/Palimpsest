@@ -7,7 +7,7 @@ import { parseStoredPoem } from '@/lib/models/poemValidation';
  * bug, or is not our client); one that is over a limit is a 422 with a message the writer can be shown.
  * Nothing is repaired or cut: what is not right is refused.
  */
-export type Checked<T> = { ok: true; value: T } | { ok: false; status: 400 | 422; message: string };
+export type Checked<T> = { ok: true; value: T } | { ok: false; status: 400 | 409 | 422; message: string };
 
 const ERASURE_STYLES: readonly ErasureStyle[] = ['blackout', 'faded', 'whiteout'];
 const PASSAGE_VERSION = /^t\d{1,4}-[0-9a-f]{16}$/;
@@ -86,7 +86,7 @@ export function validatePoems(raw: unknown): Checked<Poem[]> {
     // A title longer than the limit is cut, as it always was when saving (older poems may have one).
     if (poem.title !== undefined && poem.title.length > LIMITS.titleMax) poem.title = poem.title.slice(0, LIMITS.titleMax).trimEnd();
     if (!SAFE_ID.test(poem.id) || poem.id === '__proto__') return bad('A poem in the list has an id that is not allowed.');
-    if (seen.has(poem.id)) return bad('A poem is in the list twice.');
+    if (seen.has(poem.id)) return { ok: false, status: 409, message: 'A poem with that id is already stored.' };
     seen.add(poem.id);
     const content = validateDraft(poem);
     if (!content.ok) return content;
@@ -110,7 +110,8 @@ export function pageRequestOf(url: URL): { after?: string; limit?: number } {
   const after = url.searchParams.get('after');
   if (after !== null) request.after = after;
   const limit = url.searchParams.get('limit');
-  if (limit !== null && /^\d{1,9}$/.test(limit)) request.limit = Number(limit);
+  // Zero and negative numbers are passed on: the repository raises them to the smallest page.
+  if (limit !== null && /^-?\d{1,9}$/.test(limit)) request.limit = Number(limit);
   return request;
 }
 

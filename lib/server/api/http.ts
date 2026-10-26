@@ -41,7 +41,7 @@ export function problem(status: number, code: string, message: string, extra: Pa
 /** A request the server cannot use (bad shape, wrong type, too large). `code` is "invalid" for the client. */
 export class RequestProblem extends Error {
   constructor(
-    readonly status: 400 | 413 | 415 | 422 | 428,
+    readonly status: 400 | 409 | 413 | 415 | 422 | 428,
     message: string
   ) {
     super(message);
@@ -52,7 +52,9 @@ const UNEXPECTED = 'The server could not do that. Please try again.';
 
 /** The response for anything that went wrong while handling a request. */
 export function errorResponse(error: unknown): Response {
-  if (error instanceof RequestProblem) return problem(error.status, error.status === 422 ? 'limit' : 'invalid', error.message);
+  if (error instanceof RequestProblem) {
+    return problem(error.status, error.status === 422 ? 'limit' : error.status === 409 ? 'exists' : 'invalid', error.message);
+  }
   if (error instanceof UnauthorizedError) return problem(401, error.code, error.message, {}, { 'WWW-Authenticate': 'Bearer' });
   if (error instanceof PoemConflictError) return problem(409, error.code, error.message, { current: error.current });
   if (error instanceof PoemGoneError) return problem(404, error.code, error.message);
