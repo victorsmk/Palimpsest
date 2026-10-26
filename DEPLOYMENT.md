@@ -54,11 +54,18 @@ in this mode in production.
    - The transaction pooler (port 6543) is the right one for Vercel: its functions open many short connections.
      The app uses no prepared statements, which that mode does not allow.
 5. Get the project's **URL** and keys: **Project Settings → API**.
-   - **Project URL** (`https://abcd.supabase.co`): `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL`.
-   - **anon / public key**: `SUPABASE_ANON_KEY` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. It is meant to be public.
-   - **service_role key**: `SUPABASE_SERVICE_ROLE_KEY`. **This one is a secret** that can do anything to the
+   - **Project URL** (`https://abcdwxyz.supabase.co`): `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL`. It is
+     `https://` + the project's **Project ID** (also called the reference) + `.supabase.co`; the **Connect**
+     button at the top of the project shows it too.
+   - **Publishable key** (`sb_publishable_…`): `SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+     It is meant to be public. Find the keys under **Settings → API Keys**.
+   - **Secret key** (`sb_secret_…`): `SUPABASE_SECRET_KEY`. **This one is a secret** that can do anything to the
      project. It is used only to delete an account, only on the server. Never put it in a `NEXT_PUBLIC_`
      setting, and never share it.
+   - Older projects show an `anon` key and a `service_role` key instead (long strings starting `eyJ`). They are the
+     same two things under their old names, and the old setting names (`SUPABASE_ANON_KEY`,
+     `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) still work. Supabase has said it will retire them
+     by the end of 2026.
 
 ## 2. Make the sign-in send a code (Supabase)
 
@@ -150,12 +157,12 @@ Preview too, if you will use previews). The names are in [`.env.example`](.env.e
 |---|---|---|
 | `NEXT_PUBLIC_DATA_BACKEND` | `server` | public, read at **build** |
 | `NEXT_PUBLIC_SUPABASE_URL` | the Project URL | public, read at **build** |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the anon key | public, read at **build** |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable key | public, read at **build** |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | the Google client id (optional: part 2b) | public, read at **build** |
 | `DATABASE_URL` | the transaction pooler string from part 1 | secret |
 | `SUPABASE_URL` | the Project URL | config |
-| `SUPABASE_ANON_KEY` | the anon key | config |
-| `SUPABASE_SERVICE_ROLE_KEY` | the service_role key | **secret** (choose the "Secret" kind so it cannot be read again) |
+| `SUPABASE_PUBLISHABLE_KEY` | the publishable key | config |
+| `SUPABASE_SECRET_KEY` | the secret key | **secret** (choose the "Secret" kind so it cannot be read again) |
 
 Never set `PALIMPSEST_TEST_AUTH` or `NEXT_PUBLIC_TEST_AUTH`. They are a made-up sign-in for development; the
 server refuses to run with the first one in production, and a build with the second refuses to sign anyone in.
@@ -187,9 +194,9 @@ name. You want:
 | `settings`: `SUPABASE_URL is not a valid address.` | It must be `https://…supabase.co`, with nothing after it. |
 | `database`: `could not be reached` | Check `DATABASE_URL`: the password (and its encoding), the `.pooler.supabase.com:6543` host, and `?sslmode=require`. See "Troubleshooting" if it is the certificate. The Vercel function log has the real reason. |
 | `database`: `connected, but the poems table is missing` | Run `db/schema.sql` (part 1). |
-| `signIn`: `Supabase answered 401 …` | `SUPABASE_URL` or `SUPABASE_ANON_KEY` is wrong. |
+| `signIn`: `Supabase answered 401 …` | `SUPABASE_URL` or `SUPABASE_PUBLISHABLE_KEY` is wrong. |
 | `signIn`: `Supabase could not be reached` | `SUPABASE_URL` is wrong, or the project is **paused** (below). |
-| `accountDeletion`: `not set up` | Add `SUPABASE_SERVICE_ROLE_KEY` and redeploy. |
+| `accountDeletion`: `not set up` | Add `SUPABASE_SECRET_KEY` and redeploy. |
 
 The health page does not prove that the email code works or that the sign-in in the browser is configured;
 those are in the checklist.
@@ -263,7 +270,7 @@ app kept them; if you have none, skip)
 
 **The database is private**
 - [ ] With the project URL and the anon key, ask for the table directly. It must return nothing:
-      `curl "https://YOUR-PROJECT.supabase.co/rest/v1/poems?select=id" -H "apikey: YOUR_ANON_KEY"`
+      `curl "https://YOUR-PROJECT.supabase.co/rest/v1/poems?select=id" -H "apikey: YOUR_PUBLISHABLE_KEY"`
       should answer `[]` or an error, never a poem. (This checks that row level security is on.)
 
 **When things go wrong**
@@ -295,7 +302,7 @@ app kept them; if you have none, skip)
   still refused, tell me: the app asks Supabase to check codes as the `email` type, which its documentation
   gives for both, and I would add a fallback.
 - **Signed in on the site but every save says "You need to sign in".** The sign-in the browser has is not
-  accepted by the server: check `SUPABASE_URL` and `SUPABASE_ANON_KEY` (server side) match the project the
+  accepted by the server: check `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (server side) match the project the
   `NEXT_PUBLIC_` ones point to.
 - **The settings look right but nothing changed.** They only apply to new deployments; redeploy.
 - **Logs:** Vercel → the project → **Logs**. The server logs why a request failed (never to the browser).

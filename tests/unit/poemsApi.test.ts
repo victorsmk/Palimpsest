@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll, vi } from 'vitest';
 import { LIMITS, type Poem } from '@/lib/models';
 import { PostgresPoemRepository } from '@/lib/server/PostgresPoemRepository';
 import { createPoemsApi } from '@/lib/server/api/handlers';
-import { createAccountStore } from '@/lib/server/api/accounts';
+import { adminHeaders, createAccountStore } from '@/lib/server/api/accounts';
 import { supabaseAuthenticator, testAuthenticator } from '@/lib/server/api/auth';
 import { readServerConfig } from '@/lib/server/api/config';
 import { createTestDb } from '../helpers/pgliteDb';
@@ -193,6 +193,32 @@ describe('the server’s settings', () => {
   it('read the database certificate authority, if there is one', () => {
     expect(readServerConfig({ ...good, DATABASE_CA_CERT: '  -----BEGIN CERTIFICATE-----\nabc  ' }).caCert).toBe('-----BEGIN CERTIFICATE-----\nabc');
     expect(readServerConfig({ ...good, DATABASE_CA_CERT: ' ' }).caCert).toBeNull();
+  });
+
+  it('read the publishable and secret keys under their new names, and still under the old ones', () => {
+    const base = { DATABASE_URL: 'postgres://x', SUPABASE_URL: 'https://abc.supabase.co' };
+    const fresh = readServerConfig({ ...base, SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_1', SUPABASE_SECRET_KEY: 'sb_secret_1' });
+    expect(fresh.supabase?.anonKey).toBe('sb_publishable_1');
+    expect(fresh.serviceRoleKey).toBe('sb_secret_1');
+    const old = readServerConfig({ ...base, SUPABASE_ANON_KEY: 'anon-1', SUPABASE_SERVICE_ROLE_KEY: 'role-1' });
+    expect(old.supabase?.anonKey).toBe('anon-1');
+    expect(old.serviceRoleKey).toBe('role-1');
+  });
+
+  it('prefer the new names when both are set, and fall back to the old when the new one is blank', () => {
+    const base = { DATABASE_URL: 'postgres://x', SUPABASE_URL: 'https://abc.supabase.co' };
+    const both = readServerConfig({ ...base, SUPABASE_PUBLISHABLE_KEY: 'new', SUPABASE_ANON_KEY: 'old', SUPABASE_SECRET_KEY: 'new-secret', SUPABASE_SERVICE_ROLE_KEY: 'old-secret' });
+    expect([both.supabase?.anonKey, both.serviceRoleKey]).toEqual(['new', 'new-secret']);
+    const blank = readServerConfig({ ...base, SUPABASE_PUBLISHABLE_KEY: '  ', SUPABASE_ANON_KEY: 'old', SUPABASE_SECRET_KEY: ' ', SUPABASE_SERVICE_ROLE_KEY: 'old-secret' });
+    expect([blank.supabase?.anonKey, blank.serviceRoleKey]).toEqual(['old', 'old-secret']);
+  });
+
+  it('name the publishable key in the message when it is missing', () => {
+    try {
+      readServerConfig({ DATABASE_URL: 'postgres://x', SUPABASE_URL: 'https://abc.supabase.co' });
+    } catch (error) {
+      expect((error as { problem: string }).problem).toBe('SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are not set.');
+    }
   });
 
   it('read the secret key for deleting accounts, and take a blank one as none', () => {
@@ -652,9 +678,18 @@ describe('deleting an account', () => {
       const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
       expect(url).toBe(`https://abc.supabase.co/auth/v1/admin/users/${user}`);
       expect(init.method).toBe('DELETE');
-      expect(init.headers).toEqual({ Authorization: 'Bearer secret-key', apikey: 'secret-key' });
+      expect(init.headers).toEqual({ apikey: 'secret-key' }); // a key that is not a JWT goes in apikey only
       expect(await countOf(user)).toBe(0);
       expect(await response.text()).not.toContain('secret-key');
+    });
+
+    it('sends a new-style secret key (sb_secret_…) in the apikey header only, as Supabase says, and never as a bearer', () => {
+      expect(adminHeaders('sb_secret_AbC123xyz')).toEqual({ apikey: 'sb_secret_AbC123xyz' });
+    });
+
+    it('sends a legacy service_role key, which is a JWT, as a bearer too', () => {
+      const legacy = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.c2lnbmF0dXJl';
+      expect(adminHeaders(legacy)).toEqual({ Authorization: `Bearer ${legacy}`, apikey: legacy });
     });
 
     it('counts a user Supabase no longer has as deleted', async () => {

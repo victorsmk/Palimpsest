@@ -8,6 +8,16 @@ export interface AccountStore {
   canDelete(): boolean;
 }
 
+/**
+ * The headers for Supabase's admin calls. Supabase says its new secret keys (sb_secret_...) go in the
+ * `apikey` header and not as a bearer, because they are not JWTs; the legacy service_role key is a JWT, and
+ * keeps working both ways, so that one is sent as a bearer too.
+ */
+export function adminHeaders(key: string): Record<string, string> {
+  const looksLikeJwt = /^eyJ[\w-]+\.[\w-]+\.[\w-]*$/.test(key);
+  return looksLikeJwt ? { Authorization: `Bearer ${key}`, apikey: key } : { apikey: key };
+}
+
 export interface AccountStoreOptions {
   db: Db;
   /** Supabase's admin address and secret key, for removing the user. Absent in tests, where there is no such user. */
@@ -27,7 +37,7 @@ export function createAccountStore(options: AccountStoreOptions): AccountStore {
   return {
     canDelete,
     async deleteAccount(userId) {
-      if (!canDelete()) throw new UnavailableError({ cause: new Error('Deleting accounts needs SUPABASE_SERVICE_ROLE_KEY') });
+      if (!canDelete()) throw new UnavailableError({ cause: new Error('Deleting accounts needs SUPABASE_SECRET_KEY') });
       try {
         await options.db.query('delete from poems where user_id = $1', [userId]);
       } catch (cause) {
@@ -40,7 +50,7 @@ export function createAccountStore(options: AccountStoreOptions): AccountStore {
       try {
         response = await (options.supabase.fetch ?? fetch)(`${url}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
+          headers: adminHeaders(serviceRoleKey),
           cache: 'no-store',
         });
       } catch (cause) {

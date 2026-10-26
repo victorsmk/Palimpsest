@@ -54,13 +54,13 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
         cache: 'no-store',
         signal: AbortSignal.timeout(4000),
       });
-      body.signIn = response.ok ? 'ok' : `Supabase answered ${response.status} (check SUPABASE_URL and SUPABASE_ANON_KEY)`;
+      body.signIn = response.ok ? 'ok' : `Supabase answered ${response.status} (check SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY)`;
     } catch {
       body.signIn = 'Supabase could not be reached (check SUPABASE_URL)';
     }
   }
 
-  body.accountDeletion = config.testAuth || config.serviceRoleKey ? 'ready' : 'not set up (needs SUPABASE_SERVICE_ROLE_KEY)';
+  body.accountDeletion = config.testAuth || config.serviceRoleKey ? 'ready' : 'not set up (needs SUPABASE_SECRET_KEY)';
   body.ok = body.database === 'ok' && (body.signIn === 'ok' || config.testAuth) && body.accountDeletion === 'ready';
   return { status: body.ok ? 200 : 503, body };
 }

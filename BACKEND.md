@@ -161,7 +161,7 @@ poem model to change (step 3), which is where the real backend work starts.
      Supabase is "unavailable", never "signed out". The browser is not trusted: `validate.ts` checks every
      field (ids, lengths, the limits, no control characters, line breaks only after kept words), cuts and
      repairs nothing, and the server assigns id, times and revision whatever the request says. Settings
-     (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, optional `PALIMPSEST_TEST_AUTH`) are in `.env.example`;
+     (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, optional `PALIMPSEST_TEST_AUTH`; the older `SUPABASE_ANON_KEY` is accepted too) are in `.env.example`;
      a missing or wrong one makes every request answer 503, and the test sign-in is refused in production.
      **Tested:** 91 tests of the handlers on real SQL (PGlite), plus the real Next server over HTTP in
      development and production mode (routes, 401/400/415/428 answers, the production refusal of the test
@@ -194,7 +194,7 @@ poem model to change (step 3), which is where the real backend work starts.
        `AuthManager` holds the state (loading, signed out, signed in), waits for the service before it
        hands out a token, checks addresses and codes before the service is asked, and maps errors to four
        plain ones (bad address, wrong or expired code, too many tries, unavailable). A page sets
-       `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (public by design).
+       `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (public by design; `..._ANON_KEY` works too).
      - *Screens:* "Sign in" / "Account" next to My Collection on every page (nothing is shown when poems are
        kept in the browser). The sign-in dialog is a code, not a link, so the page, and a poem in the Studio,
        are never left. A visitor who presses Save is asked to sign in first and the save form opens after;
@@ -207,7 +207,7 @@ poem model to change (step 3), which is where the real backend work starts.
        keeps the offer). Many poems go in several requests (about 3 MB or 400 poems each); a failure leaves the
        earlier requests' poems added, and doing it again finishes the job.
      - *Account deletion:* `DELETE /api/account` removes the user's poems first, then the Supabase user with
-       the secret key (`SUPABASE_SERVICE_ROLE_KEY`, server only, in `.env.example`). If the key is missing,
+       the secret key (`SUPABASE_SECRET_KEY`, or the older `SUPABASE_SERVICE_ROLE_KEY`; server only; sent in the `apikey` header only, as Supabase says for its new secret keys, and also as a bearer for a legacy JWT key). If the key is missing,
        or the user cannot be removed, nothing is deleted at all in the first case, and in the second the poems
        are already gone and trying again finishes it. A user Supabase no longer has counts as deleted.
      **Tested:** 56 unit tests of the sign-in layer (with a stand-in for Supabase's client), the account

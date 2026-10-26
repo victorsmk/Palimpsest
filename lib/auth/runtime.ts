@@ -7,7 +7,7 @@ type Env = Record<string, string | undefined>;
 
 /**
  * The sign-in service this build uses, from its settings (all NEXT_PUBLIC_, so all public):
- *   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY  Supabase
+ *   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY  Supabase (the old name NEXT_PUBLIC_SUPABASE_ANON_KEY works too)
  *   NEXT_PUBLIC_TEST_AUTH=1                                  the made-up sign-in, never in a production build
  * Supabase's client is loaded only when it is used.
  */
@@ -17,8 +17,8 @@ export async function createAuthClient(env: Env): Promise<AuthClient> {
     return createTestAuthClient();
   }
   const url = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!url || !key) throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set.');
+  const key = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !key) throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are not set.');
   const { createClient } = await import('@supabase/supabase-js');
   const supabase = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
   const googleClientId = env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
@@ -44,6 +44,7 @@ export function getAuth(): AuthManager {
     createAuthClient({
       NEXT_PUBLIC_TEST_AUTH: process.env.NEXT_PUBLIC_TEST_AUTH,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
       NODE_ENV: process.env.NODE_ENV,

@@ -387,6 +387,13 @@ describe('choosing the sign-in service', () => {
     expect((await createAuthClient({ ...base, NEXT_PUBLIC_GOOGLE_CLIENT_ID: '123.apps.googleusercontent.com' })).google).toBeDefined();
   });
 
+  it('takes the publishable key under its new name, and under the old one', async () => {
+    const url = 'https://abc.supabase.co';
+    expect(typeof (await createAuthClient({ NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_1' })).sendCode).toBe('function');
+    expect(typeof (await createAuthClient({ NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-1' })).sendCode).toBe('function');
+    await expect(createAuthClient({ NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: '  ' })).rejects.toThrow('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are not set');
+  });
+
   it('makes a Supabase sign-in from the two settings', async () => {
     const client = await createAuthClient({ NEXT_PUBLIC_SUPABASE_URL: 'https://abc.supabase.co', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key' });
     expect(typeof client.sendCode).toBe('function');

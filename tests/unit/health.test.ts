@@ -55,7 +55,7 @@ describe('the health check', () => {
   it('says when Supabase answers badly or cannot be reached', async () => {
     const bad = await checkHealth({ config: config(), db, fetch: supabaseAnswers(401) });
     expect(bad.status).toBe(503);
-    expect(bad.body.signIn).toBe('Supabase answered 401 (check SUPABASE_URL and SUPABASE_ANON_KEY)');
+    expect(bad.body.signIn).toBe('Supabase answered 401 (check SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY)');
     const gone = await checkHealth({ config: config(), db, fetch: (async () => Promise.reject(new TypeError('fetch failed'))) as unknown as typeof fetch });
     expect(gone.status).toBe(503);
     expect(gone.body.signIn).toBe('Supabase could not be reached (check SUPABASE_URL)');
@@ -64,7 +64,7 @@ describe('the health check', () => {
   it('says account deletion is not set up when the secret key is missing, and is not ok then', async () => {
     const { status, body } = await checkHealth({ config: readServerConfig({ ...env, SUPABASE_SERVICE_ROLE_KEY: '' }), db, fetch: supabaseAnswers() });
     expect(status).toBe(503);
-    expect(body.accountDeletion).toBe('not set up (needs SUPABASE_SERVICE_ROLE_KEY)');
+    expect(body.accountDeletion).toBe('not set up (needs SUPABASE_SECRET_KEY)');
     expect(body.signIn).toBe('ok');
   });
 

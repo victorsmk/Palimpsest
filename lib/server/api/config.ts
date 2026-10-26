@@ -7,8 +7,10 @@ import { UnavailableError } from '@/lib/models';
  *   DATABASE_CA_CERT     optional: the database's certificate authority (PEM text), to check the database's identity too
  *   DATABASE_POOL_MAX    optional: most connections one server instance holds (default 3)
  *   SUPABASE_URL         the project's address, such as https://abcd.supabase.co
- *   SUPABASE_ANON_KEY    the project's public "anon" key (it is only used to ask Supabase who a token belongs to)
- *   SUPABASE_SERVICE_ROLE_KEY  the project's SECRET key, only for deleting an account (it can do anything to the project:
+ *   SUPABASE_PUBLISHABLE_KEY  the project's public "publishable" key, sb_publishable_... (it is only used to ask Supabase who a
+ *                        token belongs to). The old name SUPABASE_ANON_KEY (the legacy "anon" key) is accepted too.
+ *   SUPABASE_SECRET_KEY  the project's SECRET key, sb_secret_..., only for deleting an account (the old name SUPABASE_SERVICE_ROLE_KEY,
+ *                        the legacy "service_role" key, is accepted too). It can do anything to the project:
  *                        server only, never in a NEXT_PUBLIC_ setting, never in the browser)
  *   PALIMPSEST_DEMO      set to "1" for the local demo (`npm run dev:demo`): a database inside the server process, the made-up
  *                        sign-in, no other setting needed. Refused in production.
@@ -52,8 +54,8 @@ export function readServerConfig(env: Env): ServerConfig {
   }
 
   const url = env.SUPABASE_URL?.trim();
-  const anonKey = env.SUPABASE_ANON_KEY?.trim();
-  if (!testAuth && (!url || !anonKey)) throw new ConfigError('SUPABASE_URL and SUPABASE_ANON_KEY are not set.');
+  const anonKey = (env.SUPABASE_PUBLISHABLE_KEY?.trim() || env.SUPABASE_ANON_KEY?.trim()) || undefined;
+  if (!testAuth && (!url || !anonKey)) throw new ConfigError('SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are not set.');
   let supabase: ServerConfig['supabase'] = null;
   if (url && anonKey) {
     try {
@@ -72,7 +74,7 @@ export function readServerConfig(env: Env): ServerConfig {
   return {
     databaseUrl,
     supabase,
-    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null,
+    serviceRoleKey: env.SUPABASE_SECRET_KEY?.trim() || env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null,
     testAuth,
     demo,
     caCert: env.DATABASE_CA_CERT?.trim() || null,
