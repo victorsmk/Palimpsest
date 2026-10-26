@@ -113,7 +113,7 @@ describe('BrowserPoemRepository', () => {
     expect(await repo.list()).toHaveLength(0);
     expect(await repo.get('poem-1')).toBeNull();
 
-    await repo.save(dummyPoem);
+    await repo.importMany([dummyPoem]);
 
     const retrieved = await repo.get('poem-1');
     expect(retrieved).toEqual(dummyPoem);
@@ -197,7 +197,7 @@ describe('BrowserPoemRepository', () => {
       const future = { ...dummyPoem, id: 'future', schemaVersion: 99, extra: 'from a newer build' };
       const { storage, repo } = seed({ future });
 
-      await repo.save(dummyPoem);
+      await repo.importMany([dummyPoem]);
       expect((await repo.list()).map(p => p.id)).toEqual(['poem-1']);
 
       await repo.delete('poem-1');
@@ -209,7 +209,7 @@ describe('BrowserPoemRepository', () => {
       const bare: Poem = { ...dummyPoem, id: 'bare' };
       delete bare.title;
       const repo = new BrowserPoemRepository(new MemoryStorageAdapter());
-      await repo.save(bare);
+      await repo.importMany([bare]);
       expect(await repo.get('bare')).toEqual(bare);
     });
 
@@ -222,7 +222,7 @@ describe('BrowserPoemRepository', () => {
         removeItem: () => {},
       };
       const repo = new BrowserPoemRepository(failing);
-      await expect(repo.save(dummyPoem)).rejects.toThrow(/browser storage/);
+      await expect(repo.importMany([dummyPoem])).rejects.toThrow(/browser storage/);
     });
   });
 });

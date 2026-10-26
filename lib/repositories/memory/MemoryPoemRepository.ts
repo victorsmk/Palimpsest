@@ -1,5 +1,6 @@
 import type { PoemRepository } from '@/lib/repositories';
-import type { Poem } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, type Poem, type PoemDraft } from '@/lib/models';
+import { stampNew, stampUpdate } from '@/lib/models/stamp';
 
 /**
  * A collection of poems held in memory, with no storage behind it. It is the simplest thing that
@@ -11,13 +12,30 @@ import type { Poem } from '@/lib/models';
 export class MemoryPoemRepository implements PoemRepository {
   private poems = new Map<string, Poem>();
 
-  async save(poem: Poem): Promise<void> {
-    await this.saveMany([poem]);
+  async create(draft: PoemDraft): Promise<Poem> {
+    const poem = stampNew(draft);
+    this.poems.set(poem.id, poem);
+    return structuredClone(poem);
   }
 
-  async saveMany(poems: Poem[]): Promise<void> {
-    // The same refusal as the browser repository: this id is not an ordinary key there.
+  async update(id: string, draft: PoemDraft, expectedRevision: number): Promise<Poem> {
+    const current = this.poems.get(id);
+    if (!current) throw new PoemGoneError();
+    if (current.revision !== expectedRevision) throw new PoemConflictError(structuredClone(current));
+    const poem = stampUpdate(current, draft);
+    this.poems.set(id, poem);
+    return structuredClone(poem);
+  }
+
+  async importMany(poems: Poem[]): Promise<void> {
+    // The same refusals as the browser repository: this id is not an ordinary key there, and an
+    // id that is already stored is never overwritten.
     if (poems.some(poem => poem.id === '__proto__')) throw new Error('That poem cannot be stored.');
+    const seen = new Set<string>();
+    for (const poem of poems) {
+      if (this.poems.has(poem.id) || seen.has(poem.id)) throw new Error('A poem with that id is already stored.');
+      seen.add(poem.id);
+    }
     for (const poem of poems) this.poems.set(poem.id, structuredClone(poem));
   }
 

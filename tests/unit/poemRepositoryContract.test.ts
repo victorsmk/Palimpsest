@@ -5,22 +5,28 @@ import { runPoemRepositoryContract } from '../contract/poemRepositoryContract';
 
 runPoemRepositoryContract('MemoryPoemRepository', () => {
   const repo = new MemoryPoemRepository();
-  const save = repo.saveMany.bind(repo);
-  const del = repo.delete.bind(repo);
+  const { create, update, importMany, delete: del } = {
+    create: repo.create.bind(repo),
+    update: repo.update.bind(repo),
+    importMany: repo.importMany.bind(repo),
+    delete: repo.delete.bind(repo),
+  };
   const fail = async () => {
     throw new Error('the store is full');
   };
   return {
     repo,
     failWrites() {
-      repo.saveMany = fail;
+      repo.create = fail;
+      repo.update = fail;
+      repo.importMany = fail;
       repo.delete = fail;
-      repo.save = fail;
     },
     allowWrites() {
-      repo.saveMany = save;
+      repo.create = create;
+      repo.update = update;
+      repo.importMany = importMany;
       repo.delete = del;
-      repo.save = (poem) => save([poem]);
     },
   };
 });

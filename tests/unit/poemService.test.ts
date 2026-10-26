@@ -48,6 +48,7 @@ describe('PoemService (Persistence & Draft Management)', () => {
 
     const updated = await service.savePoem({
       id: initial.id,
+      expectedRevision: initial.revision,
       passageId: 'walden-woods',
       title: 'Revised Draft',
       retainedTokenIds: ['tok-1', 'tok-3'],

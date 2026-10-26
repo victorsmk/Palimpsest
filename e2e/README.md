@@ -74,6 +74,11 @@ where Firefox starts there.
   file chosen again after the browser forgets everything), the question before restoring, only ever adding,
   keeping your own version of a changed poem, files that are not backups, hostile entries, a full browser,
   keyboard and phone.
+- `conflicts.spec.ts`: two tabs of one browser on one collection. A save from an out-of-date revision is refused with the
+  conflict message and changes nothing (the other tab's version stays, the words stay on the page); opening the poem again
+  and saving works; a poem deleted in the other tab is reported, not brought back, and saving again makes a new poem;
+  renaming from a list that is out of date is refused; renaming the open poem does not cause a conflict, and a rename
+  that follows another tab's change does not hide it from the next save.
 - `collection-actions.spec.ts`: renaming (field, Enter/Escape/Cancel, limit, failure, moves to the top, the
   poem open in the Studio follows) and duplicating a poem ("(copy)", announced, independent, one copy per
   double click), on a phone and from the keyboard.

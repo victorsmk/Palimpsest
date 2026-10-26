@@ -1,6 +1,7 @@
 import type { PoemRepository } from '@/lib/repositories';
-import type { Poem } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, type Poem, type PoemDraft } from '@/lib/models';
 import { parseStoredPoem } from '@/lib/models/poemValidation';
+import { stampNew, stampUpdate } from '@/lib/models/stamp';
 
 export interface StorageAdapter {
   getItem(key: string): string | null;
@@ -94,15 +95,37 @@ export class BrowserPoemRepository implements PoemRepository {
     return parsed && parsed.poem.id === key ? parsed.poem : null;
   }
 
-  async save(poem: Poem): Promise<void> {
-    await this.saveMany([poem]);
+  // Each write below reads, checks and writes in one go with nothing asynchronous in between, so two
+  // tabs cannot interleave inside one of them.
+  async create(draft: PoemDraft): Promise<Poem> {
+    const data = this.loadRaw();
+    const poem = stampNew(draft);
+    data[poem.id] = poem;
+    this.writeRaw(data);
+    return structuredClone(poem);
   }
 
-  async saveMany(poems: Poem[]): Promise<void> {
+  async update(id: string, draft: PoemDraft, expectedRevision: number): Promise<Poem> {
+    const data = this.loadRaw();
+    const current = Object.hasOwn(data, id) ? this.readPoem(id, data[id]) : null;
+    if (!current) throw new PoemGoneError();
+    if (current.revision !== expectedRevision) throw new PoemConflictError(current);
+    const poem = stampUpdate(current, draft);
+    data[id] = poem;
+    this.writeRaw(data);
+    return structuredClone(poem);
+  }
+
+  async importMany(poems: Poem[]): Promise<void> {
     // An id is a key in the stored object, and "__proto__" is not an ordinary key.
     if (poems.some(poem => poem.id === '__proto__')) throw new Error('That poem cannot be stored.');
     const data = this.loadRaw();
-    for (const poem of poems) data[poem.id] = poem;
+    const seen = new Set<string>();
+    for (const poem of poems) {
+      if (Object.hasOwn(data, poem.id) || seen.has(poem.id)) throw new Error('A poem with that id is already stored.');
+      seen.add(poem.id);
+    }
+    for (const poem of poems) data[poem.id] = structuredClone(poem);
     this.writeRaw(data);
   }
 

@@ -19,7 +19,7 @@ poem model to change (step 3), which is where the real backend work starts.
 
 ## What was already in good shape (verified in the code)
 
-- All storage is behind `PoemRepository` (`save`, `saveMany`, `get`, `list`, `delete`, all async).
+- All storage is behind `PoemRepository` (`create`, `update`, `importMany`, `get`, `list`, `delete`, all async).
   Exactly one file touches `localStorage`: `BrowserPoemRepository`.
 - Screens never import repositories. They use services (`poemService`, `bookService`).
 - Every service call is already asynchronous, and the screens already have loading and error states for
@@ -34,8 +34,8 @@ poem model to change (step 3), which is where the real backend work starts.
 
 | # | Gap | Status |
 |---|---|---|
-| 1 | Poem ids and timestamps are made by the browser (`poem-<time>-<random>`, the user's clock) | **Part done** (3a): every poem now has a UUID id, old ones included. The store assigning ids and times is 3b |
-| 2 | No revision, owner or deleted marker on a poem; two tabs saving can overwrite each other | **Part done** (3a): a `revision` is counted on every save. Refusing a stale save is 3b. Owner and deleted marker are for the server |
+| 1 | Poem ids and timestamps are made by the browser (`poem-<time>-<random>`, the user's clock) | **Done** (3a, 3b): every poem has a UUID id, old ones included, and the repository assigns the id and both times |
+| 2 | No revision, owner or deleted marker on a poem; two tabs saving can overwrite each other | **Done** (3a, 3b): a `revision` is counted on every save and a save from an out-of-date revision is refused. Owner and deleted marker are for the server |
 | 3 | Poems are tied to word ids made from the bundled text (`walden-woods-token-0014`); a changed text orphans them | **Done** (3a): each poem records the version of its passage text; one made from changed text is refused with a clear message |
 | 4 | Validation lived in the browser-only folder and the backup code reached into it | **Done**: `lib/models/poemValidation.ts` |
 | 5 | No single place chose the implementation; the poem service silently defaulted to the browser one | **Done**: `lib/services/container.ts`, setting `NEXT_PUBLIC_DATA_BACKEND` |
@@ -45,7 +45,7 @@ poem model to change (step 3), which is where the real backend work starts.
 | 9 | Named collections are defined as types only | **Open**: build once, before or with the backend |
 | 10 | No sign-in, no "not signed in" or offline state | **Open** (the backend work itself) |
 | 11 | Tests only covered the browser implementation | **Done**: one contract suite, run against every repository |
-| 12 | Other browser tabs are not noticed | **Open** (a server removes most of this) |
+| 12 | Other browser tabs are not noticed | **Mostly done** (3b): a tab that saves from an old revision is refused with a message. A tab is still not told the moment another one changes something |
 
 ### What steps 1 and 2 changed
 
@@ -59,7 +59,7 @@ poem model to change (step 3), which is where the real backend work starts.
 - **A composition root.** `lib/services/container.ts` is the one place that decides where data lives.
   `PoemService` and `BookService` no longer default to anything: they are given a repository. An unknown
   setting stops the app at start-up with a plain message.
-- **A contract test suite** (`tests/contract/poemRepositoryContract.ts`, 26 rules) run against
+- **A contract test suite** (`tests/contract/poemRepositoryContract.ts`, 42 rules) run against
   `MemoryPoemRepository`, `BrowserPoemRepository` on in-memory storage, and `BrowserPoemRepository` on
   the real `localStorage`. Any new repository must pass the same rules: copies not shared objects,
   saving many is all-or-nothing, a failed write leaves the data as it was, `__proto__` is refused,
@@ -77,12 +77,19 @@ poem model to change (step 3), which is where the real backend work starts.
      so reading needs no migration step, the first write stores the whole collection in the new form,
      and an old backup restores without adding twice. Backups are now version 2 and version 1 files
      are still read.
-   - **3b, next:** the repository owns identity: `save` returns the stored poem with the id, times and
-     revision it assigned; an update states the revision it started from and a stale one is refused
-     with a conflict (so two tabs cannot overwrite each other, and a server can do the same);
-     `saveMany` becomes `importMany`, used only to restore backups.
-4. **Typed repository errors:** not found, conflict, not signed in, offline, rate-limited, limit; and
-   the matching screen messages.
+   - **3b, done:** the repository owns identity. `create(draft)` returns the stored poem with the id,
+     both times and revision 1 that the repository assigned; `update(id, draft, expectedRevision)`
+     returns the next revision, or is refused with a `PoemConflictError` (carrying the poem as stored) if
+     the stored revision is not the one the save started from, or a `PoemGoneError` if the poem was
+     deleted (it is never re-created). A draft has no id, times or revision, so a caller cannot choose
+     them. `saveMany` became `importMany`, used only to restore backups: it keeps ids, times and
+     revisions, and refuses an id that is already stored. The Studio remembers the revision it opened or
+     last saved and says so on every save; renaming from My Collection says the revision its list showed.
+     The messages are plain text in the save form and in the collection panel. A server repository
+     keeps the same rules (the contract suite checks them), with `If-Match` carrying the revision.
+4. **Typed repository errors:** limit, conflict and gone exist (`PoemLimitError`, `PoemConflictError`,
+   `PoemGoneError`); still to come: not signed in, offline, rate-limited, and a typed storage failure in
+   place of the generic one; and the matching screen messages.
 5. **Paging and on-demand passages** (when there are many books): summary lists, passages fetched when
    opened, search on the server or in a worker for long texts.
 6. **The real backend:** an HTTP poem repository, the API behind it, sign-in, and the "save needs an

@@ -84,6 +84,12 @@ export interface Poem {
   notes?: string;
 }
 
+/**
+ * What a writer supplies when saving a poem: its content only. The store assigns the id, the times
+ * and the revision, so a caller cannot choose them.
+ */
+export type PoemDraft = Omit<Poem, 'id' | 'schemaVersion' | 'revision' | 'createdAt' | 'updatedAt'>;
+
 export interface Collection {
   id: string;
   name: string;
@@ -95,5 +101,5 @@ export interface Collection {
 export { LIMITS } from './limits';
 export { TOKENIZER_VERSION, legacyPoemId, passageVersionOf } from './versions';
 export { fingerprint, newId, uuidV5 } from './uuid';
-export { PoemLimitError } from './errors';
+export { PoemLimitError, PoemConflictError, PoemGoneError } from './errors';
 export { parsePoem, poemLimitProblem } from './poemValidation';

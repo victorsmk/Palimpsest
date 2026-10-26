@@ -85,7 +85,7 @@ describe('the first write after that', () => {
   it('saves an upgraded poem over itself: revision 2, the same id, one copy', async () => {
     const { service, raw } = setup(legacyStore());
     const id = legacyPoemId(OLD[0]);
-    const again = await service.savePoem({ id, passageId: 'walden-woods', title: 'Edited', retainedTokenIds: ['walden-woods-token-0001'], lineBreaks: [], erasureStyle: 'blackout' });
+    const again = await service.savePoem({ id, expectedRevision: 1, passageId: 'walden-woods', title: 'Edited', retainedTokenIds: ['walden-woods-token-0001'], lineBreaks: [], erasureStyle: 'blackout' });
     expect(again).toMatchObject({ id, revision: 2, title: 'Edited', createdAt: '2026-01-01T00:00:00.000Z' });
     expect(Object.keys(raw())).toHaveLength(2);
   });
@@ -152,8 +152,8 @@ describe('saving a poem', () => {
   it('numbers each save: revision 1, then 2, then 3', async () => {
     const { service } = setup({});
     const first = await service.savePoem({ passageId: 'walden-woods', title: 'T', retainedTokenIds: ['walden-woods-token-0001'], lineBreaks: [], erasureStyle: 'blackout' });
-    const second = await service.savePoem({ id: first.id, passageId: 'walden-woods', title: 'T2', retainedTokenIds: ['walden-woods-token-0001'], lineBreaks: [], erasureStyle: 'blackout' });
-    const third = await service.savePoem({ id: first.id, passageId: 'walden-woods', title: 'T3', retainedTokenIds: ['walden-woods-token-0001'], lineBreaks: [], erasureStyle: 'blackout' });
+    const second = await service.savePoem({ id: first.id, expectedRevision: first.revision, passageId: 'walden-woods', title: 'T2', retainedTokenIds: ['walden-woods-token-0001'], lineBreaks: [], erasureStyle: 'blackout' });
+    const third = await service.savePoem({ id: first.id, expectedRevision: second.revision, passageId: 'walden-woods', title: 'T3', retainedTokenIds: ['walden-woods-token-0001'], lineBreaks: [], erasureStyle: 'blackout' });
     expect([first.revision, second.revision, third.revision]).toEqual([1, 2, 3]);
   });
 
@@ -162,8 +162,9 @@ describe('saving a poem', () => {
     const input = { passageId: 'walden-woods', title: 'T', retainedTokenIds: ['walden-woods-token-0001'], lineBreaks: [], erasureStyle: 'blackout' as const };
     const first = await service.savePoem({ ...input, passageVersion: 't1-ef42d4304c54bef5' });
     expect(first.passageVersion).toBe('t1-ef42d4304c54bef5');
-    expect((await service.savePoem({ ...input, id: first.id })).passageVersion).toBe('t1-ef42d4304c54bef5');
-    expect((await service.savePoem({ ...input, id: first.id, passageVersion: 't1-0123456789abcdef' })).passageVersion).toBe('t1-0123456789abcdef');
+    const second = await service.savePoem({ ...input, id: first.id, expectedRevision: 1 });
+    expect(second.passageVersion).toBe('t1-ef42d4304c54bef5');
+    expect((await service.savePoem({ ...input, id: first.id, expectedRevision: 2, passageVersion: 't1-0123456789abcdef' })).passageVersion).toBe('t1-0123456789abcdef');
   });
 
   it('leaves a poem saved without any passage version without one', async () => {

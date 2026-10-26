@@ -1,9 +1,12 @@
 import type { PoemRepository } from '@/lib/repositories';
-import { LIMITS, POEM_SCHEMA_VERSION, PoemLimitError, newId, poemLimitProblem, type ErasureStyle, type Poem } from '@/lib/models';
+import { LIMITS, PoemLimitError, poemLimitProblem, type ErasureStyle, type Poem, type PoemDraft } from '@/lib/models';
 import { backupFilename, createBackup, planRestore, serializeBackup, type RestorePlan } from '@/lib/backup';
 
 export interface SavePoemInput {
+  /** Saving over a poem that is already stored; left out for a new poem. */
   id?: string;
+  /** The revision the writer's copy started from. Required with `id`. */
+  expectedRevision?: number;
   passageId: string;
   title?: string;
   notes?: string;
@@ -47,32 +50,27 @@ export class PoemService {
    * PoemLimitError whose message can be shown to the writer.
    */
   async savePoem(input: SavePoemInput): Promise<Poem> {
-    const now = new Date().toISOString();
-    const existing = input.id ? await this.repo.get(input.id) : null;
-
     const notes = input.notes?.trim() || '';
     const problem = poemLimitProblem({ notes, retainedTokenIds: input.retainedTokenIds });
     if (problem) throw new PoemLimitError(problem);
-    if (!existing && (await this.repo.list()).length >= LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
 
-    const poem: Poem = {
-      id: input.id || newId(),
-      schemaVersion: POEM_SCHEMA_VERSION,
-      revision: existing ? existing.revision + 1 : 1,
+    const draft: PoemDraft = {
       passageId: input.passageId,
       title: cleanTitle(input.title ?? ''),
       notes,
-      retainedTokenIds: [...input.retainedTokenIds],
-      lineBreaks: [...input.lineBreaks],
+      retainedTokenIds: input.retainedTokenIds,
+      lineBreaks: input.lineBreaks,
       erasureStyle: input.erasureStyle,
-      createdAt: existing ? existing.createdAt : now,
-      updatedAt: now,
     };
-    const passageVersion = input.passageVersion ?? existing?.passageVersion;
-    if (passageVersion) poem.passageVersion = passageVersion;
+    if (input.passageVersion) draft.passageVersion = input.passageVersion;
 
-    await this.repo.save(poem);
-    return poem;
+    if (input.id !== undefined) {
+      if (input.expectedRevision === undefined) throw new Error('Saving over a poem needs the revision it started from.');
+      // A poem that is no longer stored is reported by the repository, not created again.
+      return this.repo.update(input.id, draft, input.expectedRevision);
+    }
+    if ((await this.repo.list()).length >= LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
+    return this.repo.create(draft);
   }
 
   async getPoem(id: string): Promise<Poem | null> {
@@ -89,10 +87,11 @@ export class PoemService {
    * Gives a poem a new title and nothing else: its words, breaks, style and notes are kept. It counts
    * as a change, so the poem moves to the top of the list.
    */
-  async renamePoem(id: string, title: string): Promise<Poem> {
+  async renamePoem(id: string, title: string, expectedRevision?: number): Promise<Poem> {
     const poem = await this.repo.get(id);
     if (!poem) throw new Error('That poem is no longer in your collection.');
-    return this.savePoem({ ...poem, title: cleanTitle(title) });
+    // The revision the writer was looking at, if known: a poem changed since then is a conflict.
+    return this.savePoem({ ...poem, title: cleanTitle(title), expectedRevision: expectedRevision ?? poem.revision });
   }
 
   /** Saves a separate copy of a poem, titled "... (copy)". The original is not touched. */
@@ -131,7 +130,7 @@ export class PoemService {
     const existing = await this.repo.list();
     const plan = planRestore(existing, incoming);
     if (existing.length + plan.toAdd.length > LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
-    if (plan.toAdd.length > 0) await this.repo.saveMany(plan.toAdd);
+    if (plan.toAdd.length > 0) await this.repo.importMany(plan.toAdd);
     return plan;
   }
 

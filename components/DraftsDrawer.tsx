@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PoemLimitError, type Passage, type Poem } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, PoemLimitError, type Passage, type Poem } from '@/lib/models';
 import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
 import { downloadTextFile } from '@/lib/export/text';
 import { poemPreview } from '@/lib/poems/preview';
@@ -130,14 +130,25 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
   const saveRename = async (poem: Poem, title: string) => {
     setRenameBusy(true);
     try {
-      const renamed = await poemService.renamePoem(poem.id, title);
+      const renamed = await poemService.renamePoem(poem.id, title, poem.revision);
       setDrafts(await poemService.listPoems());
       setRenamingId(null);
       setNotice({ text: `Renamed to “${renamed.title}”.`, tone: 'ok' });
       onRenamed?.(renamed);
       focusLater(() => actionButton('rename', poem.id));
-    } catch {
-      setRenameError('Could not rename this poem. Please try again.');
+    } catch (err) {
+      if (err instanceof PoemConflictError || err instanceof PoemGoneError) {
+        // The list on screen is out of date: say so, and show the collection as it is now.
+        setRenamingId(null);
+        setNotice({ text: err instanceof PoemGoneError ? 'That poem is no longer in your collection.' : err.message, tone: 'error' });
+        try {
+          setDrafts(await poemService.listPoems());
+        } catch {
+          /* the message above stands */
+        }
+      } else {
+        setRenameError('Could not rename this poem. Please try again.');
+      }
     } finally {
       setRenameBusy(false);
     }

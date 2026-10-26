@@ -24,7 +24,7 @@ const stored = (id: string): Poem => ({
 function setup(count = 0) {
   const repo = new MemoryPoemRepository();
   const service = new PoemService(repo);
-  const fill = (n: number) => repo.saveMany(Array.from({ length: n }, (_, i) => stored(`p${i}`)));
+  const fill = (n: number) => repo.importMany(Array.from({ length: n }, (_, i) => stored(`p${i}`)));
   return { repo, service, fill, ready: count ? fill(count) : Promise.resolve() };
 }
 
@@ -106,7 +106,7 @@ describe('a full collection', () => {
   it('still lets a poem that is already in it be saved, renamed and deleted', async () => {
     const { service, fill } = setup();
     await fill(LIMITS.poemsMax);
-    await expect(service.savePoem({ ...base, id: 'p0', title: 'Edited' })).resolves.toMatchObject({ title: 'Edited' });
+    await expect(service.savePoem({ ...base, id: 'p0', expectedRevision: 1, title: 'Edited' })).resolves.toMatchObject({ title: 'Edited' });
     await expect(service.renamePoem('p1', 'Renamed')).resolves.toMatchObject({ title: 'Renamed' });
     await service.deletePoem('p2');
     await expect(service.savePoem({ ...base, title: 'Room now' })).resolves.toBeDefined();

@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { passageVersionOf } from '@/lib/models';
+import { PoemGoneError, passageVersionOf } from '@/lib/models';
 import { useEditor, reopenPoem, createDefaultSnapshot, snapshotsEqual, type EditorSnapshot } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
 import { BookText } from '@/components/BookText';
@@ -129,6 +129,9 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
     handoff.kind === 'open' ? handoff.passage.id : opened?.ok ? opened.passage.id : passages[0].id
   );
   const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(() => (opened?.ok ? opened.poem.id : undefined));
+  // The revision of the open poem as this tab last saw it. A save says so, and is refused if the poem
+  // has been changed somewhere else since.
+  const [currentRevision, setCurrentRevision] = useState<number | undefined>(() => (opened?.ok ? opened.poem.revision : undefined));
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [view, setView] = useState<StudioView>('page');
   const [isExporting, setIsExporting] = useState(false);
@@ -242,18 +245,31 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
 
   // Handle saving to repository
   const handleSaveDraft = async (title: string, notes: string) => {
-    const saved = await poemService.savePoem({
-      id: currentPoemId,
-      passageId: activePassage.id,
-      title,
-      notes,
-      retainedTokenIds: snapshot.retainedTokenIds,
-      lineBreaks: snapshot.lineBreaks,
-      erasureStyle: snapshot.erasureStyle,
-      passageVersion: passageVersionOf(activePassage),
-    });
+    let saved: Poem;
+    try {
+      saved = await poemService.savePoem({
+        id: currentPoemId,
+        expectedRevision: currentRevision,
+        passageId: activePassage.id,
+        title,
+        notes,
+        retainedTokenIds: snapshot.retainedTokenIds,
+        lineBreaks: snapshot.lineBreaks,
+        erasureStyle: snapshot.erasureStyle,
+        passageVersion: passageVersionOf(activePassage),
+      });
+    } catch (err) {
+      // The poem is gone from the collection: the words stay on the page, and saving again makes a
+      // new poem instead of asking for the old one. (The save form shows the error's message.)
+      if (err instanceof PoemGoneError) {
+        setCurrentPoemId(undefined);
+        setCurrentRevision(undefined);
+      }
+      throw err;
+    }
 
     setCurrentPoemId(saved.id);
+    setCurrentRevision(saved.revision);
     setTitle(saved.title || '');
     setNotes(saved.notes || '');
     // What was just saved is now the poem to compare against.
@@ -288,6 +304,7 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
       () => {
         setSelectedPassageId(passage.id);
         setCurrentPoemId(poem.id);
+        setCurrentRevision(poem.revision);
         loadSnapshot(opened, passage.id);
         setBaseline({ passageId: passage.id, snapshot: opened });
         showNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
@@ -324,6 +341,7 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
         () => {
           setSelectedPassageId(next.passage.id);
           setCurrentPoemId(undefined);
+          setCurrentRevision(undefined);
           loadSnapshot(next.snapshot, next.passage.id);
           setBaseline({ passageId: next.passage.id, snapshot: next.snapshot });
           showNotice(openedMessage(next.passage.attribution.title, next.mode), 'ok', 8000);
@@ -339,6 +357,10 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
   const handleRenamedElsewhere = useCallback(
     (renamed: Poem) => {
       if (renamed.id !== currentPoemId) return;
+      // The rename was a save of this poem. If it followed straight on from the revision shown here,
+      // that is the new revision; if the poem had been changed elsewhere in between, keep the old
+      // one, so that the next save here is refused instead of hiding that change.
+      setCurrentRevision(revision => (revision !== undefined && renamed.revision === revision + 1 ? renamed.revision : revision));
       const title = renamed.title || '';
       setTitle(title);
       setBaseline(current => (current ? { ...current, snapshot: { ...current.snapshot, title } } : current));
@@ -478,6 +500,7 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
                       () => {
                         setSelectedPassageId(p.id);
                         setCurrentPoemId(undefined);
+                        setCurrentRevision(undefined);
                       }
                     );
                   }}
