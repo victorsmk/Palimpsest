@@ -56,7 +56,7 @@ describe('BrowserBookRepository', () => {
 
   it('lists distinct books derived from passages', async () => {
     const repo = new BrowserBookRepository(dummyPassages);
-    const books = await repo.listBooks();
+    const books = (await repo.listBooks()).items;
     expect(books).toHaveLength(2);
     expect(books.map(b => b.id).sort()).toEqual(['book-a', 'book-b']);
   });
@@ -80,15 +80,15 @@ describe('BrowserBookRepository', () => {
     expect(missing).toBeNull();
   });
 
-  it('lists passages belonging to a specific book', async () => {
+  it('lists passage summaries of a specific book', async () => {
     const repo = new BrowserBookRepository(dummyPassages);
-    const passagesA = await repo.listPassages('book-a');
+    const passagesA = (await repo.listPassageSummaries({ bookId: 'book-a' })).items;
     expect(passagesA).toHaveLength(2);
 
-    const passagesB = await repo.listPassages('book-b');
+    const passagesB = (await repo.listPassageSummaries({ bookId: 'book-b' })).items;
     expect(passagesB).toHaveLength(1);
 
-    const passagesC = await repo.listPassages('book-c');
+    const passagesC = (await repo.listPassageSummaries({ bookId: 'book-c' })).items;
     expect(passagesC).toHaveLength(0);
   });
 });

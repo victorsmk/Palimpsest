@@ -1,7 +1,19 @@
 import type { Passage } from '@/lib/models';
 import { ASSISTED_PREFIX, decodeAssistedHandoff, resolveAssistedHandoff } from './assisted';
-import { FOUND_HANDOFF_INVALID_MESSAGE, readFoundHandoff, type ReadHandoff } from './found';
+import { FOUND_HANDOFF_INVALID_MESSAGE, decodeFoundHandoff, readFoundHandoff, type ReadHandoff } from './found';
 import { SHARED_PREFIX, decodeSharedPoem, resolveSharedPoem } from './shared';
+
+/**
+ * The passage a hand-off hash names (`#found=`, `#assisted=` or `#poem=`), or null if the hash is not
+ * a well-formed hand-off. Read before the passage itself is loaded, to know which one to load; it
+ * checks nothing else (the words are checked against the passage by readHandoff).
+ */
+export function handoffPassageId(hash: string): string | null {
+  const payload = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (payload.startsWith(SHARED_PREFIX)) return decodeSharedPoem(payload)?.passageId ?? null;
+  if (payload.startsWith(ASSISTED_PREFIX)) return decodeAssistedHandoff(payload)?.passageId ?? null;
+  return decodeFoundHandoff(payload)?.passageId ?? null;
+}
 
 /**
  * What a page should do with its current URL hash, for a poem sent from Discover (`#found=`), from

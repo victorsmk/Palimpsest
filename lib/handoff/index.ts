@@ -18,7 +18,7 @@ export {
   resolveAssistedHandoff,
 } from './assisted';
 export type { AssistedHandoff } from './assisted';
-export { readHandoff } from './read';
+export { handoffPassageId, readHandoff } from './read';
 export {
   MAX_SHARED_TITLE,
   MAX_SHARED_WORDS,

@@ -40,7 +40,7 @@ poem model to change (step 3), which is where the real backend work starts.
 | 4 | Validation lived in the browser-only folder and the backup code reached into it | **Done**: `lib/models/poemValidation.ts` |
 | 5 | No single place chose the implementation; the poem service silently defaulted to the browser one | **Done**: `lib/services/container.ts`, setting `NEXT_PUBLIC_DATA_BACKEND` |
 | 6 | Limits were uneven (titles capped only on rename and copy) | **Done**: `lib/models/limits.ts`, one set, enforced when writing |
-| 7 | Listing returns everything; passages come with their whole text | **Open** (step 5, with many books) |
+| 7 | Listing returns everything; passages come with their whole text | **Half done** (step 5): library lists are paged summaries and a passage is fetched when it is wanted. The poem list still returns whole poems, all at once (step 5b) |
 | 8 | Errors are generic ("browser storage full") | **Done** (step 4): every repository failure is a typed `RepositoryError`, and `describeError` is the one place that decides what the writer is told |
 | 9 | Named collections are defined as types only | **Open**: build once, before or with the backend |
 | 10 | No sign-in, no "not signed in" or offline state | **Open** (the backend work itself) |
@@ -95,8 +95,25 @@ poem model to change (step 3), which is where the real backend work starts.
    anything unknown gets a plain sentence about what was being done). The contract suite requires a failed write to
    be a `StorageError`, so a server repository has to map its own failures too. Not yet done: the screens do not
    have a "sign in" or "offline" state to show; that comes with the backend.
-5. **Paging and on-demand passages** (when there are many books): summary lists, passages fetched when
-   opened, search on the server or in a worker for long texts.
+5. **Paging and on-demand passages.**
+   - **5a, done:** `BookRepository` lists *summaries* (`PassageSummary`: no text, no words) a page at a time
+     (`listBooks`, `listPassageSummaries`, optionally for one book; `{after, limit}` in, `{items, next}` out; limit
+     100 by default, 500 at most; a cursor that names nothing ends the walk). `getPassage(id)` gives one passage
+     whole. `listPassages(bookId)`, which handed over every text, is gone. `BookService.openLibrary()` returns one
+     `PassageLibrary` shared by every screen: all summaries up front, each passage fetched once when asked for
+     (`ensure`), concurrent asks share one fetch, a failed fetch is not remembered. The Studio loads only its
+     starting passage (the first, the one a `#found=`/`#assisted=`/`#poem=`/`#open=` link names) and loads another
+     when it is chosen; Discover and Assisted load the passage they show (`usePassageChoice`); My Collection
+     loads just the passages its poems were made from, before showing the list. A passage that cannot be loaded
+     says so ("That passage could not be opened. Please try again.") and the screen keeps what it had. A
+     `BookRepository` contract suite (paging rules included) is run against the browser implementation.
+   - **5b, next:** the same for poems. The list returns whole poems (each up to 10,000 kept words) and the
+     collection panel shows all of them; a server needs a summary list (id, title, passage, revision, times,
+     word count, a preview of the first lines) a page at a time, and the full poem fetched when opened. The
+     preview needs the passage's text, so either the summary carries the preview text or the screen loads it.
+   - **Not done, and not needed yet:** a book picker (the selector buttons list every summary; fine for a
+     handful of books, not for hundreds) and search over a long text on the server or in a worker (a ROADMAP
+     item; the search still runs in the page, on the one passage on screen).
 6. **The real backend:** an HTTP poem repository, the API behind it, sign-in, and the "save needs an
    account" flow.
 7. **Named collections**, on the same repository pattern (`CollectionRepository` already exists as a type).

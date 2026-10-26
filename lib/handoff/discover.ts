@@ -1,4 +1,3 @@
-import type { Passage } from '@/lib/models';
 
 /**
  * Which passage the Discover page shows, carried in the URL hash so that a link, a reload and the
@@ -18,7 +17,7 @@ export function discoverHash(passageId: string): string {
 }
 
 /** The passage a hash names, or null if it names none (or one that is not in the library). */
-export function readDiscoverPassage(hash: string, passages: Passage[]): Passage | null {
+export function readDiscoverPassage<T extends { id: string }>(hash: string, passages: readonly T[]): T | null {
   const match = PATTERN.exec(hash.startsWith('#') ? hash.slice(1) : hash);
   return match ? (passages.find(p => p.id === match[1]) ?? null) : null;
 }

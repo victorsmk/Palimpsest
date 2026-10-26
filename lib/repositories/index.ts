@@ -1,10 +1,16 @@
-import type { Book, Passage, Poem, PoemDraft, Collection } from '@/lib/models';
+import type { Book, Page, PageRequest, Passage, PassageSummary, Poem, PoemDraft, Collection } from '@/lib/models';
 
+/**
+ * The library. Lists hold summaries and come a page at a time, in a fixed order; a passage's text and
+ * words are fetched one passage at a time, when it is wanted.
+ */
 export interface BookRepository {
-  listBooks(): Promise<Book[]>;
+  listBooks(page?: PageRequest): Promise<Page<Book>>;
   getBook(id: string): Promise<Book | null>;
+  /** One passage in full, or null if there is none with that id. */
   getPassage(id: string): Promise<Passage | null>;
-  listPassages(bookId: string): Promise<Passage[]>;
+  /** Passage summaries, optionally only those of one book. */
+  listPassageSummaries(request?: PageRequest & { bookId?: string }): Promise<Page<PassageSummary>>;
 }
 
 export interface PoemRepository {

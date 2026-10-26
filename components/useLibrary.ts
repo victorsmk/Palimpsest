@@ -1,24 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Passage } from '@/lib/models';
+import type { PassageLibrary } from '@/lib/library/passageLibrary';
 import { bookService } from '@/lib/services';
 
 export type LibraryState =
   | { status: 'loading' }
-  | { status: 'ready'; passages: Passage[] }
+  | { status: 'ready'; library: PassageLibrary }
   | { status: 'error'; message: string };
 
-/** The library's passages, loaded through the book service. */
+/** The library: every passage's summary at once, each passage's text when a screen asks for it. */
 export function useLibrary(): LibraryState {
   const [state, setState] = useState<LibraryState>({ status: 'loading' });
 
   useEffect(() => {
     let cancelled = false;
     bookService
-      .listPassages()
-      .then(passages => {
-        if (!cancelled) setState({ status: 'ready', passages });
+      .openLibrary()
+      .then(library => {
+        if (!cancelled) setState({ status: 'ready', library });
       })
       .catch(() => {
         if (!cancelled) {

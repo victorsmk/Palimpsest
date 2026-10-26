@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PoemConflictError, PoemGoneError, type Passage, type Poem } from '@/lib/models';
+import { useEffect, useId, useRef, useState } from 'react';
+import { PoemConflictError, PoemGoneError, type Poem } from '@/lib/models';
+import type { PassageLibrary } from '@/lib/library/passageLibrary';
 import { describeError } from '@/lib/errors/describe';
 import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
 import { downloadTextFile } from '@/lib/export/text';
@@ -16,8 +17,8 @@ interface DraftsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onLoadPoem: (poem: Poem) => void;
-  /** The library's passages, so each poem can show its book and its first lines. */
-  passages: Passage[];
+  /** The library, so each poem can show its book and its first lines (the passages it needs are loaded when the list is). */
+  library: PassageLibrary;
   /** Called after a poem is renamed here, so the Studio can follow if that poem is the one open. */
   onRenamed?: (poem: Poem) => void;
 }
@@ -30,12 +31,27 @@ const ACTION =
 const FOOTER_ACTION =
   'rounded border border-[#E0D4BE] px-3 py-1.5 text-xs font-medium text-[#24231F] hover:bg-[#E4D8C2]/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
 
+/**
+ * The collection, with the passages its poems were made from loaded first, so that every card has its
+ * book and first lines the moment it is shown. A passage that cannot be loaded leaves its poems
+ * without a preview rather than the collection unreadable.
+ */
+async function listCollection(library: PassageLibrary): Promise<Poem[]> {
+  const list = await poemService.listPoems();
+  try {
+    await library.ensure(list.map(poem => poem.passageId));
+  } catch {
+    /* the cards say what they cannot show */
+  }
+  return list;
+}
+
 export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
   // The panel mounts fresh on every open, so it always starts in the loading state.
   return isOpen ? <DraftsPanel {...panelProps} /> : null;
 }
 
-function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDrawerProps, 'isOpen'>) {
+function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDrawerProps, 'isOpen'>) {
   // null while the first fetch is in flight
   const [drafts, setDrafts] = useState<Poem[] | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Poem | null>(null);
@@ -65,12 +81,12 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
   const deleteTrigger = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const dialogRef = useDialog<HTMLDivElement>(onClose);
-  const passageById = useMemo(() => new Map(passages.map(p => [p.id, p])), [passages]);
+
+  const listWithPassages = () => listCollection(library);
 
   useEffect(() => {
     let cancelled = false;
-    poemService
-      .listPoems()
+    listCollection(library)
       .catch(() => [] as Poem[])
       .then(list => {
         if (!cancelled) setDrafts(list);
@@ -78,7 +94,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [library]);
 
   // Focus is set once the dialog has gone, after React has finished with it.
   const focusLater = (target: () => HTMLElement | null | undefined) => setTimeout(() => target()?.focus(), 0);
@@ -99,7 +115,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
     setDeleting(true);
     try {
       await poemService.deletePoem(pendingDelete.id);
-      setDrafts(await poemService.listPoems());
+      setDrafts(await listWithPassages());
       setPendingDelete(null);
       // The Delete button that opened the question is gone with its poem, so keep the reader's
       // place in the collection instead of dropping focus onto the page.
@@ -132,7 +148,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
     setRenameBusy(true);
     try {
       const renamed = await poemService.renamePoem(poem.id, title, poem.revision);
-      setDrafts(await poemService.listPoems());
+      setDrafts(await listWithPassages());
       setRenamingId(null);
       setNotice({ text: `Renamed to “${renamed.title}”.`, tone: 'ok' });
       onRenamed?.(renamed);
@@ -143,7 +159,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
         setRenamingId(null);
         setNotice({ text: describeError(err, 'rename'), tone: 'error' });
         try {
-          setDrafts(await poemService.listPoems());
+          setDrafts(await listWithPassages());
         } catch {
           /* the message above stands */
         }
@@ -161,7 +177,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
     setNotice(null);
     try {
       const copy = await poemService.duplicatePoem(poem.id);
-      setDrafts(await poemService.listPoems());
+      setDrafts(await listWithPassages());
       setNotice({ text: `Duplicated as “${copy.title}”.`, tone: 'ok' });
       // The copy is the newest poem, so it is first in the list: bring it into view.
       setTimeout(() => {
@@ -242,7 +258,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
     setRestoring(true);
     try {
       const done = await poemService.restoreBackup(pendingRestore.poems);
-      setDrafts(await poemService.listPoems());
+      setDrafts(await listWithPassages());
       setPendingRestore(null);
       const added = done.toAdd.length;
       setNotice({ text: `Added ${added} ${added === 1 ? 'poem' : 'poems'} from the backup.`, tone: 'ok' });
@@ -323,7 +339,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
                   minute: '2-digit',
                 });
                 const name = poem.title || 'Untitled Poem';
-                const passage = passageById.get(poem.passageId);
+                const passage = library.get(poem.passageId);
                 const preview = poemPreview(poem, passage);
 
                 return (

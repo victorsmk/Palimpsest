@@ -1,3 +1,4 @@
+import { PassageLibrary } from '@/lib/library/passageLibrary';
 import { describe, it, expect } from 'vitest';
 import {
   FOUND_HANDOFF_INVALID_MESSAGE,
@@ -66,7 +67,7 @@ describe('opening a saved poem', () => {
   const collectionOf = (...poems: Poem[]) => ({ getPoem: async (id: string) => poems.find(p => p.id === id) ?? null });
 
   it('gives the poem, its passage and an editor snapshot with everything it was saved with, notes too', async () => {
-    const result = await openSavedPoem('a', bundledPassages, collectionOf(poem()));
+    const result = await openSavedPoem('a', PassageLibrary.of(bundledPassages), collectionOf(poem()));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.poem.id).toBe('a');
@@ -81,21 +82,21 @@ describe('opening a saved poem', () => {
   });
 
   it('says plainly that a poem that is not in the collection is not there', async () => {
-    expect(await openSavedPoem('gone', bundledPassages, collectionOf(poem()))).toEqual({ ok: false, message: SAVED_MISSING_MESSAGE });
+    expect(await openSavedPoem('gone', PassageLibrary.of(bundledPassages), collectionOf(poem()))).toEqual({ ok: false, message: SAVED_MISSING_MESSAGE });
   });
 
   it('refuses a poem whose book is no longer in the library, naming the poem', async () => {
-    const result = await openSavedPoem('a', bundledPassages, collectionOf(poem({ passageId: 'vanished-book' })));
+    const result = await openSavedPoem('a', PassageLibrary.of(bundledPassages), collectionOf(poem({ passageId: 'vanished-book' })));
     expect(result).toEqual({ ok: false, message: '"Quiet Woods" was made from a passage that is no longer in the library.' });
   });
 
   it('refuses a poem that no longer matches its passage, and repairs nothing', async () => {
-    const result = await openSavedPoem('a', bundledPassages, collectionOf(poem({ retainedTokenIds: ['walden-woods-token-9999'], lineBreaks: [] })));
+    const result = await openSavedPoem('a', PassageLibrary.of(bundledPassages), collectionOf(poem({ retainedTokenIds: ['walden-woods-token-9999'], lineBreaks: [] })));
     expect(result).toEqual({ ok: false, message: '"Quiet Woods" no longer matches the current text of its passage, so it cannot be opened safely.' });
   });
 
   it('says so, and does not throw, when the collection cannot be read', async () => {
     const broken = { getPoem: async () => { throw new Error('storage blocked'); } };
-    expect(await openSavedPoem('a', bundledPassages, broken)).toEqual({ ok: false, message: SAVED_UNREADABLE_MESSAGE });
+    expect(await openSavedPoem('a', PassageLibrary.of(bundledPassages), broken)).toEqual({ ok: false, message: SAVED_UNREADABLE_MESSAGE });
   });
 });

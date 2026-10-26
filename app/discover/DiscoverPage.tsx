@@ -9,6 +9,8 @@ import { useFoundAnalysis } from '@/components/useFoundAnalysis';
 import { discoverHash, readDiscoverPassage } from '@/lib/handoff';
 import { plural } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
+import { usePassageChoice } from '@/components/usePassageChoice';
+import type { PassageLibrary } from '@/lib/library/passageLibrary';
 
 function DiscoverMessage({ role, children }: { role: 'status' | 'alert'; children: React.ReactNode }) {
   return (
@@ -25,24 +27,45 @@ export default function DiscoverPage() {
 
   if (library.status === 'loading') return <DiscoverMessage role="status">Opening the library…</DiscoverMessage>;
   if (library.status === 'error') return <DiscoverMessage role="alert">{library.message}</DiscoverMessage>;
-  if (library.passages.length === 0) {
+  if (library.library.summaries.length === 0) {
     return <DiscoverMessage role="alert">The library has no passages yet.</DiscoverMessage>;
   }
-  return <Discover passages={library.passages} />;
+  return <Discover library={library.library} />;
 }
 
-function Discover({ passages }: { passages: Passage[] }) {
-  // Discover only renders in the browser, once the library has loaded, so the URL hash (a link from
-  // the Studio, a reload, the back button) can choose the passage while the initial state is set.
-  const [selectedPassageId, setSelectedPassageId] = useState<string>(
-    () => readDiscoverPassage(window.location.hash, passages)?.id ?? passages[0].id
+function Discover({ library }: { library: PassageLibrary }) {
+  // This only renders in the browser, once the library has been listed, so the URL hash (a link, a
+  // reload, the back button) can choose the passage while the initial state is set.
+  const [initialId] = useState<string>(
+    () => readDiscoverPassage(window.location.hash, library.summaries)?.id ?? library.summaries[0].id
   );
-  const passage = passages.find(p => p.id === selectedPassageId) ?? passages[0];
+  const choice = usePassageChoice(library, initialId);
+
+  if (!choice.passage) {
+    return choice.error ? (
+      <DiscoverMessage role="alert">{choice.error}</DiscoverMessage>
+    ) : (
+      <DiscoverMessage role="status">Opening the passage…</DiscoverMessage>
+    );
+  }
+  return <DiscoverView library={library} passage={choice.passage} chosenId={choice.chosenId} error={choice.error} onChoose={choice.choose} />;
+}
+
+interface ViewProps {
+  library: PassageLibrary;
+  passage: Passage;
+  chosenId: string;
+  error: string | null;
+  onChoose: (id: string) => void;
+}
+
+function DiscoverView({ library, passage, chosenId, error, onChoose }: ViewProps) {
+  const summaries = library.summaries;
   const state = useFoundAnalysis(passage);
 
   // Choosing a passage also puts it in the address bar, so the page can be reloaded or shared as is.
   function choosePassage(passageId: string) {
-    setSelectedPassageId(passageId);
+    onChoose(passageId);
     window.history.replaceState(
       window.history.state,
       '',
@@ -79,10 +102,10 @@ function Discover({ passages }: { passages: Passage[] }) {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <CollectionForPage passages={passages} />
+          <CollectionForPage library={library} />
           <div role="group" aria-label="Passage" className="flex flex-wrap gap-2">
-            {passages.map(p => {
-              const isSelected = p.id === passage.id;
+            {summaries.map(p => {
+              const isSelected = p.id === chosenId;
               return (
                 <button
                   key={p.id}
@@ -106,6 +129,11 @@ function Discover({ passages }: { passages: Passage[] }) {
       <p role="status" className="sr-only">
         {announcement}
       </p>
+      {error && (
+        <p role="alert" className="max-w-4xl mx-auto w-full mb-4 text-sm text-[#6C3438]">
+          {error}
+        </p>
+      )}
 
       <main id="main" tabIndex={-1} className="max-w-4xl mx-auto w-full flex-1 outline-none">
         <p className="mb-5 max-w-2xl font-literary text-[17px] leading-relaxed">
@@ -117,7 +145,7 @@ function Discover({ passages }: { passages: Passage[] }) {
           key={passage.id}
           passage={passage}
           state={state}
-          otherPassages={passages.filter(p => p.id !== passage.id)}
+          otherPassages={summaries.filter(p => p.id !== passage.id)}
           onChoosePassage={choosePassage}
         />
       </main>

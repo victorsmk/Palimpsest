@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Passage } from '@/lib/models';
+import type { Passage, PassageSummary } from '@/lib/models';
 import { FoundPoemCard, poemCardId } from './FoundPoemCard';
 import { PageDnaTrack, plural } from './PageDnaStrip';
 import { UncertainPoems } from './UncertainPoems';
@@ -11,7 +11,7 @@ interface DiscoverBodyProps {
   passage: Passage;
   state: FoundAnalysisState;
   /** The other passages, offered when there is nothing to find in this one. */
-  otherPassages: Passage[];
+  otherPassages: PassageSummary[];
   onChoosePassage: (passageId: string) => void;
 }
 

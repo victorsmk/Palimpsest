@@ -44,6 +44,27 @@ export interface Passage {
   attribution: Attribution;
 }
 
+/** A passage without its text and words: what a list of passages needs, small enough to list them all. */
+export type PassageSummary = Omit<Passage, 'tokens' | 'sourceText'>;
+
+/** A passage's summary. */
+export function summaryOf(passage: Passage): PassageSummary {
+  return { id: passage.id, bookId: passage.bookId, title: passage.title, description: passage.description, attribution: passage.attribution };
+}
+
+/** Which page of a long list is wanted: the one after the item `after` names (from the previous page's `next`). */
+export interface PageRequest {
+  after?: string;
+  /** How many items at most. Clamped to 1..LIMITS.pageMax; LIMITS.pageDefault when left out. */
+  limit?: number;
+}
+
+/** One page of a list in its fixed order. `next` is what to ask for after it, or null on the last page. */
+export interface Page<T> {
+  items: T[];
+  next: string | null;
+}
+
 // ─── Erasure & Poem ────────────────────────────────────────────────────────────
 
 export type ErasureStyle = 'blackout' | 'faded' | 'whiteout';

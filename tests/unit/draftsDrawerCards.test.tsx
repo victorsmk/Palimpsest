@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PassageLibrary } from '@/lib/library/passageLibrary';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, createElement } from 'react';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
@@ -25,7 +26,7 @@ const base = { schemaVersion: 2, revision: 1, erasureStyle: 'blackout', createdA
 
 async function show(drafts: Record<string, unknown>) {
   localStorage.setItem('palimpsest:poems:v1', JSON.stringify(drafts));
-  const view = render(createElement(DraftsDrawer, { isOpen: true, onClose: vi.fn(), onLoadPoem: vi.fn(), passages: bundledPassages }));
+  const view = render(createElement(DraftsDrawer, { isOpen: true, onClose: vi.fn(), onLoadPoem: vi.fn(), library: PassageLibrary.of(bundledPassages) }));
   await act(async () => {
     await new Promise(r => setTimeout(r, 0));
   });

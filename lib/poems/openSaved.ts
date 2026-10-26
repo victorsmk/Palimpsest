@@ -1,5 +1,6 @@
 import type { Passage, Poem } from '@/lib/models';
 import { reopenPoem, type EditorSnapshot } from '@/lib/editor';
+import { PASSAGE_UNAVAILABLE_MESSAGE, type PassageLibrary } from '@/lib/library/passageLibrary';
 import { SAVED_MISSING_MESSAGE, SAVED_UNREADABLE_MESSAGE } from '@/lib/handoff';
 
 export type OpenedSavedPoem =
@@ -13,7 +14,7 @@ export type OpenedSavedPoem =
  */
 export async function openSavedPoem(
   id: string,
-  passages: Passage[],
+  library: Pick<PassageLibrary, 'ensure' | 'get'>,
   collection: { getPoem(id: string): Promise<Poem | null> }
 ): Promise<OpenedSavedPoem> {
   let poem: Poem | null;
@@ -24,7 +25,14 @@ export async function openSavedPoem(
   }
   if (!poem) return { ok: false, message: SAVED_MISSING_MESSAGE };
 
-  const passage = passages.find(p => p.id === poem.passageId);
+  // Only this poem's own passage is needed, so only it is loaded. One the library does not have is
+  // left to reopenPoem to refuse; one that cannot be fetched is said so.
+  try {
+    await library.ensure([poem.passageId]);
+  } catch {
+    return { ok: false, message: PASSAGE_UNAVAILABLE_MESSAGE };
+  }
+  const passage = library.get(poem.passageId);
   const reopened = reopenPoem(poem, passage ?? null);
   if (!reopened.ok || !passage) {
     return { ok: false, message: reopened.ok ? 'Draft could not be opened.' : reopened.message };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Passage } from '@/lib/models';
+import type { Passage, PassageSummary } from '@/lib/models';
 import { AssistedPoemCard } from './AssistedPoemCard';
 import { AssistUncertain } from './AssistUncertain';
 import { plural } from './PageDnaStrip';
@@ -15,7 +15,7 @@ interface AssistBodyProps {
   passage: Passage;
   state: AssistedPoemsState;
   /** The other passages, offered when there is nothing to make from this one. */
-  otherPassages: Passage[];
+  otherPassages: PassageSummary[];
   onChoosePassage: (passageId: string) => void;
   /** The search for poems that depend on how a word is said. Replaceable so that it can be tested without running it. */
   useUncertain?: typeof useUncertainAssistedPoems;

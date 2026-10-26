@@ -9,6 +9,8 @@ import { useAssistedPoems } from '@/components/useAssistedPoems';
 import { discoverHash, readDiscoverPassage } from '@/lib/handoff';
 import { plural } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
+import { usePassageChoice } from '@/components/usePassageChoice';
+import type { PassageLibrary } from '@/lib/library/passageLibrary';
 
 function AssistMessage({ role, children }: { role: 'status' | 'alert'; children: React.ReactNode }) {
   return (
@@ -25,23 +27,45 @@ export default function AssistPage() {
 
   if (library.status === 'loading') return <AssistMessage role="status">Opening the library…</AssistMessage>;
   if (library.status === 'error') return <AssistMessage role="alert">{library.message}</AssistMessage>;
-  if (library.passages.length === 0) {
+  if (library.library.summaries.length === 0) {
     return <AssistMessage role="alert">The library has no passages yet.</AssistMessage>;
   }
-  return <Assist passages={library.passages} />;
+  return <Assist library={library.library} />;
 }
 
-function Assist({ passages }: { passages: Passage[] }) {
-  // Like Discover, this renders only in the browser once the library has loaded, so the URL hash
-  // (a reload, the back button, a link) can choose the passage while the initial state is set.
-  const [selectedPassageId, setSelectedPassageId] = useState<string>(
-    () => readDiscoverPassage(window.location.hash, passages)?.id ?? passages[0].id
+function Assist({ library }: { library: PassageLibrary }) {
+  // This only renders in the browser, once the library has been listed, so the URL hash (a link, a
+  // reload, the back button) can choose the passage while the initial state is set.
+  const [initialId] = useState<string>(
+    () => readDiscoverPassage(window.location.hash, library.summaries)?.id ?? library.summaries[0].id
   );
-  const passage = passages.find(p => p.id === selectedPassageId) ?? passages[0];
+  const choice = usePassageChoice(library, initialId);
+
+  if (!choice.passage) {
+    return choice.error ? (
+      <AssistMessage role="alert">{choice.error}</AssistMessage>
+    ) : (
+      <AssistMessage role="status">Opening the passage…</AssistMessage>
+    );
+  }
+  return <AssistView library={library} passage={choice.passage} chosenId={choice.chosenId} error={choice.error} onChoose={choice.choose} />;
+}
+
+interface ViewProps {
+  library: PassageLibrary;
+  passage: Passage;
+  chosenId: string;
+  error: string | null;
+  onChoose: (id: string) => void;
+}
+
+function AssistView({ library, passage, chosenId, error, onChoose }: ViewProps) {
+  const summaries = library.summaries;
   const state = useAssistedPoems(passage);
 
+  // Choosing a passage also puts it in the address bar, so the page can be reloaded or shared as is.
   function choosePassage(passageId: string) {
-    setSelectedPassageId(passageId);
+    onChoose(passageId);
     window.history.replaceState(
       window.history.state,
       '',
@@ -79,10 +103,10 @@ function Assist({ passages }: { passages: Passage[] }) {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <CollectionForPage passages={passages} />
+          <CollectionForPage library={library} />
           <div role="group" aria-label="Passage" className="flex flex-wrap gap-2">
-            {passages.map(p => {
-              const isSelected = p.id === passage.id;
+            {summaries.map(p => {
+              const isSelected = p.id === chosenId;
               return (
                 <button
                   key={p.id}
@@ -106,6 +130,11 @@ function Assist({ passages }: { passages: Passage[] }) {
       <p role="status" className="sr-only">
         {announcement}
       </p>
+      {error && (
+        <p role="alert" className="max-w-4xl mx-auto w-full mb-4 text-sm text-[#6C3438]">
+          {error}
+        </p>
+      )}
 
       <main id="main" tabIndex={-1} className="max-w-4xl mx-auto w-full flex-1 outline-none">
         <p className="mb-5 max-w-2xl font-literary text-[17px] leading-relaxed">
@@ -118,7 +147,7 @@ function Assist({ passages }: { passages: Passage[] }) {
           key={passage.id}
           passage={passage}
           state={state}
-          otherPassages={passages.filter(p => p.id !== passage.id)}
+          otherPassages={summaries.filter(p => p.id !== passage.id)}
           onChoosePassage={choosePassage}
         />
       </main>

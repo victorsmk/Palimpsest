@@ -20,13 +20,13 @@ describe('choosing where the data lives', () => {
     const { poems, books } = createRepositories('browser');
     expect(poems).toBeInstanceOf(BrowserPoemRepository);
     expect(books).toBeInstanceOf(BrowserBookRepository);
-    expect((await books.listBooks()).map(b => b.title).sort()).toEqual(['Jane Eyre', 'The Picture of Dorian Gray', 'Walden']);
+    expect((await books.listBooks()).items.map(b => b.title).sort()).toEqual(['Jane Eyre', 'The Picture of Dorian Gray', 'Walden']);
   });
 
   it('gives the screens services built on them', async () => {
     expect(poemService).toBeInstanceOf(PoemService);
     expect(bookService).toBeInstanceOf(BookService);
-    expect((await bookService.listPassages()).length).toBe(3);
+    expect((await bookService.listPassageSummaries()).length).toBe(3);
   });
 
   it('leaves the poem service with no repository of its own: it has to be given one', () => {

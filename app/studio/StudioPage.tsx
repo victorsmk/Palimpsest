@@ -23,6 +23,7 @@ import { PrintablePoem } from '@/components/PrintablePoem';
 import {
   SAVED_MISSING_MESSAGE,
   discoverHref,
+  handoffPassageId,
   readHandoff,
   readOpenRequest,
   sharedPoemFromEditor,
@@ -30,7 +31,8 @@ import {
   type ReadHandoff,
 } from '@/lib/handoff';
 import { openSavedPoem, type OpenedSavedPoem } from '@/lib/poems/openSaved';
-import type { Passage, Poem } from '@/lib/models';
+import type { Poem } from '@/lib/models';
+import { PASSAGE_UNAVAILABLE_MESSAGE, type PassageLibrary } from '@/lib/library/passageLibrary';
 
 type Notice = { text: string; tone: 'ok' | 'error' };
 
@@ -86,10 +88,10 @@ export default function StudioPage() {
 
   if (library.status === 'loading') return <StudioMessage role="status">Opening the library…</StudioMessage>;
   if (library.status === 'error') return <StudioMessage role="alert">{library.message}</StudioMessage>;
-  if (library.passages.length === 0) {
+  if (library.library.summaries.length === 0) {
     return <StudioMessage role="alert">The library has no passages yet.</StudioMessage>;
   }
-  return <StudioEntry passages={library.passages} />;
+  return <StudioEntry library={library.library} />;
 }
 
 /**
@@ -97,37 +99,51 @@ export default function StudioPage() {
  * Collection on another page), so that the poem is on screen from the first render instead of the
  * default page showing first.
  */
-function StudioEntry({ passages }: { passages: Passage[] }) {
-  // Only rendered in the browser, after the library has loaded, so the hash can be read here.
+function StudioEntry({ library }: { library: PassageLibrary }) {
+  // Only rendered in the browser, after the library has been listed, so the hash can be read here.
   const [request] = useState(() => readOpenRequest(window.location.hash));
-  const [opened, setOpened] = useState<OpenedSavedPoem | null>(null);
+  const [start, setStart] = useState<{ status: 'loading' } | { status: 'ready'; opened: OpenedSavedPoem | null } | { status: 'error' }>({
+    status: 'loading',
+  });
 
+  // Loads what the Studio starts with: the saved poem a link names (and its passage), the passage a
+  // hand-off in the hash names, and the first passage, which it falls back to. Nothing else is loaded.
   useEffect(() => {
-    if (request.kind !== 'poem') return;
     let cancelled = false;
-    void openSavedPoem(request.id, passages, poemService).then(result => {
-      if (!cancelled) setOpened(result);
-    });
+    (async () => {
+      const opened = request.kind === 'poem' ? await openSavedPoem(request.id, library, poemService) : null;
+      const handoffId = handoffPassageId(window.location.hash);
+      await library.ensure([library.summaries[0].id, ...(handoffId ? [handoffId] : [])]);
+      return opened;
+    })().then(
+      opened => {
+        if (!cancelled) setStart({ status: 'ready', opened });
+      },
+      () => {
+        if (!cancelled) setStart({ status: 'error' });
+      }
+    );
     return () => {
       cancelled = true;
     };
-  }, [request, passages]);
+  }, [request, library]);
 
-  if (request.kind === 'poem' && opened === null) {
-    return <StudioMessage role="status">Opening your poem…</StudioMessage>;
+  if (start.status === 'error') return <StudioMessage role="alert">{PASSAGE_UNAVAILABLE_MESSAGE}</StudioMessage>;
+  if (start.status === 'loading') {
+    return <StudioMessage role="status">{request.kind === 'poem' ? 'Opening your poem…' : 'Opening the passage…'}</StudioMessage>;
   }
-  const result: OpenedSavedPoem | null =
-    request.kind === 'invalid' ? { ok: false, message: request.message } : request.kind === 'poem' ? opened : null;
-  return <Studio passages={passages} opened={result} />;
+  const result: OpenedSavedPoem | null = request.kind === 'invalid' ? { ok: false, message: request.message } : start.opened;
+  return <Studio library={library} opened={result} />;
 }
 
-function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSavedPoem | null }) {
+function Studio({ library, opened }: { library: PassageLibrary; opened: OpenedSavedPoem | null }) {
+  const summaries = library.summaries;
   // A poem sent from Discover arrives in the URL hash. Studio only renders in the browser, after
   // the library has loaded, so the hash can be read while choosing the initial state: the poem is
   // open on the first render instead of the default page flashing first.
-  const [handoff] = useState<ReadHandoff>(() => readHandoff(window.location.hash, passages));
+  const [handoff] = useState<ReadHandoff>(() => readHandoff(window.location.hash, library.passages()));
   const [selectedPassageId, setSelectedPassageId] = useState<string>(() =>
-    handoff.kind === 'open' ? handoff.passage.id : opened?.ok ? opened.passage.id : passages[0].id
+    handoff.kind === 'open' ? handoff.passage.id : opened?.ok ? opened.passage.id : summaries[0].id
   );
   const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(() => (opened?.ok ? opened.poem.id : undefined));
   // The revision of the open poem as this tab last saw it. A save says so, and is refused if the poem
@@ -164,8 +180,8 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
   }, []);
 
   const activePassage = useMemo(
-    () => passages.find(p => p.id === selectedPassageId) ?? passages[0],
-    [passages, selectedPassageId]
+    () => library.get(selectedPassageId) ?? library.get(summaries[0].id)!,
+    [library, summaries, selectedPassageId]
   );
   const pageDna = usePageDna(activePassage);
 
@@ -288,8 +304,14 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
   };
 
   // Handle loading a poem from My Collection
-  const handleLoadPoem = useCallback((poem: Poem) => {
-    const passage = passages.find(p => p.id === poem.passageId);
+  const handleLoadPoem = useCallback(async (poem: Poem) => {
+    try {
+      await library.ensure([poem.passageId]);
+    } catch {
+      showNotice(PASSAGE_UNAVAILABLE_MESSAGE, 'error');
+      return;
+    }
+    const passage = library.get(poem.passageId);
     const result = reopenPoem(poem, passage ?? null);
 
     // A draft that no longer fits its passage is refused; the page and the
@@ -311,7 +333,7 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
         showNotice(`Loaded draft "${poem.title || 'Untitled'}"`);
       }
     );
-  }, [passages, loadSnapshot, showNotice, askBeforeReplacing]);
+  }, [library, loadSnapshot, showNotice, askBeforeReplacing]);
 
   // A link that changes only the hash while the Studio is already open does not reload the page.
   useEffect(() => {
@@ -330,28 +352,39 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
           .catch(err => showNotice(describeError(err, 'open'), 'error'));
         return;
       }
-      const next = readHandoff(window.location.hash, passages);
-      if (next.kind === 'none') return;
-      clearHash();
-      if (next.kind === 'invalid') {
-        showNotice(next.message, 'error');
-        return;
-      }
-      askBeforeReplacing(
-        "Opening this poem will replace the one you are editing, which has changes you haven't saved.",
+      // The hand-off names its passage; that one is loaded, then the hand-off is checked against it.
+      const hash = window.location.hash;
+      const named = handoffPassageId(hash);
+      void (named ? library.ensure([named]) : Promise.resolve([])).then(
         () => {
-          setSelectedPassageId(next.passage.id);
-          setCurrentPoemId(undefined);
-          setCurrentRevision(undefined);
-          loadSnapshot(next.snapshot, next.passage.id);
-          setBaseline({ passageId: next.passage.id, snapshot: next.snapshot });
-          showNotice(openedMessage(next.passage.attribution.title, next.mode), 'ok', 8000);
+          const next = readHandoff(hash, library.passages());
+          if (next.kind === 'none') return;
+          clearHash();
+          if (next.kind === 'invalid') {
+            showNotice(next.message, 'error');
+            return;
+          }
+          askBeforeReplacing(
+            "Opening this poem will replace the one you are editing, which has changes you haven't saved.",
+            () => {
+              setSelectedPassageId(next.passage.id);
+              setCurrentPoemId(undefined);
+              setCurrentRevision(undefined);
+              loadSnapshot(next.snapshot, next.passage.id);
+              setBaseline({ passageId: next.passage.id, snapshot: next.snapshot });
+              showNotice(openedMessage(next.passage.attribution.title, next.mode), 'ok', 8000);
+            }
+          );
+        },
+        () => {
+          clearHash();
+          showNotice(PASSAGE_UNAVAILABLE_MESSAGE, 'error');
         }
       );
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [passages, loadSnapshot, showNotice, askBeforeReplacing, handleLoadPoem]);
+  }, [library, loadSnapshot, showNotice, askBeforeReplacing, handleLoadPoem]);
 
   // A poem renamed in My Collection: if it is the one open here, take its new title, and count that
   // as part of what is saved so that the rename alone is not an unsaved change.
@@ -483,19 +516,25 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
 
         {/* Right Header Navigation & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <MyCollectionButton passages={passages} onOpenPoem={handleLoadPoem} onRenamed={handleRenamedElsewhere} />
+          <MyCollectionButton library={library} onOpenPoem={handleLoadPoem} onRenamed={handleRenamedElsewhere} />
 
           {/* Passage Selector Tabs */}
           <div className="flex flex-wrap gap-2">
-            {passages.map(p => {
+            {summaries.map(p => {
               const isSelected = p.id === activePassage.id;
               return (
                 <button
                   key={p.id}
                   type="button"
                   aria-pressed={isSelected}
-                  onClick={() => {
+                  onClick={async () => {
                     if (isSelected) return;
+                    try {
+                      await library.ensure([p.id]);
+                    } catch {
+                      showNotice(PASSAGE_UNAVAILABLE_MESSAGE, 'error');
+                      return;
+                    }
                     askBeforeReplacing(
                       `Switching to ${p.attribution.title} will replace the poem you are editing, which has changes you haven't saved.`,
                       () => {

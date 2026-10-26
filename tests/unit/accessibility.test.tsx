@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PassageLibrary } from '@/lib/library/passageLibrary';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { StrictMode, act, createElement } from 'react';
 import { tokenize } from '@/lib/tokenizer';
@@ -210,7 +211,7 @@ describe('DraftsDrawer keyboard access', () => {
 
   async function mountDrawer(onLoadPoem = vi.fn(), onClose = vi.fn()) {
     localStorage.setItem('palimpsest:poems:v1', JSON.stringify({ p1: poem }));
-    const view = render(createElement(DraftsDrawer, { isOpen: true, onClose, onLoadPoem, passages: bundledPassages }));
+    const view = render(createElement(DraftsDrawer, { isOpen: true, onClose, onLoadPoem, library: PassageLibrary.of(bundledPassages) }));
     await act(async () => {
       await new Promise(r => setTimeout(r, 0));
     });

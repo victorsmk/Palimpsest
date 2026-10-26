@@ -13,6 +13,9 @@ export const LIMITS = {
   retainedMax: 10_000,
   /** Poems one collection may hold. */
   poemsMax: 2_000,
+  /** Items in a page of a list when none is asked for, and the most one page may hold. */
+  pageDefault: 100,
+  pageMax: 500,
   /** Bytes in a backup file. */
   backupBytesMax: 5 * 1024 * 1024,
 } as const;

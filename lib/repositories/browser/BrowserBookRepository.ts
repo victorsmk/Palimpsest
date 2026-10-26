@@ -1,5 +1,6 @@
 import type { BookRepository } from '@/lib/repositories';
-import type { Book, Passage } from '@/lib/models';
+import { summaryOf, type Book, type Page, type PageRequest, type Passage, type PassageSummary } from '@/lib/models';
+import { pageOf } from '../paging';
 
 export class BrowserBookRepository implements BookRepository {
   private passagesMap: Map<string, Passage> = new Map();
@@ -20,8 +21,8 @@ export class BrowserBookRepository implements BookRepository {
     }
   }
 
-  async listBooks(): Promise<Book[]> {
-    return Array.from(this.booksMap.values());
+  async listBooks(page?: PageRequest): Promise<Page<Book>> {
+    return pageOf(Array.from(this.booksMap.values()), book => book.id, page);
   }
 
   async getBook(id: string): Promise<Book | null> {
@@ -32,7 +33,9 @@ export class BrowserBookRepository implements BookRepository {
     return this.passagesMap.get(id) ?? null;
   }
 
-  async listPassages(bookId: string): Promise<Passage[]> {
-    return Array.from(this.passagesMap.values()).filter(p => p.bookId === bookId);
+  async listPassageSummaries(request?: PageRequest & { bookId?: string }): Promise<Page<PassageSummary>> {
+    const all = Array.from(this.passagesMap.values()).filter(p => request?.bookId === undefined || p.bookId === request.bookId);
+    const page = pageOf(all, p => p.id, request);
+    return { items: page.items.map(summaryOf), next: page.next };
   }
 }

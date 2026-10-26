@@ -1,3 +1,4 @@
+import { PassageLibrary } from '@/lib/library/passageLibrary';
 import { describe, it, expect } from 'vitest';
 import {
   POEM_SCHEMA_VERSION,
@@ -186,7 +187,7 @@ describe('opening a poem whose passage may have changed', () => {
     const walden = bundledPassages.find(p => p.id === 'walden-woods')!;
     const kept = walden.tokens.filter(t => t.isSelectable).slice(14, 17).map(t => t.id);
     const saved = poem({ passageId: 'walden-woods', retainedTokenIds: kept, title: 'Stale', passageVersion: 't1-0123456789abcdef' });
-    const result = await openSavedPoem(saved.id, bundledPassages, { getPoem: async () => saved });
+    const result = await openSavedPoem(saved.id, PassageLibrary.of(bundledPassages), { getPoem: async () => saved });
     expect(result).toEqual({
       ok: false,
       message: '"Stale" was made from an earlier version of this text, which has since changed, so it cannot be opened safely.',
@@ -197,6 +198,6 @@ describe('opening a poem whose passage may have changed', () => {
     const walden = bundledPassages.find(p => p.id === 'walden-woods')!;
     const kept = walden.tokens.filter(t => t.isSelectable).slice(14, 17).map(t => t.id);
     const saved = poem({ passageId: 'walden-woods', retainedTokenIds: kept, passageVersion: passageVersionOf(walden) });
-    expect(await openSavedPoem(saved.id, bundledPassages, { getPoem: async () => saved })).toMatchObject({ ok: true });
+    expect(await openSavedPoem(saved.id, PassageLibrary.of(bundledPassages), { getPoem: async () => saved })).toMatchObject({ ok: true });
   });
 });

@@ -54,11 +54,11 @@ describe('BookService', () => {
     },
   });
 
-  it('lists every passage across books, grouped by book', async () => {
+  it('lists every passage of the library as a summary, in the library order', async () => {
     const service = new BookService(
       new BrowserBookRepository([make('a1', 'book-a'), make('b1', 'book-b'), make('a2', 'book-a')])
     );
-    expect((await service.listPassages()).map(p => p.id)).toEqual(['a1', 'a2', 'b1']);
+    expect((await service.listPassageSummaries()).map(p => p.id)).toEqual(['a1', 'b1', 'a2']);
     expect((await service.listBooks()).map(b => b.id)).toEqual(['book-a', 'book-b']);
   });
 
@@ -69,7 +69,7 @@ describe('BookService', () => {
   });
 
   it('serves the bundled library by default', async () => {
-    const passages = await bookService.listPassages();
+    const passages = await bookService.listPassageSummaries();
     expect(passages.map(p => p.id)).toEqual(bundledPassages.map(p => p.id));
   });
 });

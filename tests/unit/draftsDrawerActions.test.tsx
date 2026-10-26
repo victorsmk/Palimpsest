@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PassageLibrary } from '@/lib/library/passageLibrary';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, createElement } from 'react';
 import { DraftsDrawer } from '@/components/DraftsDrawer';
@@ -31,7 +32,7 @@ const settle = async () => {
 
 async function show(onRenamed = vi.fn(), onClose = vi.fn()) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
-  const view = render(createElement(DraftsDrawer, { isOpen: true, onClose, onLoadPoem: vi.fn(), passages: bundledPassages, onRenamed }));
+  const view = render(createElement(DraftsDrawer, { isOpen: true, onClose, onLoadPoem: vi.fn(), library: PassageLibrary.of(bundledPassages), onRenamed }));
   await settle();
   const titles = () => [...view.container.querySelectorAll('li')].map(li => li.querySelector('.font-serif')?.textContent ?? '');
   const button = (label: string) => view.container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
