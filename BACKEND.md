@@ -228,6 +228,10 @@ poem model to change (step 3), which is where the real backend work starts.
      rules in `scripts/library/cut.mjs` (frozen per CUTTER_VERSION; excerpts are never re-cut), and
      `npm run import:library` reading Gutenberg files saved by hand (no automated download, by Gutenberg's
      policy). Nothing on the site reads them yet.
+   - **Library endpoints, done** (step 2 of the book library, 2026-10-28; see LIBRARY.md): public read-only
+     `/api/library/...` (books with accent- and case-insensitive search, a book's excerpts, one excerpt), cached
+     at Vercel (an excerpt `immutable`), `HttpBookRepository` and an open-ended `PassageLibrary` in the browser,
+     a `library` line on the health page, and three real books seeded into the local demo. No screen uses it yet.
    - **Rate limiting, done** (decided 2026-10-28): per signed-in user, counted in Postgres (`rate_limits`: one row per
      kind of request and user, a fixed window; one statement so concurrent requests are all counted; Vercel's
      functions share no memory, so counting in memory would not work). 300 reads and 60 writes a minute, 5

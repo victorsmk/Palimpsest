@@ -1,5 +1,6 @@
 import type { BookRepository } from '@/lib/repositories';
 import { summaryOf, type Book, type Page, type PageRequest, type Passage, type PassageSummary } from '@/lib/models';
+import { fold, searchTerms } from '@/lib/library/fold';
 import { pageOf } from '../paging';
 
 export class BrowserBookRepository implements BookRepository {
@@ -21,8 +22,13 @@ export class BrowserBookRepository implements BookRepository {
     }
   }
 
-  async listBooks(page?: PageRequest): Promise<Page<Book>> {
-    return pageOf(Array.from(this.booksMap.values()), book => book.id, page);
+  async listBooks(page?: PageRequest & { search?: string }): Promise<Page<Book>> {
+    const terms = searchTerms(page?.search ?? '');
+    const all = Array.from(this.booksMap.values()).filter(book => {
+      const text = fold(`${book.title} ${book.author}`);
+      return terms.every(term => text.includes(term));
+    });
+    return pageOf(all, book => book.id, page);
   }
 
   async getBook(id: string): Promise<Book | null> {

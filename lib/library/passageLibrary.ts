@@ -12,9 +12,15 @@ export class PassageLibrary {
   private loaded = new Map<string, Passage>();
   private inFlight = new Map<string, Promise<Passage | null>>();
 
+  /**
+   * `summaries` are the passages this screen lists. With `openEnded`, the library also holds passages that are not
+   * listed (the books of the server's library are too many to list), so any id is fetched when it is asked for,
+   * and an id nothing has is simply not found.
+   */
   constructor(
     readonly summaries: readonly PassageSummary[],
-    private fetchPassage: (id: string) => Promise<Passage | null>
+    private fetchPassage: (id: string) => Promise<Passage | null>,
+    private options: { openEnded?: boolean } = {}
   ) {}
 
   /** A library over passages already in hand (tests, tools); nothing is fetched from anywhere. */
@@ -42,10 +48,10 @@ export class PassageLibrary {
 
   /**
    * Loads these passages (those not loaded yet) and returns the ones the library has. An id the
-   * library does not have is skipped. If a fetch fails, so does this, and nothing is remembered of it.
+   * library does not have is skipped (an open-ended library asks for it, and skips it if there is none). If a fetch fails, so does this, and nothing is remembered of it.
    */
   async ensure(ids: Iterable<string>): Promise<Passage[]> {
-    const wanted = [...new Set(ids)].filter(id => this.has(id));
+    const wanted = [...new Set(ids)].filter(id => this.options.openEnded || this.has(id));
     await Promise.all(wanted.map(id => this.load(id)));
     return wanted.flatMap(id => {
       const passage = this.loaded.get(id);

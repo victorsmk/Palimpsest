@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { test, expect, completeSignIn, signIn, testUserId, TEST_CODE } from './fixture';
 import { STORAGE_KEY, draft, keepFirstWords, keptWords, openCollection, openStudio, seedDrafts } from '../e2e/helpers';
+import { tokenize } from '@/lib/tokenizer';
+import { excerptsOf } from '../tests/helpers/library';
 
 // The app with its poems on the server: signing in with a code, saving needing an account, the
 // collection following the account, bringing the poems of this browser across, and deleting the account.
@@ -274,6 +276,25 @@ test.describe('My Collection', () => {
     await page.getByRole('button', { name: 'Delete draft Pond at dusk' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete poem' }).click();
     await expect.poll(() => server.poemsOf(ME).count()).toBe(0);
+  });
+
+  test('a poem made from an excerpt of the server’s library is listed with its first words, and opens with its words', async ({ page, server }) => {
+    const excerpt = excerptsOf('dorianGray')[2];
+    const words = tokenize(excerpt.id, excerpt.sourceText).filter(t => t.isSelectable).slice(10, 16);
+    const made = await server.poemsOf(ME).create({ passageId: excerpt.id, title: 'From the library', notes: '', retainedTokenIds: words.map(t => t.id), lineBreaks: [], erasureStyle: 'blackout' });
+    await openStudio(page);
+    await signIn(page, ME);
+    await openCollection(page);
+    const card = panel(page).getByRole('listitem');
+    await expect(card).toContainText('From the library');
+    await expect(card).toContainText('From The Picture of Dorian Gray');
+    await expect(card).toContainText(words.map(t => t.text).join(' '));
+    expect(server.requests.some(r => r.path === `/api/library/passages/${excerpt.id}`)).toBe(true);
+
+    await page.goto(`/studio#open=${made.id}`);
+    await expect(page.getByText('Editing: "From the library"')).toBeVisible();
+    await expect(keptWords(page)).toHaveCount(6);
+    await expect(page.locator(`[data-token-id="${words[0].id}"]`)).toBeVisible();
   });
 
   test('a link to a saved poem asks a visitor to sign in, and opens it for the account that has it', async ({ page, server }) => {

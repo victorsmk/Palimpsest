@@ -4,7 +4,22 @@ Palimpsest is growing from three bundled excerpts to a library of books from Pro
 list and searched by title or author. This file is how books get in. The plan is in four steps:
 
 1. **Data and import (done, this file).** Two tables, the cutting rules, and the command that imports books.
-2. **Endpoints and library plumbing** (not started): the site reading books and excerpts from the database.
+2. **Endpoints and library plumbing (done 2026-10-28).** The site can now read the database's books; no screen shows
+   them yet (that is step 3). Public, read-only endpoints, no sign-in, nothing else changed:
+   - `GET /api/library/books?search=&after=&limit=` lists books by title (ignoring a leading The, A, An); a search
+     wants every word somewhere in "title author", ignoring capitals and accents ("bronte" finds Brontë).
+   - `GET /api/library/books/<id>` and `GET /api/library/books/<id>/passages?after=&limit=` give a book and its
+     excerpts, in order, without their text.
+   - `GET /api/library/passages/<id>` gives one excerpt with its text. The browser makes its words from the text
+     with the same tokenizer as before, so saved poems point at the same word ids.
+   - Caching: an excerpt's text is kept "for good" (`immutable`, a year at Vercel's servers) because it never
+     changes; lists are kept for minutes. The firewall rule in DEPLOYMENT.md part 6 covers floods, since there is
+     no user to count requests against.
+   - A poem made from a library excerpt is listed in My Collection with its first words and opens in the Studio.
+     The app reaches any excerpt by its id, whether or not it is listed (`PassageLibrary` is "open-ended" when
+     there is a server library). My Collection fetches the excerpts of the poems on a page one at a time (cached),
+     and a batch endpoint is the thing to add if that is ever slow.
+   - `/api/health` has a `library` line (the tables exist).
 3. **Search and browse screens** (not started).
 4. **The full list of about 200 books** (not started): drafted by Claude, reviewed by you, imported with the
    same command.

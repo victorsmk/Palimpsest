@@ -8,6 +8,7 @@ import type { Db } from '../db';
 import { checkHealth } from './health';
 import { createDbRateLimiter } from './rateLimit';
 import { createPoemsApi, type PoemsApi } from './handlers';
+import { createLibraryApi, type LibraryApi } from './library';
 import { errorResponse, json } from './http';
 
 /**
@@ -17,6 +18,7 @@ import { errorResponse, json } from './http';
  */
 interface Running {
   api: PoemsApi;
+  library: LibraryApi;
   config: ServerConfig;
   db: Db;
 }
@@ -37,7 +39,7 @@ async function build(): Promise<Running> {
     poemsOf: userId => new PostgresPoemRepository(db, userId),
     limiter: createDbRateLimiter(db),
   });
-  return { api, config, db };
+  return { api, library: createLibraryApi({ db }), config, db };
 }
 
 /** Built once, on first use. If it cannot be built, the next request tries again. */
@@ -66,6 +68,18 @@ function lazy<Args extends unknown[]>(pick: (api: PoemsApi) => (request: Request
   };
 }
 
+/** Like `lazy`, for the library's handlers (public: nobody is asked who they are). */
+function lazyLibrary<Args extends unknown[]>(pick: (api: LibraryApi) => (request: Request, ...args: Args) => Promise<Response>) {
+  return async (request: Request, ...args: Args): Promise<Response> => {
+    request.headers.get('authorization'); // as in `lazy`: makes this a request-time handler
+    try {
+      return await pick((await running()).library)(request, ...args);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  };
+}
+
 /** GET /api/health — whether the server is set up (see health.ts). */
 export async function healthResponse(request: Request): Promise<Response> {
   request.headers.get('authorization');
@@ -78,6 +92,13 @@ export async function healthResponse(request: Request): Promise<Response> {
   }
   return json(result.body, result.status);
 }
+
+export const libraryApi = {
+  books: lazyLibrary(api => api.books),
+  book: lazyLibrary<[string]>(api => api.book),
+  bookPassages: lazyLibrary<[string]>(api => api.bookPassages),
+  passage: lazyLibrary<[string]>(api => api.passage),
+};
 
 export const poemsApi = {
   list: lazy(api => api.list),

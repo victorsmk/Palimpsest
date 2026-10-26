@@ -31,7 +31,27 @@ async function save(page: Page, title: string) {
 test('the server is up and set up for the demo', async ({ request }) => {
   const health = await request.get('/api/health');
   expect(health.status()).toBe(200);
-  expect(await health.json()).toEqual({ ok: true, settings: 'ok', database: 'ok', signIn: 'test sign-in (development only)', accountDeletion: 'ready', rateLimiting: 'ok' });
+  expect(await health.json()).toEqual({ ok: true, settings: 'ok', database: 'ok', signIn: 'test sign-in (development only)', accountDeletion: 'ready', rateLimiting: 'ok', library: 'ok' });
+});
+
+test('the demo has a library of three real books, found by search and read over the real server, with no sign-in', async ({ request }) => {
+  const all = await request.get('/api/library/books');
+  expect(all.status()).toBe(200);
+  expect(all.headers()['cache-control']).toContain('s-maxage');
+  expect(((await all.json()) as { items: { title: string }[] }).items.map(b => b.title)).toEqual(['Jane Eyre', 'The Picture of Dorian Gray', 'Walden']);
+
+  const found = await request.get('/api/library/books?search=BRONTE');
+  expect(((await found.json()) as { items: { id: string }[] }).items.map(b => b.id)).toEqual(['pg1260']);
+
+  const excerpts = await request.get('/api/library/books/pg1260/passages?limit=2');
+  const page = (await excerpts.json()) as { items: { id: string; title: string }[]; next: string | null };
+  expect(page.items.map(p => p.id)).toEqual(['pg1260-0001', 'pg1260-0002']);
+  expect(page.next).toBe('2');
+
+  const first = await request.get('/api/library/passages/pg1260-0001');
+  expect(first.headers()['cache-control']).toContain('immutable');
+  expect(((await first.json()) as { sourceText: string }).sourceText).toMatch(/^There was no possibility of taking a walk that day\./);
+  expect((await request.get('/api/library/passages/pg1260-9999')).status()).toBe(404);
 });
 
 test('a poem saved while signed in is kept on the server: it is there after a reload, and for the same address in a fresh browser', async ({ page, browser }) => {

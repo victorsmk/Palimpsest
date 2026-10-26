@@ -43,6 +43,8 @@ MVP, so this is a later phase.
 
 ## Many more books, chosen from a list (raised 2026-10-25; in progress since 2026-10-28, see LIBRARY.md)
 
+**Also decided 2026-10-28 (user):** once the picker exists, the three bundled excerpts (Jane Eyre, Walden, Dorian Gray) must not appear as examples any more. They stay in the app only so that poems already made from them keep opening.
+
 **Decided 2026-10-28:** about 200 well-known public-domain books (published 1930 or earlier) from Project Gutenberg, kept in the database as excerpts of about 450 words, browsed and searched by title and author; "surprise me" later. Step 1 (tables, cutting rules, import command) is built; steps 2 to 4 are not. The original notes follow.
 
 Three passages shown as buttons at the top is fine as a proof of concept. With many books it needs a

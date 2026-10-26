@@ -1,11 +1,12 @@
 import type { PoemsApi } from '@/lib/server/api/handlers';
+import type { LibraryApi } from '@/lib/server/api/library';
 
 /**
  * A `fetch` that answers from the poems API in the same process, the way the Next server would: it picks
  * the handler by method and path, and hands a dynamic segment over decoded (Next does that too). The
  * browser's repository can then be run against the real handlers without a web server.
  */
-export function inProcessFetch(api: PoemsApi): typeof fetch {
+export function inProcessFetch(api: PoemsApi, library?: LibraryApi): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(new URL(String(input), 'http://localhost'), init);
     const { pathname } = new URL(request.url);
@@ -26,6 +27,15 @@ export function inProcessFetch(api: PoemsApi): typeof fetch {
     if (pathname === '/api/collection/count' && method === 'GET') return api.count(request);
     if (pathname === '/api/collection/lookup' && method === 'POST') return api.lookup(request);
     if (pathname === '/api/collection/import' && method === 'POST') return api.importPoems(request);
+    if (library && method === 'GET') {
+      if (pathname === '/api/library/books') return library.books(request);
+      const book = /^\/api\/library\/books\/([^/]+)$/.exec(pathname);
+      if (book) return library.book(request, decodeURIComponent(book[1]));
+      const bookPassages = /^\/api\/library\/books\/([^/]+)\/passages$/.exec(pathname);
+      if (bookPassages) return library.bookPassages(request, decodeURIComponent(bookPassages[1]));
+      const passage = /^\/api\/library\/passages\/([^/]+)$/.exec(pathname);
+      if (passage) return library.passage(request, decodeURIComponent(passage[1]));
+    }
     return new Response('Not found', { status: 404 });
   }) as typeof fetch;
 }

@@ -45,7 +45,10 @@ export interface Passage {
 }
 
 /** A passage without its text and words: what a list of passages needs, small enough to list them all. */
-export type PassageSummary = Omit<Passage, 'tokens' | 'sourceText'>;
+export type PassageSummary = Omit<Passage, 'tokens' | 'sourceText'> & {
+  /** How many words the passage has, when the source knows (the library's excerpts do). */
+  wordCount?: number;
+};
 
 /** A passage's summary. */
 export function summaryOf(passage: Passage): PassageSummary {

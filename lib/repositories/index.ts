@@ -5,7 +5,8 @@ import type { Book, Page, PageRequest, Passage, PassageSummary, Poem, PoemDraft,
  * words are fetched one passage at a time, when it is wanted.
  */
 export interface BookRepository {
-  listBooks(page?: PageRequest): Promise<Page<Book>>;
+  /** Books by title. With `search`, only those with every word in their title or author (capitals and accents ignored). */
+  listBooks(page?: PageRequest & { search?: string }): Promise<Page<Book>>;
   getBook(id: string): Promise<Book | null>;
   /** One passage in full, or null if there is none with that id. */
   getPassage(id: string): Promise<Passage | null>;

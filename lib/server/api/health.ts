@@ -9,6 +9,7 @@ export interface Health {
   signIn: string;
   accountDeletion: string;
   rateLimiting: string;
+  library: string;
 }
 
 export interface HealthInput {
@@ -28,7 +29,7 @@ const isConfig = (config: HealthInput['config']): config is ServerConfig => !('p
  * needs no sign-in itself, and so it tells only what is missing (by name) and what works, nothing more.
  */
 export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 503; body: Health }> {
-  const body: Health = { ok: false, settings: 'ok', database: 'not checked', signIn: 'not checked', accountDeletion: 'not checked', rateLimiting: 'not checked' };
+  const body: Health = { ok: false, settings: 'ok', database: 'not checked', signIn: 'not checked', accountDeletion: 'not checked', rateLimiting: 'not checked', library: 'not checked' };
   const { config } = input;
   if (!isConfig(config)) {
     body.settings = config.problem;
@@ -57,6 +58,19 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
     }
   }
 
+  // The library of books (its tables, from db/schema.sql). Whether any books are in it is for LIBRARY.md to say.
+  if (body.database === 'ok') {
+    try {
+      await input.db!.query('select 1 from passages limit 1');
+      await input.db!.query('select 1 from books limit 1');
+      body.library = 'ok';
+    } catch (error) {
+      const code = (error as { code?: unknown } | null)?.code;
+      const cause = (error as { cause?: unknown } | null)?.cause;
+      body.library = code === '42P01' || (cause as { code?: unknown } | null)?.code === '42P01' ? 'the books tables are missing (run db/schema.sql again)' : 'could not be reached';
+    }
+  }
+
   // The sign-in service.
   if (config.testAuth) {
     body.signIn = 'test sign-in (development only)';
@@ -74,6 +88,6 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
   }
 
   body.accountDeletion = config.testAuth || config.serviceRoleKey ? 'ready' : 'not set up (needs SUPABASE_SECRET_KEY)';
-  body.ok = body.database === 'ok' && body.rateLimiting === 'ok' && (body.signIn === 'ok' || config.testAuth) && body.accountDeletion === 'ready';
+  body.ok = body.database === 'ok' && body.rateLimiting === 'ok' && body.library === 'ok' && (body.signIn === 'ok' || config.testAuth) && body.accountDeletion === 'ready';
   return { status: body.ok ? 200 : 503, body };
 }

@@ -1,6 +1,7 @@
 import type { BookRepository, PoemRepository } from '@/lib/repositories';
 import { BrowserBookRepository, BrowserPoemRepository } from '@/lib/repositories';
 import { HttpPoemRepository } from '@/lib/repositories/http/HttpPoemRepository';
+import { HttpBookRepository } from '@/lib/repositories/http/HttpBookRepository';
 import { session } from '@/lib/auth/session';
 import { bundledPassages } from '@/lib/library/bundled';
 
@@ -9,7 +10,7 @@ import { bundledPassages } from '@/lib/library/bundled';
  * new entry here (and a new repository behind it), not a hunt through the services and screens.
  *
  *   "browser"  poems in this browser's storage, books bundled with the app
- *   "server"   poems on the server, through its API, for the signed-in user; books still bundled
+ *   "server"   poems on the server, through its API, for the signed-in user; books bundled, and the server's library of books
  *
  * It is chosen by the NEXT_PUBLIC_DATA_BACKEND setting; unset means "browser".
  */
@@ -30,6 +31,8 @@ export function readBackendKind(setting: string | undefined): BackendKind {
 export interface Repositories {
   poems: PoemRepository;
   books: BookRepository;
+  /** The server's library of books, when there is one. */
+  library: BookRepository | null;
 }
 
 /** The repositories for a backend. */
@@ -37,8 +40,8 @@ export function createRepositories(kind: BackendKind): Repositories {
   const books = new BrowserBookRepository(bundledPassages);
   switch (kind) {
     case 'browser':
-      return { poems: new BrowserPoemRepository(), books };
+      return { poems: new BrowserPoemRepository(), books, library: null };
     case 'server':
-      return { poems: new HttpPoemRepository({ session }), books };
+      return { poems: new HttpPoemRepository({ session }), books, library: new HttpBookRepository() };
   }
 }

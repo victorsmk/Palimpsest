@@ -248,7 +248,7 @@ Open `https://YOUR-SITE/api/health`. It needs no sign-in and shows only what wor
 name. You want:
 
 ```json
-{ "ok": true, "settings": "ok", "database": "ok", "signIn": "ok", "accountDeletion": "ready", "rateLimiting": "ok" }
+{ "ok": true, "settings": "ok", "database": "ok", "signIn": "ok", "accountDeletion": "ready", "rateLimiting": "ok", "library": "ok" }
 ```
 
 | It says | What to do |
@@ -260,6 +260,7 @@ name. You want:
 | `signIn`: `Supabase answered 401 …` | `SUPABASE_URL` or `SUPABASE_PUBLISHABLE_KEY` is wrong. |
 | `signIn`: `Supabase could not be reached` | `SUPABASE_URL` is wrong, or the project is **paused** (below). |
 | `accountDeletion`: `not set up` | Add `SUPABASE_SECRET_KEY` and redeploy. |
+| `library`: `the books tables are missing` | Run `db/schema.sql` and then `db/supabase.sql` again (part 1), then import books (LIBRARY.md). |
 | `rateLimiting`: `the rate_limits table is missing` | Run `db/schema.sql` and then `db/supabase.sql` again (part 1). The site works meanwhile, but requests are not limited. |
 
 The health page does not prove that the email code works or that the sign-in in the browser is configured;
@@ -288,6 +289,9 @@ those are in the checklist.
     This is free on the Hobby plan (one such rule per project). It stops floods before they reach the app, and
     it covers `/api/health`, which anyone can call. Vercel keeps these counters per region, so it is a brake,
     not a guarantee.
+  - *The library's endpoints* (`/api/library/...`) are public and need no sign-in, so this firewall rule is what
+    limits them; Vercel keeps their answers (an excerpt's text for a year, lists for minutes), so most reads never
+    reach the database.
   - *Not covered:* many accounts being made (that happens between the browser, Google and Supabase, so only
     their own limits apply), and the free 500 MB database being filled by many accounts (each account is capped
     at 2,000 poems, but there is no cap on total size yet).
