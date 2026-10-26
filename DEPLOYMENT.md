@@ -96,22 +96,41 @@ a teammate, not for anyone else.
 
 ### 2a. Custom SMTP, if you chose B
 
-1. Pick an email service that offers SMTP and give it your details. Supabase names Resend, AWS SES, Postmark,
-   SendGrid, ZeptoMail and Brevo as examples. Two that fit a small free project (**check their current terms
-   yourself; I could only confirm the numbers from summaries and marketing pages**):
-   - **Brevo**: free plan about **300 emails a day**; you verify a **sender email address** (no domain needed to
-     start); you log in to SMTP with your Brevo login email and a generated **SMTP key** (not your password).
-     Host `smtp-relay.brevo.com`, port `587`. Mail from a free-mail address (like Gmail) as the sender often lands in
-     spam; a domain you own, with the service's DKIM/SPF records added, is much better.
-   - **Resend**: free plan **100 emails a day, 3,000 a month**, one verified domain. It needs a **domain you own**
-     to send to other people (without one it only sends test mail to your own address, as reported by third
-     parties; I could not confirm that in Resend's own documentation).
-   - A Gmail account's SMTP (with an "app password") is another common way for a school project; I have not
-     checked its current rules.
-2. In Supabase: **Authentication → Emails → SMTP Settings** (the dashboard says "Set up custom SMTP"): the
-   sender email and name, the host, the port, the username and the password / key. **The password or key is a
-   secret: type it into that page only, never into a chat.**
-3. Then **Authentication → Email Templates** can be edited. Change **both** templates (a new address gets
+**Which service depends on one question: do you own a domain name** (like `mypoems.org`)?
+
+**No domain: use a Gmail account** (the quickest way; Supabase has its own troubleshooting page for it). It is
+fine for a project like this and not meant for large volumes: Google limits a personal account to about **500
+emails a day** (figure from developer guides, not from Google), and may delay or refuse mail beyond that. Steps:
+
+1. Make a **new Google account just for this** (for example `palimpsest.app@gmail.com`) rather than using your own.
+   The "app password" in step 3 lets whoever holds it send mail as that account, so keep it separate.
+2. In that account turn on **2-Step Verification** (myaccount.google.com → Security). App passwords need it.
+3. Make an **app password**: myaccount.google.com → Security → 2-Step Verification → **App passwords** (or go to
+   myaccount.google.com/apppasswords). Name it "Supabase". Google shows a 16-character password **once**: copy it
+   without the spaces. **It is a secret: put it only in the Supabase page in step 4.**
+4. Supabase → **Authentication → Emails → SMTP Settings** → turn on **custom SMTP** and fill in:
+   - Sender email: the Gmail address. Sender name: `Palimpsest`.
+   - Host: `smtp.gmail.com`. Port: `465` (or `587`). Per Supabase's page, the username and the sender email
+     should both be the Google account's address.
+   - Username: the Gmail address. Password: the 16-character app password.
+   Save.
+5. First emails may land in the recipient's **spam** folder; marking one "not spam" helps.
+
+**You own a domain: use a transactional service with your domain** (better delivery, higher limits). Both of these
+need you to add DNS records (SPF, DKIM, and DMARC at least `p=none`) at the place you bought the domain:
+- **Resend**: a verified domain is required to send. SMTP: host `smtp.resend.com`, port `465`, username `resend`,
+  password = a Resend API key. Free plan about 100 emails a day and 3,000 a month (third-party figures).
+- **Brevo**: free plan about 300 emails a day; host `smtp-relay.brevo.com`, port `587`, username = your Brevo login
+  email, password = an **SMTP key** you generate in Brevo (not your account password). Brevo says it **cannot
+  authenticate a free-mail sender such as `@gmail.com`** and may replace the sender's domain when mailing Gmail or
+  Yahoo users, so do not use a Gmail address as the sender there.
+- Whichever you use, check its current terms and limits yourself: I could only confirm the numbers from summaries.
+
+Then, in Supabase: **Authentication → Emails → SMTP Settings** with that service's host, port, username and
+password, and a sender address on your domain. **The password or key is a secret: type it into that page only,
+never into a chat.**
+
+3. Now **Authentication → Email Templates** can be edited. Change **both** templates (a new address gets
    Confirm sign up, a returning one Magic link) to show the code, for example:
 
    - Subject: `Your Palimpsest sign-in code`
