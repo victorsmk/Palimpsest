@@ -10,6 +10,8 @@ import { UnavailableError } from '@/lib/models';
  *   SUPABASE_ANON_KEY    the project's public "anon" key (it is only used to ask Supabase who a token belongs to)
  *   SUPABASE_SERVICE_ROLE_KEY  the project's SECRET key, only for deleting an account (it can do anything to the project:
  *                        server only, never in a NEXT_PUBLIC_ setting, never in the browser)
+ *   PALIMPSEST_DEMO      set to "1" for the local demo (`npm run dev:demo`): a database inside the server process, the made-up
+ *                        sign-in, no other setting needed. Refused in production.
  *   PALIMPSEST_TEST_AUTH set to "1" to sign in with a fake token in development and in tests. Refused in production.
  */
 export interface ServerConfig {
@@ -19,6 +21,8 @@ export interface ServerConfig {
   /** The secret key for deleting accounts. Without it, accounts cannot be deleted (and nothing is deleted when one is tried). */
   serviceRoleKey: string | null;
   testAuth: boolean;
+  /** The local demo: the database is inside the server process (see demoDb.ts), and the sign-in is the made-up one. */
+  demo: boolean;
   /** The database's certificate authority, to check its identity; null to encrypt without checking. */
   caCert: string | null;
   /** The most connections one server instance holds open, if set. */
@@ -36,10 +40,13 @@ export class ConfigError extends UnavailableError {
 type Env = Record<string, string | undefined>;
 
 export function readServerConfig(env: Env): ServerConfig {
-  const databaseUrl = env.DATABASE_URL?.trim();
-  if (!databaseUrl) throw new ConfigError('DATABASE_URL is not set.');
+  const demo = env.PALIMPSEST_DEMO === '1';
+  if (demo && env.NODE_ENV === 'production') throw new ConfigError('PALIMPSEST_DEMO is set, and must never be in production.');
 
-  const testAuth = env.PALIMPSEST_TEST_AUTH === '1';
+  const databaseUrl = demo ? '' : env.DATABASE_URL?.trim();
+  if (databaseUrl === undefined || (!demo && !databaseUrl)) throw new ConfigError('DATABASE_URL is not set.');
+
+  const testAuth = demo || env.PALIMPSEST_TEST_AUTH === '1';
   if (testAuth && env.NODE_ENV === 'production') {
     throw new ConfigError('PALIMPSEST_TEST_AUTH is set, and must never be in production.');
   }
@@ -67,6 +74,7 @@ export function readServerConfig(env: Env): ServerConfig {
     supabase,
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null,
     testAuth,
+    demo,
     caCert: env.DATABASE_CA_CERT?.trim() || null,
     poolMax,
   };

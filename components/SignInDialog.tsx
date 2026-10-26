@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import type { AuthManager } from '@/lib/auth/AuthManager';
+import { demoSignInHint } from '@/lib/auth/runtime';
 import { AuthError } from '@/lib/auth/types';
 import { useDialog } from './useDialog';
 
@@ -98,6 +99,9 @@ export function SignInDialog({ manager, reason, onClose, onSignedIn }: SignInDia
         </div>
 
         {reason && <p className="mb-3 text-sm text-[#57544E]">{reason}</p>}
+        {demoSignInHint() && (
+          <p className="mb-3 rounded border border-[#E0D4BE] bg-[#E4D8C2]/40 px-3 py-2 text-xs text-[#57544E]">{demoSignInHint()}</p>
+        )}
 
         {step === 'email' ? (
           <form onSubmit={sendCode} className="space-y-4" noValidate>

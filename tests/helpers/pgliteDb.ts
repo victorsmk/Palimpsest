@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import type { Db } from '@/lib/server/db';
+import { dbOfPglite, type PgliteLike } from '@/lib/server/pgliteDb';
 
 /**
  * Postgres running inside the test process (PGlite), behind the same Db the server uses, with the real
@@ -20,24 +21,12 @@ export async function createTestDb(): Promise<TestDb> {
   const pg = new PGlite();
   await pg.exec(readFileSync('db/schema.sql', 'utf-8'));
   let failing = false;
-  const guard = () => {
+  const db = dbOfPglite(pg as unknown as PgliteLike, () => {
     if (failing) throw new Error('connection lost');
-  };
-  const wrap = (target: Pick<PGlite, 'query'>): Db => ({
-    async query<Row = Record<string, unknown>>(sql: string, params?: unknown[]) {
-      guard();
-      const result = await target.query<Row>(sql, params);
-      return { rows: result.rows };
-    },
-    transaction: async work => work(wrap(target)),
   });
-  const db = wrap(pg);
   return {
     query: db.query,
-    transaction: async <T>(work: (tx: Db) => Promise<T>) => {
-      guard();
-      return pg.transaction(async tx => work(wrap(tx)));
-    },
+    transaction: db.transaction,
     failWrites: () => {
       failing = true;
     },

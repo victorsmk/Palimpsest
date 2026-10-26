@@ -16,6 +16,15 @@ Two things first:
 
 It takes about an hour the first time.
 
+## Try it first, on your own computer
+
+Before any account exists you can use the whole thing locally: double-click `dev-demo.bat` (or run
+`npm run dev:demo`) and open http://localhost:3200. The "server" and its database are part of that one
+process, signing in takes **any email address and the code `123456`**, and nothing is sent anywhere. It starts
+empty and forgets everything when you stop it. It is the same app, API and database code as the online
+version; what it cannot show you is the real Supabase email and the real hosting. The server refuses to run
+in this mode in production.
+
 ## 0. What you will need
 
 | Need | Notes |

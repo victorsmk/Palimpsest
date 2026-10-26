@@ -102,6 +102,13 @@ where Firefox starts there.
   exactly its words, links to and from the other pages, title, skip link, keyboard, headings, 24px targets,
   contrast of the struck-through words and no sideways scroll on a phone.
 
+## The local demo (`e2e-demo/`)
+
+`playwright.demo.config.ts` (`npm run test:e2e:demo`, Chromium only) starts `scripts/dev-demo.mjs`, the real
+local demo, and tests it with nothing standing in for the server: the browser, the screens, Next's route
+handlers and the in-process Postgres are all real. It is the one suite that goes through the real route files and
+a real SQL engine from the browser. Each test signs in with an address of its own because they share one database.
+
 ## The server backend (`e2e-server/`)
 
 The app with its poems on the server and the made-up sign-in is tested separately, by `playwright.server.config.ts`

@@ -151,6 +151,7 @@ describe('the server’s settings', () => {
       supabase: { url: 'https://abc.supabase.co', anonKey: 'k' },
       serviceRoleKey: null,
       testAuth: false,
+      demo: false,
       caCert: null,
       poolMax: undefined,
     });
@@ -178,7 +179,7 @@ describe('the server’s settings', () => {
   });
 
   it('allow the test sign-in outside production, with no Supabase settings', () => {
-    expect(readServerConfig({ DATABASE_URL: 'postgres://x', PALIMPSEST_TEST_AUTH: '1', NODE_ENV: 'development' })).toEqual({ databaseUrl: 'postgres://x', supabase: null, serviceRoleKey: null, testAuth: true, caCert: null, poolMax: undefined });
+    expect(readServerConfig({ DATABASE_URL: 'postgres://x', PALIMPSEST_TEST_AUTH: '1', NODE_ENV: 'development' })).toEqual({ databaseUrl: 'postgres://x', supabase: null, serviceRoleKey: null, testAuth: true, demo: false, caCert: null, poolMax: undefined });
   });
 
   it('read the size of the connection pool, and refuse one that is not a sensible number', () => {
@@ -198,6 +199,39 @@ describe('the server’s settings', () => {
     expect(readServerConfig({ ...good, SUPABASE_SERVICE_ROLE_KEY: ' secret ' }).serviceRoleKey).toBe('secret');
     expect(readServerConfig({ ...good, SUPABASE_SERVICE_ROLE_KEY: '  ' }).serviceRoleKey).toBeNull();
     expect(readServerConfig(good).serviceRoleKey).toBeNull();
+  });
+
+  describe('the local demo', () => {
+    it('needs no other setting, and uses the made-up sign-in', () => {
+      expect(readServerConfig({ PALIMPSEST_DEMO: '1', NODE_ENV: 'development' })).toEqual({
+        databaseUrl: '',
+        supabase: null,
+        serviceRoleKey: null,
+        testAuth: true,
+        demo: true,
+        caCert: null,
+        poolMax: undefined,
+      });
+    });
+
+    it('is never allowed in production, whatever else is set', () => {
+      expect(() => readServerConfig({ ...good, PALIMPSEST_DEMO: '1', NODE_ENV: 'production' })).toThrow('The server is not set up yet.');
+      try {
+        readServerConfig({ ...good, PALIMPSEST_DEMO: '1', NODE_ENV: 'production' });
+      } catch (error) {
+        expect((error as { problem: string }).problem).toContain('PALIMPSEST_DEMO');
+      }
+    });
+
+    it('is on only for the value 1', () => {
+      for (const value of ['true', 'yes', '0', '']) {
+        expect(() => readServerConfig({ PALIMPSEST_DEMO: value, NODE_ENV: 'development' })).toThrow('The server is not set up yet.'); // no DATABASE_URL
+      }
+    });
+
+    it('does not need the demo to read a real database when it is off', () => {
+      expect(readServerConfig(good).demo).toBe(false);
+    });
   });
 
   it('never allow the test sign-in in production, whatever else is set', () => {

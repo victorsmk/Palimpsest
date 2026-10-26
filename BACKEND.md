@@ -216,6 +216,13 @@ poem model to change (step 3), which is where the real backend work starts.
      made-up sign-in. **Not verified:** the real Supabase email code (it needs the email template changed to
      show the code: see 6e), Supabase's real error replies (mapped from its documented ones), the
      deletion call to Supabase's admin API, and anything over a real network.
+   - **Local demo, done** (after 6e): `npm run dev:demo` / `dev-demo.bat` (port 3200) runs the server backend with
+     the real route files, API and SQL against PGlite (Postgres inside the server process, in memory, from
+     `db/schema.sql`) and the made-up sign-in (`PALIMPSEST_DEMO=1`, which implies the test sign-in; refused in
+     production by the configuration). PGlite is loaded only then, kept out of the server bundle
+     (`serverExternalPackages`), and the sign-in dialog says what to type. Tested: the real script started and
+     asked over HTTP, and `e2e-demo/` (`npm run test:e2e:demo`, 5 browser tests with nothing standing in for
+     the server: saving, a fresh browser seeing the same poem, separate accounts, a conflict, deleting an account).
    - **6e, done:** [DEPLOYMENT.md](DEPLOYMENT.md): the steps for Supabase (database, the two SQL files, the email
      templates that must show the code, the keys) and Vercel (settings, region), a health page to check the result,
      a checklist to run once on the live site, and troubleshooting. `GET /api/health` (no sign-in needed) says by

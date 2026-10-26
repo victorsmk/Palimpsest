@@ -24,6 +24,16 @@ export async function createAuthClient(env: Env): Promise<AuthClient> {
   return createSupabaseAuthClient(supabase as unknown as SupabaseLike);
 }
 
+/**
+ * What to tell a person trying the app with the made-up sign-in (the local demo), or null when sign-in is the real one.
+ * The setting is written out in full so that Next puts it into the page at build time.
+ */
+export function demoSignInHint(): string | null {
+  return process.env.NEXT_PUBLIC_TEST_AUTH === '1' && process.env.NODE_ENV !== 'production'
+    ? 'Demo: use any email address, and the code 123456. Nothing is sent.'
+    : null;
+}
+
 let manager: AuthManager | undefined;
 
 /** The one AuthManager of this page. Browser only. */

@@ -1,3 +1,4 @@
+import { createDemoDb } from '../demoDb';
 import { createPgDb } from '../pgDb';
 import { createAccountStore } from './accounts';
 import { PostgresPoemRepository } from '../PostgresPoemRepository';
@@ -19,11 +20,11 @@ interface Running {
   db: Db;
 }
 
-const keep = globalThis as { __palimpsestRunning?: Running };
+const keep = globalThis as { __palimpsestRunning?: Promise<Running> };
 
-function build(): Running {
+async function build(): Promise<Running> {
   const config = readServerConfig(process.env);
-  const db = createPgDb(config.databaseUrl, { max: config.poolMax, caCert: config.caCert ?? undefined });
+  const db = config.demo ? await createDemoDb() : createPgDb(config.databaseUrl, { max: config.poolMax, caCert: config.caCert ?? undefined });
   const accounts = createAccountStore({
     db,
     noAuthUser: config.testAuth,
@@ -37,8 +38,15 @@ function build(): Running {
   return { api, config, db };
 }
 
-function running(): Running {
-  keep.__palimpsestRunning ??= build();
+/** Built once, on first use. If it cannot be built, the next request tries again. */
+function running(): Promise<Running> {
+  if (!keep.__palimpsestRunning) {
+    const starting = build();
+    keep.__palimpsestRunning = starting;
+    starting.catch(() => {
+      if (keep.__palimpsestRunning === starting) keep.__palimpsestRunning = undefined;
+    });
+  }
   return keep.__palimpsestRunning;
 }
 
@@ -49,7 +57,7 @@ function lazy<Args extends unknown[]>(pick: (api: PoemsApi) => (request: Request
     // (reading settings, making the connection pool) is run while the app is being built.
     request.headers.get('authorization');
     try {
-      return await pick(running().api)(request, ...args);
+      return await pick((await running()).api)(request, ...args);
     } catch (error) {
       return errorResponse(error);
     }
@@ -61,7 +69,7 @@ export async function healthResponse(request: Request): Promise<Response> {
   request.headers.get('authorization');
   let result;
   try {
-    const { config, db } = running();
+    const { config, db } = await running();
     result = await checkHealth({ config, db });
   } catch (error) {
     result = await checkHealth({ config: { problem: error instanceof ConfigError ? error.problem : 'The server could not start.' } });

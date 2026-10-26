@@ -3,6 +3,10 @@
 A found-poetry and erasure workshop. Read the specification in [specifications.md](specifications.md).
 
 - Plans and ideas: [ROADMAP.md](ROADMAP.md). How the data layer and the backend work: [BACKEND.md](BACKEND.md).
+- **Try the version with accounts on your own computer, with no account or key:** double-click `dev-demo.bat`
+  (or run `npm run dev:demo`) and open http://localhost:3200. Poems are kept by a "server" that is part of that
+  process; sign in with any email address and the code `123456`. It starts empty and forgets everything when
+  stopped. `npm run dev` (or `dev.bat`) is still the normal version, with poems in your browser.
 - Putting it online (Supabase and Vercel), with a checklist: [DEPLOYMENT.md](DEPLOYMENT.md).
 - Tests: `npm test` (unit), `npm run test:e2e` (the browser suite on a production build, see [e2e/README.md](e2e/README.md)), `npm run test:e2e:server` (the server-backed version of the app).
 
