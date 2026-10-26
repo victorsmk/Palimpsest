@@ -2,30 +2,44 @@ import { createPgDb } from '../pgDb';
 import { createAccountStore } from './accounts';
 import { PostgresPoemRepository } from '../PostgresPoemRepository';
 import { supabaseAuthenticator, testAuthenticator } from './auth';
-import { readServerConfig } from './config';
+import { ConfigError, readServerConfig, type ServerConfig } from './config';
+import type { Db } from '../db';
+import { checkHealth } from './health';
 import { createPoemsApi, type PoemsApi } from './handlers';
-import { errorResponse } from './http';
+import { errorResponse, json } from './http';
 
 /**
  * The poems API as the running server has it: built on first use from the environment, and kept (one
  * connection pool per server instance, reused across requests and across reloads in development). A
  * setting that is missing or wrong makes every request answer "the server is not set up", not crash.
  */
-const keep = globalThis as { __palimpsestPoemsApi?: PoemsApi };
+interface Running {
+  api: PoemsApi;
+  config: ServerConfig;
+  db: Db;
+}
 
-function build(): PoemsApi {
+const keep = globalThis as { __palimpsestRunning?: Running };
+
+function build(): Running {
   const config = readServerConfig(process.env);
-  const db = createPgDb(config.databaseUrl);
+  const db = createPgDb(config.databaseUrl, { max: config.poolMax, caCert: config.caCert ?? undefined });
   const accounts = createAccountStore({
     db,
     noAuthUser: config.testAuth,
     supabase: !config.testAuth && config.supabase && config.serviceRoleKey ? { url: config.supabase.url, serviceRoleKey: config.serviceRoleKey } : undefined,
   });
-  return createPoemsApi({
+  const api = createPoemsApi({
     accounts,
     authenticate: config.testAuth ? testAuthenticator() : supabaseAuthenticator(config.supabase!),
     poemsOf: userId => new PostgresPoemRepository(db, userId),
   });
+  return { api, config, db };
+}
+
+function running(): Running {
+  keep.__palimpsestRunning ??= build();
+  return keep.__palimpsestRunning;
 }
 
 /** Each method builds the API if it is not built yet, then runs; a failure to build is an error response like any other. */
@@ -35,12 +49,24 @@ function lazy<Args extends unknown[]>(pick: (api: PoemsApi) => (request: Request
     // (reading settings, making the connection pool) is run while the app is being built.
     request.headers.get('authorization');
     try {
-      keep.__palimpsestPoemsApi ??= build();
-      return await pick(keep.__palimpsestPoemsApi)(request, ...args);
+      return await pick(running().api)(request, ...args);
     } catch (error) {
       return errorResponse(error);
     }
   };
+}
+
+/** GET /api/health — whether the server is set up (see health.ts). */
+export async function healthResponse(request: Request): Promise<Response> {
+  request.headers.get('authorization');
+  let result;
+  try {
+    const { config, db } = running();
+    result = await checkHealth({ config, db });
+  } catch (error) {
+    result = await checkHealth({ config: { problem: error instanceof ConfigError ? error.problem : 'The server could not start.' } });
+  }
+  return json(result.body, result.status);
 }
 
 export const poemsApi = {

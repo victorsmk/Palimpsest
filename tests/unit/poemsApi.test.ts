@@ -151,6 +151,8 @@ describe('the server’s settings', () => {
       supabase: { url: 'https://abc.supabase.co', anonKey: 'k' },
       serviceRoleKey: null,
       testAuth: false,
+      caCert: null,
+      poolMax: undefined,
     });
   });
 
@@ -176,7 +178,20 @@ describe('the server’s settings', () => {
   });
 
   it('allow the test sign-in outside production, with no Supabase settings', () => {
-    expect(readServerConfig({ DATABASE_URL: 'postgres://x', PALIMPSEST_TEST_AUTH: '1', NODE_ENV: 'development' })).toEqual({ databaseUrl: 'postgres://x', supabase: null, serviceRoleKey: null, testAuth: true });
+    expect(readServerConfig({ DATABASE_URL: 'postgres://x', PALIMPSEST_TEST_AUTH: '1', NODE_ENV: 'development' })).toEqual({ databaseUrl: 'postgres://x', supabase: null, serviceRoleKey: null, testAuth: true, caCert: null, poolMax: undefined });
+  });
+
+  it('read the size of the connection pool, and refuse one that is not a sensible number', () => {
+    expect(readServerConfig({ ...good, DATABASE_POOL_MAX: ' 2 ' }).poolMax).toBe(2);
+    expect(readServerConfig({ ...good, DATABASE_POOL_MAX: '' }).poolMax).toBeUndefined();
+    for (const bad of ['0', '-1', '51', '2.5', 'many']) {
+      expect(() => readServerConfig({ ...good, DATABASE_POOL_MAX: bad })).toThrow('The server is not set up yet.');
+    }
+  });
+
+  it('read the database certificate authority, if there is one', () => {
+    expect(readServerConfig({ ...good, DATABASE_CA_CERT: '  -----BEGIN CERTIFICATE-----\nabc  ' }).caCert).toBe('-----BEGIN CERTIFICATE-----\nabc');
+    expect(readServerConfig({ ...good, DATABASE_CA_CERT: ' ' }).caCert).toBeNull();
   });
 
   it('read the secret key for deleting accounts, and take a blank one as none', () => {

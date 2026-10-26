@@ -216,7 +216,15 @@ poem model to change (step 3), which is where the real backend work starts.
      made-up sign-in. **Not verified:** the real Supabase email code (it needs the email template changed to
      show the code: see 6e), Supabase's real error replies (mapped from its documented ones), the
      deletion call to Supabase's admin API, and anything over a real network.
-   - **6e:** deployment guide and a manual checklist for the real Supabase and Vercel setup.
+   - **6e, done:** [DEPLOYMENT.md](DEPLOYMENT.md): the steps for Supabase (database, the two SQL files, the email
+     templates that must show the code, the keys) and Vercel (settings, region), a health page to check the result,
+     a checklist to run once on the live site, and troubleshooting. `GET /api/health` (no sign-in needed) says by
+     name which setting is missing, whether the database answers and has the table, whether Supabase answers, and
+     whether account deletion is set up, without ever showing a value. The connection to Supabase's pooler now
+     encrypts without checking its certificate unless `DATABASE_CA_CERT` is given (Supabase signs with its own
+     authority); `DATABASE_POOL_MAX` sets the pool (default 3). What Supabase's documentation says, read on
+     2026-10-27, is in the guide: its built-in email service sends only to members of the project's
+     organization, about 2 an hour, so other people signing in needs custom SMTP.
 7. **Named collections**, on the same repository pattern (`CollectionRepository` already exists as a type).
 
 ## What "server-first" means for the design

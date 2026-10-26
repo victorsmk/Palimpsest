@@ -45,7 +45,7 @@ beforeEach(() => {
 describe('the Postgres connection', () => {
   it('is a pool made from the connection string, and runs statements with their parameters', async () => {
     const db = createPgDb('postgres://example/db');
-    expect(calls[0]).toBe('pool {"connectionString":"postgres://example/db","max":5}');
+    expect(calls[0]).toBe('pool {"connectionString":"postgres://example/db","max":3}');
     expect(await db.query('select $1', ['x'])).toEqual({ rows: [{ n: 1 }] });
     expect(calls[1]).toBe('pool.query select $1 ["x"]');
     await db.end();

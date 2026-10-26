@@ -1,0 +1,241 @@
+# Putting Palimpsest online
+
+This is the guide for running Palimpsest with its poems on a server, so that people sign in and their
+poems follow them. It uses **Supabase** (the database and the sign-in) and **Vercel** (the hosting), both on
+their free plans. Why this stack, and how it works inside, is in [BACKEND.md](BACKEND.md).
+
+Two things first:
+
+- **You do the account steps; I cannot.** Making the Supabase and Vercel accounts, the projects, and
+  handling the keys is yours. Keep the keys in the settings pages named below, never in a chat and never in a
+  file you commit (`.env*` files are already ignored by git, except `.env.example`, which has no values).
+- **Nothing here has been run against the real services.** Everything up to the edge of Supabase and Vercel is
+  tested (see "What was tested" at the end). The steps below follow their documentation as it was read on
+  2026-10-27, and the checklist in part 7 is how you find out whether the real thing agrees. If a screen in a
+  dashboard looks different from what is described, trust the dashboard and tell me what you saw.
+
+It takes about an hour the first time.
+
+## 0. What you will need
+
+| Need | Notes |
+|---|---|
+| A Supabase account | Free. Sign up with GitHub or email at supabase.com. |
+| A Vercel account | Free ("Hobby"). Hobby is for **non-commercial** use only. |
+| The code somewhere Vercel can read it | Either a **private GitHub repository** (easiest), or Vercel's command-line tool. This folder has no remote yet, so you would create the repository and push it yourself. |
+| An email service, **if other people will sign in** | See the catch in part 2. For trying it yourself, none. |
+
+## 1. Make the database (Supabase)
+
+1. In Supabase, **New project**. Choose a name, a strong database password (save it in a password manager;
+   you will need it once, below), and the region **nearest to where most of your users are**. The region
+   cannot be changed later, and Vercel's functions should be near it (part 4).
+2. Open **SQL Editor**. Paste the whole of [`db/schema.sql`](db/schema.sql) and run it. Then paste the whole of
+   [`db/supabase.sql`](db/supabase.sql) and run that. Both are safe to run again.
+   - `schema.sql` makes the `poems` table.
+   - `supabase.sql` deletes a user's poems when their account goes, and switches on **row level security with
+     no rules**, so that the public key every browser gets can read and write nothing in the table. All access
+     goes through this app's own API.
+3. Check: **Table Editor** should show a `poems` table, marked as having row level security enabled.
+4. Get the **connection string**: click **Connect** at the top of the project, choose **Transaction pooler**,
+   copy the string, and put your database password where it says `[YOUR-PASSWORD]` (if the password has
+   characters such as `@`, `/` or `#`, they must be percent-encoded: `@` is `%40`, `/` is `%2F`, `#` is `%23`).
+   It looks like `postgresql://postgres.abcd:…@aws-0-….pooler.supabase.com:6543/postgres`. Add `?sslmode=require`
+   on the end if it is not there. This is `DATABASE_URL`.
+   - The transaction pooler (port 6543) is the right one for Vercel: its functions open many short connections.
+     The app uses no prepared statements, which that mode does not allow.
+5. Get the project's **URL** and keys: **Project Settings → API**.
+   - **Project URL** (`https://abcd.supabase.co`): `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL`.
+   - **anon / public key**: `SUPABASE_ANON_KEY` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. It is meant to be public.
+   - **service_role key**: `SUPABASE_SERVICE_ROLE_KEY`. **This one is a secret** that can do anything to the
+     project. It is used only to delete an account, only on the server. Never put it in a `NEXT_PUBLIC_`
+     setting, and never share it.
+
+## 2. Make the sign-in send a code (Supabase)
+
+Palimpsest signs people in with a **6-digit code** typed into the page (a link would take them away from
+the page and lose an unsaved poem). Supabase's emails contain a link unless you change them.
+
+1. **Authentication → Email Templates.** There are two that matter, and a new address gets one and a returning
+   address the other, so change **both**: **Confirm sign up**, and **Magic link** (it may be shown as
+   "Magic link or OTP"). Put the code in each, for example:
+
+   - Subject: `Your Palimpsest sign-in code`
+   - Body:
+
+     ```html
+     <h2>Your Palimpsest sign-in code</h2>
+     <p>Type this code on the page to sign in:</p>
+     <p style="font-size: 24px; letter-spacing: 4px;"><strong>{{ .Token }}</strong></p>
+     <p>It works for one hour. If you did not ask for it, you can ignore this email.</p>
+     ```
+
+2. **Authentication → Providers → Email**: keep it enabled. Codes are 6 digits and last one hour by default;
+   the app accepts 6 to 10 digits, so changing the length is fine. Supabase lets a person ask for a new code
+   once every 60 seconds.
+3. **The catch with email.** Supabase's built-in email sender is for trying things out: it sends **only to
+   addresses of people in your Supabase organization** (the Team tab), about **2 emails an hour**, with no
+   promise of delivery. That is fine for you and a teammate. **For anyone else to sign in you need your own
+   email service**: **Authentication → SMTP Settings**, with the host, port, user and password of a service
+   that offers SMTP (Resend, Brevo, Mailgun and others do, many with a free allowance; check their current
+   terms), and a From address. Supabase then starts at 30 emails an hour, which you can raise on the Rate
+   Limits page.
+
+Google sign-in is not built yet (see [ROADMAP.md](ROADMAP.md)); it would also remove the email limits.
+
+## 3. Get the code to Vercel
+
+Either:
+
+- **GitHub:** create a *private* repository, push this project to it (your commits are already in `main`),
+  then in Vercel **Add New → Project → Import** that repository. Vercel recognises Next.js by itself.
+- **Command line:** in this folder run `npx vercel` and answer its questions (first time: log in, link or
+  create the project). `npx vercel --prod` makes the production deployment.
+
+Do not deploy yet if you can help it: set the settings first (part 4), or the first deployment will be built
+without them.
+
+## 4. Settings in Vercel
+
+In the Vercel project: **Settings → Environment Variables**. Add each of these for **Production** (and
+Preview too, if you will use previews). The names are in [`.env.example`](.env.example) with what each is for.
+
+| Name | Value | Kind |
+|---|---|---|
+| `NEXT_PUBLIC_DATA_BACKEND` | `server` | public, read at **build** |
+| `NEXT_PUBLIC_SUPABASE_URL` | the Project URL | public, read at **build** |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the anon key | public, read at **build** |
+| `DATABASE_URL` | the transaction pooler string from part 1 | secret |
+| `SUPABASE_URL` | the Project URL | config |
+| `SUPABASE_ANON_KEY` | the anon key | config |
+| `SUPABASE_SERVICE_ROLE_KEY` | the service_role key | **secret** (choose the "Secret" kind so it cannot be read again) |
+
+Never set `PALIMPSEST_TEST_AUTH` or `NEXT_PUBLIC_TEST_AUTH`. They are a made-up sign-in for development; the
+server refuses to run with the first one in production, and a build with the second refuses to sign anyone in.
+
+Optional: `DATABASE_POOL_MAX` (connections per instance, default 3) and `DATABASE_CA_CERT` (see
+"Troubleshooting"). **Settings → Functions → Function Region**: new projects run in Washington, D.C. (`iad1`);
+choose the region **closest to your Supabase project** (Hobby allows one region).
+
+Two things that surprise people:
+
+- **A change to a setting only reaches new deployments.** After changing any of them, redeploy.
+- The three `NEXT_PUBLIC_` ones are put into the page **when it is built**. Changing them needs a new build,
+  not just a restart.
+
+Then deploy (Vercel does it on import, or `npx vercel --prod`).
+
+## 5. First check: the health page
+
+Open `https://YOUR-SITE/api/health`. It needs no sign-in and shows only what works and what is missing, by
+name. You want:
+
+```json
+{ "ok": true, "settings": "ok", "database": "ok", "signIn": "ok", "accountDeletion": "ready" }
+```
+
+| It says | What to do |
+|---|---|
+| `settings`: `DATABASE_URL is not set.` (or another name) | Add that setting in Vercel and redeploy. |
+| `settings`: `SUPABASE_URL is not a valid address.` | It must be `https://…supabase.co`, with nothing after it. |
+| `database`: `could not be reached` | Check `DATABASE_URL`: the password (and its encoding), the `.pooler.supabase.com:6543` host, and `?sslmode=require`. See "Troubleshooting" if it is the certificate. The Vercel function log has the real reason. |
+| `database`: `connected, but the poems table is missing` | Run `db/schema.sql` (part 1). |
+| `signIn`: `Supabase answered 401 …` | `SUPABASE_URL` or `SUPABASE_ANON_KEY` is wrong. |
+| `signIn`: `Supabase could not be reached` | `SUPABASE_URL` is wrong, or the project is **paused** (below). |
+| `accountDeletion`: `not set up` | Add `SUPABASE_SERVICE_ROLE_KEY` and redeploy. |
+
+The health page does not prove that the email code works or that the sign-in in the browser is configured;
+those are in the checklist.
+
+## 6. Things to know about the free plans
+
+- **Supabase pauses a free project after about 7 days without activity.** Everything then fails (the health page
+  says Supabase could not be reached). Restore it from the Supabase dashboard. Before a demonstration, open
+  the site and sign in the day before.
+- **Vercel Hobby is for non-commercial use**, one function region, and has usage limits.
+- **Backups:** the free Supabase plan is not a backup service. Each person can use **Back up all poems** in
+  My Collection to keep a file. Consider doing the same for the database from time to time.
+- **Secrets:** if a key was ever shown anywhere it should not have been, make a new one (Supabase → Project
+  Settings → API, and Database for the password), update Vercel, redeploy.
+- **Rate limiting:** the app itself does not limit how fast one person can call the API. Vercel and Supabase
+  have their own limits.
+
+## 7. The checklist: run it once, on the live site
+
+Use a browser you can sign in on, and an email address that can receive mail from Supabase (a member of your
+Supabase organization, unless you set up SMTP). Tell me which lines fail and what you saw.
+
+**The page and the settings**
+- [ ] `/api/health` is all ok (part 5).
+- [ ] Home, Discover, Assisted and the Studio open, and each shows **Sign in** at the top right.
+- [ ] Without signing in, you can keep words in the Studio and see Discover and Assisted.
+
+**Signing in** (use an address you have never used with this project)
+- [ ] Sign in → type the address → **Send code**. An email arrives and **shows a 6-digit code** (not a link).
+- [ ] A wrong code says it is not right. The right code signs you in, and the button says **Account**.
+- [ ] Reload the page: you are still signed in.
+- [ ] **Account → Sign out**, then sign in again with the same address. A code arrives (this is the *returning
+      address* template) and works.
+- [ ] Ask for codes quickly, one after another: after a few tries it says to wait.
+
+**Saving and the collection**
+- [ ] In the Studio keep some words, press **Save Draft** while signed out: it asks you to sign in, then opens
+      the save form. The form says drafts are saved to your account. Save.
+- [ ] **My Collection** lists it, with the book and the first lines.
+- [ ] Open the poem from another browser or another device, signed in as the same address: it is there.
+- [ ] Rename, copy and delete a poem. Open one: its notes and words are all there.
+- [ ] In two tabs open the same poem, save in one, then save in the other: the second says the poem was
+      changed somewhere else.
+- [ ] **Back up all poems**, then sign in as a different address and **Restore from a backup**: the poems appear.
+- [ ] Signed out, My Collection says "Sign in to see your collection".
+
+**Bringing poems across** (needs a browser with poems saved in its own storage, as the browser-only version of the
+app kept them; if you have none, skip)
+- [ ] After signing in, a dialog offers to add them. **Add** them; they appear in My Collection. Doing it again
+      from the Account dialog adds nothing twice.
+
+**Deleting an account** (use a spare address)
+- [ ] **Account → Delete my account…** asks first. After you confirm, you are signed out.
+- [ ] In Supabase: **Authentication → Users** no longer lists the address, and the `poems` table has no rows for it.
+- [ ] The same address can sign up again and starts empty.
+
+**The database is private**
+- [ ] With the project URL and the anon key, ask for the table directly. It must return nothing:
+      `curl "https://YOUR-PROJECT.supabase.co/rest/v1/poems?select=id" -H "apikey: YOUR_ANON_KEY"`
+      should answer `[]` or an error, never a poem. (This checks that row level security is on.)
+
+**When things go wrong**
+- [ ] On a preview deployment, set a wrong `DATABASE_URL` and redeploy: saving says the server could not be
+      reached, and your poem stays on the page.
+
+## 8. Troubleshooting
+
+- **"self signed certificate in certificate chain" (or similar) in the Vercel logs.** Supabase's certificate is
+  signed by its own authority, which Node does not know. The app handles `?sslmode=require` by encrypting
+  without checking the certificate (this is what most hosted setups do). To check it too, download the
+  project's CA certificate (Supabase → Project Settings → Database → SSL Configuration) and put its text in
+  `DATABASE_CA_CERT`.
+- **"too many connections" or slow first requests.** Lower `DATABASE_POOL_MAX` to 1 or 2. Use the transaction
+  pooler (port 6543), not the direct connection.
+- **A code that works for a returning address is refused for a brand-new one** (or the other way round). The
+  two use different email templates (part 2): check both show `{{ .Token }}`. If a new address's code is
+  still refused, tell me: the app asks Supabase to check codes as the `email` type, which its documentation
+  gives for both, and I would add a fallback.
+- **Signed in on the site but every save says "You need to sign in".** The sign-in the browser has is not
+  accepted by the server: check `SUPABASE_URL` and `SUPABASE_ANON_KEY` (server side) match the project the
+  `NEXT_PUBLIC_` ones point to.
+- **The settings look right but nothing changed.** They only apply to new deployments; redeploy.
+- **Logs:** Vercel → the project → **Logs**. The server logs why a request failed (never to the browser).
+
+## 9. What was tested, and what was not
+
+Tested without the real services: the database code on real SQL in an in-process Postgres; the API
+(sign-in checks, every refusal, limits, conflicts, deletion) on that database; the browser's side of the API
+against the real API code; the whole app in a browser with the poems on a (stand-in) server and a made-up
+sign-in (`npm run test:e2e:server`); the connection settings, including the SSL handling; and the health page,
+over real HTTP.
+
+**Not tested, and what to watch for:** the real Supabase email and code; Supabase's real error replies (mapped
+from its documentation); the call that deletes a user at Supabase; the `pg` driver against a real Postgres and
+Supabase's certificate; the per-user lock under real concurrency; the `supabase.sql` statements on Supabase;
+Vercel's build and functions; a real network; Safari, phones and screen readers.

@@ -1,3 +1,11 @@
+# Palimpsest
+
+A found-poetry and erasure workshop. Read the specification in [specifications.md](specifications.md).
+
+- Plans and ideas: [ROADMAP.md](ROADMAP.md). How the data layer and the backend work: [BACKEND.md](BACKEND.md).
+- Putting it online (Supabase and Vercel), with a checklist: [DEPLOYMENT.md](DEPLOYMENT.md).
+- Tests: `npm test` (unit), `npm run test:e2e` (the browser suite on a production build, see [e2e/README.md](e2e/README.md)), `npm run test:e2e:server` (the server-backed version of the app).
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

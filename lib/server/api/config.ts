@@ -4,6 +4,8 @@ import { UnavailableError } from '@/lib/models';
  * What the server needs from its environment. Nothing here is ever sent to the browser or logged.
  *
  *   DATABASE_URL         the Postgres connection string (Supabase: Project settings, Database)
+ *   DATABASE_CA_CERT     optional: the database's certificate authority (PEM text), to check the database's identity too
+ *   DATABASE_POOL_MAX    optional: most connections one server instance holds (default 3)
  *   SUPABASE_URL         the project's address, such as https://abcd.supabase.co
  *   SUPABASE_ANON_KEY    the project's public "anon" key (it is only used to ask Supabase who a token belongs to)
  *   SUPABASE_SERVICE_ROLE_KEY  the project's SECRET key, only for deleting an account (it can do anything to the project:
@@ -17,6 +19,10 @@ export interface ServerConfig {
   /** The secret key for deleting accounts. Without it, accounts cannot be deleted (and nothing is deleted when one is tried). */
   serviceRoleKey: string | null;
   testAuth: boolean;
+  /** The database's certificate authority, to check its identity; null to encrypt without checking. */
+  caCert: string | null;
+  /** The most connections one server instance holds open, if set. */
+  poolMax: number | undefined;
 }
 
 /** The setting is wrong or missing. The server cannot work, which the browser sees as the server being unavailable. */
@@ -51,5 +57,17 @@ export function readServerConfig(env: Env): ServerConfig {
       throw new ConfigError('SUPABASE_URL is not a valid address.');
     }
   }
-  return { databaseUrl, supabase, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null, testAuth };
+  const poolText = env.DATABASE_POOL_MAX?.trim();
+  const poolMax = poolText === undefined || poolText === '' ? undefined : Number(poolText);
+  if (poolMax !== undefined && (!Number.isInteger(poolMax) || poolMax < 1 || poolMax > 50)) {
+    throw new ConfigError('DATABASE_POOL_MAX must be a whole number from 1 to 50.');
+  }
+  return {
+    databaseUrl,
+    supabase,
+    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null,
+    testAuth,
+    caCert: env.DATABASE_CA_CERT?.trim() || null,
+    poolMax,
+  };
 }
