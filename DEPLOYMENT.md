@@ -86,9 +86,12 @@ Then choose:
   the built-in sender only emails people in your Supabase organization.
 - **B. Set up custom SMTP** (needed to edit the templates, and needed for anyone outside your organization to
   receive any email at all). Part 2a below.
-- **C. Do not use email codes for now, and let people sign in with Google only** (part 2b). Google needs no email
-  service at all. The app would need a setting to hide the email form, because without a code in the email it
-  would just confuse people: tell me and I will add it. You can add custom SMTP later.
+- **C. Do not use email codes for now, and let people sign in with Google only.** Google needs no email service
+  at all. **This is the simplest start, and it is built in:** set `NEXT_PUBLIC_EMAIL_SIGN_IN` to `off` in Vercel
+  (part 4) and the sign-in dialog shows Google's button alone, with no email form. **Skip part 2a** and do
+  **part 2b, which is then required** (without a Google client id there is no way to sign in at all, and the
+  dialog says so). You can set up custom SMTP later and delete the `off` setting to bring the email form back.
+  Hiding the form does not switch off Supabase's email sign-in itself; it only stops the page from offering it.
 
 **The limits of the built-in sender, whichever you choose.** It sends **only to addresses of people in your
 Supabase organization** (the Team tab), about **2 emails an hour**, with no promise of delivery. Fine for you and
@@ -151,11 +154,12 @@ never into a chat.**
 
 Google sign-in (next part) needs no email at all, so it also gets around these limits for everyone who uses it.
 
-## 2b. Let people sign in with Google (optional, no email service needed)
+## 2b. Let people sign in with Google (no email service needed; required if you chose C)
 
-A "Continue with Google" button appears above the email form when a Google client id is set. Google opens its
-own popup and hands the page a signed token, which Supabase checks with Google; the page never leaves, so an
-unsaved poem stays. If the setting is not there, there is simply no Google button, and nothing else changes.
+A "Continue with Google" button appears above the email form when a Google client id is set (or alone, with
+`NEXT_PUBLIC_EMAIL_SIGN_IN=off`). Google opens its own popup and hands the page a signed token, which Supabase
+checks with Google; the page never leaves, so an unsaved poem stays. If the setting is not there, there is simply
+no Google button, and with the email form on nothing else changes.
 These steps follow Supabase's Google documentation as read on 2026-10-27; **I have not been able to try them
 against real Google or Supabase**, so the checklist in part 7 is how you find out.
 
@@ -210,7 +214,8 @@ Preview too, if you will use previews). The names are in [`.env.example`](.env.e
 | `NEXT_PUBLIC_DATA_BACKEND` | `server` | public, read at **build** |
 | `NEXT_PUBLIC_SUPABASE_URL` | the Project URL | public, read at **build** |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable key | public, read at **build** |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | the Google client id (optional: part 2b) | public, read at **build** |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | the Google client id (part 2b; required if the email form is off) | public, read at **build** |
+| `NEXT_PUBLIC_EMAIL_SIGN_IN` | `off` for Google-only sign-in (option C); leave it out to keep the email form | public, read at **build** |
 | `DATABASE_URL` | the transaction pooler string from part 1 | secret |
 | `SUPABASE_URL` | the Project URL | config |
 | `SUPABASE_PUBLISHABLE_KEY` | the publishable key | config |
@@ -276,7 +281,7 @@ Supabase organization, unless you set up SMTP). Tell me which lines fail and wha
 - [ ] Home, Discover, Assisted and the Studio open, and each shows **Sign in** at the top right.
 - [ ] Without signing in, you can keep words in the Studio and see Discover and Assisted.
 
-**Signing in** (use an address you have never used with this project)
+**Signing in by email** (skip this block if `NEXT_PUBLIC_EMAIL_SIGN_IN` is `off`; use an address you have never used with this project)
 - [ ] Sign in → type the address → **Send code**. An email arrives and **shows a 6-digit code** (not a link).
 - [ ] A wrong code says it is not right. The right code signs you in, and the button says **Account**.
 - [ ] Reload the page: you are still signed in.
@@ -286,16 +291,17 @@ Supabase organization, unless you set up SMTP). Tell me which lines fail and wha
 
 **Signing in with Google** (only if you did part 2b)
 - [ ] The sign-in dialog shows Google's "Continue with Google" button above the email form, with "or" under it.
+      With `NEXT_PUBLIC_EMAIL_SIGN_IN=off` it shows the button alone: no email field, no "or".
 - [ ] Press it: Google's popup opens, you choose an account, the popup closes, and the page shows **Account**.
       The page did not reload or move.
 - [ ] In the Studio with some words kept, press Save while signed out, then use Google: the save form opens and
       the words are still on the page.
-- [ ] Sign out, then sign in **by email code with the same address** as the Google account: you are in the same
-      account, with the same poems. (If you are given a separate empty account instead, tell me.)
+- [ ] (Email on only.) Sign out, then sign in **by email code with the same address** as the Google account: you
+      are in the same account, with the same poems. (If you are given a separate empty account instead, tell me.)
 - [ ] Sign in with Google on a **different** Google account: an empty collection of its own.
 - [ ] With the consent screen in "Testing", a Google account that is **not** a listed test user is refused by
       Google; once published, anyone can.
-- [ ] Close the Google popup without choosing: nothing breaks, and the email form still works.
+- [ ] Close the Google popup without choosing: nothing breaks (and, with email on, the email form still works).
 - [ ] **Account → Delete my account…** for a Google-created account removes it in Supabase (Authentication →
       Users) as for any other.
 

@@ -8,6 +8,7 @@ import { createTestAuthClient, GOOGLE_DEMO_EMAIL, TEST_CODE, testUserId } from '
 import { AuthManager } from '@/lib/auth/AuthManager';
 import { AuthError, type AuthClient, type AuthSession, type GoogleSignIn } from '@/lib/auth/types';
 import { SignInDialog } from '@/components/SignInDialog';
+import { emailSignInEnabled } from '@/lib/auth/runtime';
 import { MemoryStorageAdapter } from '@/lib/repositories';
 import { click, render } from '../helpers/react';
 
@@ -317,6 +318,30 @@ describe('AuthManager and Google', () => {
   });
 });
 
+describe('the email sign-in setting', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('is on unless NEXT_PUBLIC_EMAIL_SIGN_IN is "off", in any case and with spaces', () => {
+    expect(emailSignInEnabled()).toBe(true);
+    for (const value of ['', 'on', '1', 'false', 'no']) {
+      vi.stubEnv('NEXT_PUBLIC_EMAIL_SIGN_IN', value);
+      expect(emailSignInEnabled(), value).toBe(true);
+    }
+    for (const value of ['off', 'OFF', ' Off ']) {
+      vi.stubEnv('NEXT_PUBLIC_EMAIL_SIGN_IN', value);
+      expect(emailSignInEnabled(), value).toBe(false);
+    }
+  });
+
+  it('is what the dialog follows when it is not told', async () => {
+    vi.stubEnv('NEXT_PUBLIC_EMAIL_SIGN_IN', 'off');
+    render(createElement(SignInDialog, { manager: { googleSignIn: async () => null } as unknown as AuthManager, onClose: vi.fn() }));
+    await settled();
+    await settled();
+    expect(document.querySelector('input')).toBeNull();
+  });
+});
+
 describe('the sign-in dialog', () => {
   function manager(google: GoogleSignIn | null) {
     return {
@@ -391,6 +416,55 @@ describe('the sign-in dialog', () => {
     await settled();
     await settled();
     expect(document.querySelector('[role=alert]')?.textContent).toContain('Google sign-in did not work');
+  });
+
+  describe('with email sign-in off (Google only)', () => {
+    const open = async (google: GoogleSignIn | null, onClose = vi.fn()) => {
+      render(createElement(SignInDialog, { manager: manager(google), onClose, emailSignIn: false }));
+      await settled();
+      await settled();
+    };
+
+    it('shows Google’s button alone: no email field, no "Send code", no "or"', async () => {
+      const { google } = googleButton();
+      await open(google);
+      const dialog = document.querySelector('[role=dialog]')!;
+      expect(dialog.textContent).toContain('Google button');
+      expect(dialog.querySelector('input')).toBeNull();
+      expect(dialog.textContent).not.toContain('Send code');
+      expect(dialog.textContent).not.toContain('Email address');
+      expect(dialog.textContent).not.toMatch(/\bor\b/);
+    });
+
+    it('still signs in through Google and closes', async () => {
+      const { google, state } = googleButton();
+      const onClose = vi.fn();
+      await open(google, onClose);
+      state.handlers!.onSignedIn();
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it('does not send people to an email form that is not there when Google fails', async () => {
+      const { google, state } = googleButton();
+      await open(google);
+      await act(async () => state.handlers!.onError(new AuthError('google-failed')));
+      expect(document.querySelector('[role=alert]')?.textContent).toBe('Google sign-in did not work. Please try again.');
+    });
+
+    it('says sign-in is not available, and can be cancelled, when Google is not set up either', async () => {
+      const onClose = vi.fn();
+      await open(null, onClose);
+      expect(document.querySelector('[role=alert]')?.textContent).toBe('Sign-in is not available right now.');
+      click([...document.querySelectorAll('button')].find(b => b.textContent === 'Cancel'));
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it('does not say so while it is still finding out whether Google is set up', async () => {
+      const never = { googleSignIn: () => new Promise(() => {}) } as unknown as AuthManager;
+      render(createElement(SignInDialog, { manager: never, onClose: vi.fn(), emailSignIn: false }));
+      await settled();
+      expect(document.querySelector('[role=alert]')).toBeNull();
+    });
   });
 
   it('takes the button away when the code step comes, and puts it back on the way back', async () => {

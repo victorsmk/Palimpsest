@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import type { AuthManager } from '@/lib/auth/AuthManager';
-import { demoSignInHint } from '@/lib/auth/runtime';
+import { demoSignInHint, emailSignInEnabled } from '@/lib/auth/runtime';
 import { AuthError, type GoogleSignIn } from '@/lib/auth/types';
 import { useDialog } from './useDialog';
 
@@ -13,6 +13,8 @@ interface SignInDialogProps {
   onClose: () => void;
   /** Called once, after the code was accepted and the writer is signed in. */
   onSignedIn?: () => void;
+  /** Whether to offer the email form; false leaves Google alone. Defaults to the site's setting. */
+  emailSignIn?: boolean;
 }
 
 const FIELD =
@@ -29,7 +31,7 @@ const messageOf = (error: unknown) => (error instanceof AuthError ? error.messag
  * Nothing leaves the page, so what is on it (a poem in the Studio) stays. The same dialog is the way in
  * for a new account: the first sign-in makes it.
  */
-export function SignInDialog({ manager, reason, onClose, onSignedIn }: SignInDialogProps) {
+export function SignInDialog({ manager, reason, onClose, onSignedIn, emailSignIn = emailSignInEnabled() }: SignInDialogProps) {
   const headingId = useId();
   const emailId = useId();
   const codeId = useId();
@@ -43,8 +45,12 @@ export function SignInDialog({ manager, reason, onClose, onSignedIn }: SignInDia
   const emailField = useRef<HTMLInputElement>(null);
   const codeField = useRef<HTMLInputElement>(null);
 
+  // Google's failure message suggests the email form, which is not there when email sign-in is off.
+  const shown = (message: string) => (emailSignIn ? message : message.replace(', or use your email', ''));
+
   // Signing in with Google, if it is set up: Google draws its own button in the box below.
   const [google, setGoogle] = useState<GoogleSignIn | null>(null);
+  const [googleChecked, setGoogleChecked] = useState(false);
   const googleBox = useRef<HTMLDivElement>(null);
   const finished = useRef({ onSignedIn, onClose });
   useEffect(() => {
@@ -54,7 +60,9 @@ export function SignInDialog({ manager, reason, onClose, onSignedIn }: SignInDia
   useEffect(() => {
     let cancelled = false;
     void manager.googleSignIn().then(found => {
-      if (!cancelled) setGoogle(found);
+      if (cancelled) return;
+      setGoogle(found);
+      setGoogleChecked(true);
     });
     return () => {
       cancelled = true;
@@ -72,19 +80,20 @@ export function SignInDialog({ manager, reason, onClose, onSignedIn }: SignInDia
           finished.current.onSignedIn?.();
           finished.current.onClose();
         },
-        onError: err => setError(err.message),
+        onError: err => setError(shown(err.message)),
       })
       .then(dispose => {
         if (cancelled) dispose();
         else remove = dispose;
       })
       .catch(err => {
-        if (!cancelled) setError(messageOf(err));
+        if (!cancelled) setError(shown(messageOf(err)));
       });
     return () => {
       cancelled = true;
       remove?.();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` only depends on the setting, which does not change
   }, [google, step]);
 
   // Moving between the two steps replaces the form, and whatever had focus goes with it: put focus on the new step's field.
@@ -148,17 +157,37 @@ export function SignInDialog({ manager, reason, onClose, onSignedIn }: SignInDia
         )}
 
         {step === 'email' && google && (
-          <div className="mb-4">
+          <div className={emailSignIn ? 'mb-4' : ''}>
             <div ref={googleBox} className="flex min-h-[44px] items-center justify-center" />
-            <div className="mt-4 flex items-center gap-3 text-xs text-[#605C53]" aria-hidden="true">
-              <span className="h-px flex-1 bg-[#E0D4BE]" />
-              or
-              <span className="h-px flex-1 bg-[#E0D4BE]" />
-            </div>
+            {emailSignIn && (
+              <div className="mt-4 flex items-center gap-3 text-xs text-[#605C53]" aria-hidden="true">
+                <span className="h-px flex-1 bg-[#E0D4BE]" />
+                or
+                <span className="h-px flex-1 bg-[#E0D4BE]" />
+              </div>
+            )}
           </div>
         )}
 
-        {step === 'email' ? (
+        {!emailSignIn ? (
+          <div className="space-y-4">
+            {googleChecked && !google && (
+              <p role="alert" className="text-sm text-[#6C3438]">
+                Sign-in is not available right now.
+              </p>
+            )}
+            {error && (
+              <p role="alert" className="text-xs text-[#6C3438]">
+                {error}
+              </p>
+            )}
+            <div className="flex justify-end border-t border-[#E0D4BE] pt-3">
+              <button type="button" onClick={onClose} className={SECONDARY} data-autofocus>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : step === 'email' ? (
           <form onSubmit={sendCode} className="space-y-4" noValidate>
             <div>
               <label htmlFor={emailId} className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-[#57544E]">

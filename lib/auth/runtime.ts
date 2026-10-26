@@ -35,6 +35,15 @@ export function demoSignInHint(): string | null {
     : null;
 }
 
+/**
+ * Whether the sign-in dialog offers the email-and-code form. It does unless NEXT_PUBLIC_EMAIL_SIGN_IN is "off"
+ * (for a site that signs in with Google only, because it has no email service to send codes).
+ * The setting is written out in full so that Next puts it into the page at build time.
+ */
+export function emailSignInEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_EMAIL_SIGN_IN?.trim().toLowerCase() !== 'off';
+}
+
 let manager: AuthManager | undefined;
 
 /** The one AuthManager of this page. Browser only. */
