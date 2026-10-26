@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { PoemConflictError, PoemGoneError, type Page, type Poem, type PoemSummary } from '@/lib/models';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { PoemConflictError, PoemGoneError, UnauthorizedError, type Page, type Poem, type PoemSummary } from '@/lib/models';
 import type { PassageLibrary } from '@/lib/library/passageLibrary';
 import { POEM_MISSING_MESSAGE, describeError } from '@/lib/errors/describe';
 import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
@@ -11,6 +11,8 @@ import { poemService } from '@/lib/services';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { RenamePoemForm } from './RenamePoemForm';
+import { SignInDialog } from './SignInDialog';
+import { useAuth } from './useAuth';
 import { useDialog } from './useDialog';
 
 interface DraftsDrawerProps {
@@ -47,6 +49,22 @@ async function loadCollection(library: PassageLibrary, atLeast = 0): Promise<Pag
   return page;
 }
 
+interface FirstPage {
+  items: PoemSummary[];
+  next: string | null;
+  blocked: { kind: 'sign-in' } | { kind: 'error'; message: string } | null;
+}
+
+/** The start of the collection, or why it cannot be shown. */
+async function readFirstPage(library: PassageLibrary): Promise<FirstPage> {
+  try {
+    const page = await loadCollection(library);
+    return { items: page.items, next: page.next, blocked: null };
+  } catch (err) {
+    return { items: [], next: null, blocked: err instanceof UnauthorizedError ? { kind: 'sign-in' } : { kind: 'error', message: describeError(err, 'list') } };
+  }
+}
+
 export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
   // The panel mounts fresh on every open, so it always starts in the loading state.
   return isOpen ? <DraftsPanel {...panelProps} /> : null;
@@ -57,6 +75,10 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
   // to show more, or null when everything is shown.
   const [drafts, setDrafts] = useState<PoemSummary[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
+  // Why there is nothing to show, when it is not that the collection is empty: nobody is signed in, or it could not be read.
+  const [blocked, setBlocked] = useState<{ kind: 'sign-in' } | { kind: 'error'; message: string } | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  const auth = useAuth();
   const [loadingMore, setLoadingMore] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PoemSummary | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -93,19 +115,22 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
     setNext(page.next);
   };
 
+  // Shows the start of the collection; nobody signed in, or a collection that cannot be read, is shown as that and not as an empty one.
+  const showFirstPage = useCallback((first: FirstPage) => {
+    setBlocked(first.blocked);
+    setDrafts(first.items);
+    setNext(first.next);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    loadCollection(library)
-      .catch(() => ({ items: [] as PoemSummary[], next: null }))
-      .then(page => {
-        if (cancelled) return;
-        setDrafts(page.items);
-        setNext(page.next);
-      });
+    readFirstPage(library).then(first => {
+      if (!cancelled) showFirstPage(first);
+    });
     return () => {
       cancelled = true;
     };
-  }, [library]);
+  }, [library, showFirstPage]);
 
   const showMore = async () => {
     if (next === null || loadingMore) return;
@@ -368,6 +393,18 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
             <div role="status" className="text-center py-12 text-xs text-[#605C53]">
               Loading your collection...
             </div>
+          ) : blocked?.kind === 'sign-in' ? (
+            <div className="rounded-lg border border-[#E0D4BE]/60 bg-[#F3EBDD]/60 px-4 py-14 text-center text-xs text-[#605C53]">
+              <p className="mb-1 font-serif text-base text-[#24231F]">Sign in to see your collection</p>
+              <p className="mb-4">Your saved poems are kept in your account.</p>
+              <button type="button" onClick={() => setSigningIn(true)} className={FOOTER_ACTION} data-sign-in>
+                Sign in
+              </button>
+            </div>
+          ) : blocked?.kind === 'error' ? (
+            <div role="alert" className="rounded-lg border border-[#E0D4BE]/60 bg-[#F3EBDD]/60 px-4 py-14 text-center text-xs text-[#6C3438]">
+              {blocked.message}
+            </div>
           ) : drafts.length === 0 ? (
             <div className="text-center py-16 px-4 bg-[#F3EBDD]/60 rounded-lg border border-[#E0D4BE]/60 text-xs text-[#605C53]">
               <p className="font-serif text-base text-[#24231F] mb-1">No drafts yet</p>
@@ -493,7 +530,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
 
         {/* Footer */}
         <div className="pt-4 border-t border-[#E0D4BE] text-center">
-          <div className="mb-2 flex flex-wrap justify-center gap-2">
+          <div className={`mb-2 flex-wrap justify-center gap-2 ${blocked?.kind === 'sign-in' ? 'hidden' : 'flex'}`}>
             <button type="button" onClick={backUp} className={FOOTER_ACTION}>
               Back up all poems
             </button>
@@ -522,6 +559,10 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
           </button>
         </div>
       </div>
+
+      {signingIn && auth.manager && (
+        <SignInDialog manager={auth.manager} reason="Sign in to see your saved poems." onClose={() => setSigningIn(false)} onSignedIn={() => void readFirstPage(library).then(showFirstPage)} />
+      )}
 
       {pendingRestore && (
         <ConfirmDialog

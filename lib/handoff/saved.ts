@@ -13,6 +13,7 @@ import { FOUND_HANDOFF_INVALID_MESSAGE } from './found';
 export const SAVED_PREFIX = 'open=';
 
 export const SAVED_MISSING_MESSAGE = 'That poem is no longer in your collection.';
+export const SAVED_SIGN_IN_MESSAGE = 'Sign in to open your saved poems.';
 export const SAVED_UNREADABLE_MESSAGE = 'Your collection could not be read. Please try again.';
 
 /** The ids this app makes use letters, digits and a few separators; nothing else is accepted. */

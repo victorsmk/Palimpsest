@@ -131,6 +131,51 @@ describe('what is sent', () => {
   });
 });
 
+describe('importing many poems', () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => poem(`p${i}`));
+  const batchRepo = (importBatch: { bytes: number; poems: number }, answer: (sent: Sent) => Response = () => Response.json({ added: 1 }, { status: 201 })) => {
+    const sent: Sent[] = [];
+    const fetcher = vi.fn(async (url: string, init: RequestInit) => {
+      const record: Sent = { url, method: init.method ?? 'GET', headers: init.headers as Record<string, string>, body: JSON.parse(init.body as string), cache: init.cache };
+      sent.push(record);
+      return answer(record);
+    });
+    return { sent, repo: new HttpPoemRepository({ session: { getToken: async () => 't' }, fetch: fetcher as unknown as typeof fetch, importBatch }) };
+  };
+  const idsIn = (sent: Sent[]) => sent.map(s => (s.body as { poems: { id: string }[] }).poems.map(p => p.id));
+
+  it('sends a short list in one request', async () => {
+    const { repo, sent } = setup(() => Response.json({ added: 3 }, { status: 201 }));
+    await repo.importMany(many(3));
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ url: '/api/collection/import', method: 'POST' });
+    expect((sent[0].body as { poems: unknown[] }).poems).toHaveLength(3);
+  });
+
+  it('splits a long list by number, in order, none left out and none twice', async () => {
+    const { repo, sent } = batchRepo({ bytes: 10_000_000, poems: 3 });
+    await repo.importMany(many(7));
+    expect(idsIn(sent)).toEqual([['p0', 'p1', 'p2'], ['p3', 'p4', 'p5'], ['p6']]);
+  });
+
+  it('splits a long list by size, and keeps a poem larger than a whole request in a request of its own', async () => {
+    const size = JSON.stringify(poem('p0')).length;
+    const { repo, sent } = batchRepo({ bytes: size * 2 + 10, poems: 100 });
+    await repo.importMany(many(5));
+    expect(idsIn(sent)).toEqual([['p0', 'p1'], ['p2', 'p3'], ['p4']]);
+    const huge = batchRepo({ bytes: 10, poems: 100 });
+    await huge.repo.importMany(many(2));
+    expect(idsIn(huge.sent)).toEqual([['p0'], ['p1']]);
+  });
+
+  it('stops at the first request that fails, and says so: the poems before it stay added, and doing it again finishes it', async () => {
+    let n = 0;
+    const { repo, sent } = batchRepo({ bytes: 10_000_000, poems: 2 }, () => (++n === 2 ? error(503, 'unavailable') : Response.json({ added: 2 }, { status: 201 })));
+    await expect(repo.importMany(many(6))).rejects.toBeInstanceOf(UnavailableError);
+    expect(idsIn(sent)).toEqual([['p0', 'p1'], ['p2', 'p3']]); // the third request was never made
+  });
+});
+
 describe('what the answers mean', () => {
   it('401: not signed in', async () => {
     await expect(setup(() => error(401, 'unauthorized')).repo.count()).rejects.toBeInstanceOf(UnauthorizedError);

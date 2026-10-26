@@ -185,8 +185,37 @@ poem model to change (step 3), which is where the real backend work starts.
      passed on to be raised to the smallest page. Next's dynamic `:id` arrives decoded (checked on the real
      server). **Not verified:** a real network, real CORS-free same-origin deployment, and the browser with the
      `server` kind (no sign-in exists yet, so every screen would say "You need to sign in"; that is 6d).
-   - **6d:** sign-in dialog (email code), signed-out behaviour, bringing local poems across, account deletion,
-     the wording changes. Google sign-in is in ROADMAP.md.
+   - **6d, done:** sign-in, the signed-out behaviour, bringing local poems across, account deletion, the
+     wording. Details:
+     - *Sign-in layer* (`lib/auth/`): an `AuthClient` (send a code, sign in with it, session, sign out) with a
+       Supabase implementation (`signInWithOtp` / `verifyOtp` of type `email`, session kept and renewed by
+       supabase-js, loaded only when used) and a made-up one for development and tests (any address, the
+       code 123456, the token the server's test sign-in accepts; refused in a production build). An
+       `AuthManager` holds the state (loading, signed out, signed in), waits for the service before it
+       hands out a token, checks addresses and codes before the service is asked, and maps errors to four
+       plain ones (bad address, wrong or expired code, too many tries, unavailable). A page sets
+       `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (public by design).
+     - *Screens:* "Sign in" / "Account" next to My Collection on every page (nothing is shown when poems are
+       kept in the browser). The sign-in dialog is a code, not a link, so the page, and a poem in the Studio,
+       are never left. A visitor who presses Save is asked to sign in first and the save form opens after;
+       My Collection says "Sign in to see your collection" instead of showing an empty list, and a list that
+       cannot be read says so; a `#open=` link says "Sign in to open your saved poems."; the save form says
+       "Drafts are saved to your account." Account dialog: who is signed in, sign out, delete the account.
+     - *Bringing poems across:* on a sign-in, if this browser holds poems and the person has not answered
+       before, one dialog offers to add them (it is a restore: it only adds, repeats add nothing, the copies
+       here are never touched; closing it counts as "not now" and it is not asked again; the account dialog
+       keeps the offer). Many poems go in several requests (about 3 MB or 400 poems each); a failure leaves the
+       earlier requests' poems added, and doing it again finishes the job.
+     - *Account deletion:* `DELETE /api/account` removes the user's poems first, then the Supabase user with
+       the secret key (`SUPABASE_SERVICE_ROLE_KEY`, server only, in `.env.example`). If the key is missing,
+       or the user cannot be removed, nothing is deleted at all in the first case, and in the second the poems
+       are already gone and trying again finishes it. A user Supabase no longer has counts as deleted.
+     **Tested:** 56 unit tests of the sign-in layer (with a stand-in for Supabase's client), the account
+     deletion in the API tests, and `e2e-server/` (26 browser tests, `npm run test:e2e:server`) in which the
+     real browser, screens and API handlers run over a real SQL database in the test process with the
+     made-up sign-in. **Not verified:** the real Supabase email code (it needs the email template changed to
+     show the code: see 6e), Supabase's real error replies (mapped from its documented ones), the
+     deletion call to Supabase's admin API, and anything over a real network.
    - **6e:** deployment guide and a manual checklist for the real Supabase and Vercel setup.
 7. **Named collections**, on the same repository pattern (`CollectionRepository` already exists as a type).
 
@@ -220,19 +249,22 @@ a presentation. Sources: [Supabase pricing guide](https://www.jetadmin.io/blog/s
 [Neon vs Supabase](https://agentdeals.dev/neon-vs-supabase),
 [Vercel free tier limits](https://deploywise.dev/blog/vercel-free-tier-limits-2026).
 
-## Open decisions
+## Decisions
 
-- Stack: Vercel + Supabase, or something else free. Whether the Next.js app hosts the API (route
-  handlers) or a separate service does.
-- Sign-in method (email link, a school or Google account, anonymous accounts).
-- Poem model version 2 details: id format (server-assigned UUID), revision semantics, when the local
-  migration runs.
-- Public versus private: shared links currently carry the title; a "published poem" page is a separate
-  idea.
-- Whether signed-out visitors can keep a temporary local draft before signing in.
+Made (2026-10-27): Vercel for hosting and Supabase for Postgres and sign-in; our own API routes (not the browser
+talking to Supabase); sign-in by an email one-time code, Google later (ROADMAP.md); account deletion included;
+the user creates the Supabase and Vercel accounts and keeps the keys in environment settings.
+
+Still open:
+
+- Public versus private: shared links currently carry the title; a "published poem" page is a separate idea.
+- Whether signed-out visitors can keep a temporary local draft before signing in (today the poem stays on the
+  page, and saving asks to sign in).
+- Rate limiting in the API (the error exists; nothing sends it).
+- A book picker and server-side search, when there are many books.
 
 ## Configuration
 
-`NEXT_PUBLIC_DATA_BACKEND` chooses where data lives. Unset means `browser`, the only backend built so
-far. Any other value stops the app at start-up with a message. A server backend would be a new entry in
-`lib/services/container.ts` with a repository behind it.
+`NEXT_PUBLIC_DATA_BACKEND` chooses where poems live: unset or `browser` is this browser's storage (no accounts,
+nothing to sign in to), `server` is the API and an account. Any other value stops the app at start-up with a
+message. It is read when the app is built. All the settings, with what each is for, are in `.env.example`.

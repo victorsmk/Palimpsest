@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { Passage } from '@/lib/models';
 import { AssistBody } from '@/components/AssistBody';
+import { AccountControl } from '@/components/AccountControl';
 import { CollectionForPage } from '@/components/CollectionLink';
 import { useAssistedPoems } from '@/components/useAssistedPoems';
 import { discoverHash, readDiscoverPassage } from '@/lib/handoff';
@@ -104,6 +105,7 @@ function AssistView({ library, passage, chosenId, error, onChoose }: ViewProps) 
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <CollectionForPage library={library} />
+          <AccountControl />
           <div role="group" aria-label="Passage" className="flex flex-wrap gap-2">
             {summaries.map(p => {
               const isSelected = p.id === chosenId;

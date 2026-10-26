@@ -22,6 +22,7 @@ export function inProcessFetch(api: PoemsApi): typeof fetch {
       if (method === 'PUT') return api.update(request, id);
       if (method === 'DELETE') return api.remove(request, id);
     }
+    if (pathname === '/api/account' && method === 'DELETE') return api.deleteAccount(request);
     if (pathname === '/api/collection/count' && method === 'GET') return api.count(request);
     if (pathname === '/api/collection/lookup' && method === 'POST') return api.lookup(request);
     if (pathname === '/api/collection/import' && method === 'POST') return api.importPoems(request);

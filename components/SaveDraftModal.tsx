@@ -3,6 +3,7 @@
 import React, { useId, useState } from 'react';
 import { LIMITS } from '@/lib/models';
 import { describeError } from '@/lib/errors/describe';
+import { backendKind } from '@/lib/services';
 import { useDialog } from './useDialog';
 
 interface SaveDraftModalProps {
@@ -119,7 +120,7 @@ function SaveDraftForm({
               <span className="font-semibold text-[#24231F]">Words Retained:</span> {retainedCount}
             </div>
             <div className="text-[11px] text-[#605C53] pt-1">
-              Drafts are stored locally in your browser storage.
+              {backendKind === 'server' ? 'Drafts are saved to your account.' : 'Drafts are stored locally in your browser storage.'}
             </div>
           </div>
 

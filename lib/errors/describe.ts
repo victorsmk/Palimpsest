@@ -1,7 +1,7 @@
 import { RepositoryError } from '@/lib/models';
 
 /** What the writer was doing when something went wrong. */
-export type Action = 'save' | 'rename' | 'duplicate' | 'delete' | 'backup' | 'restore' | 'open' | 'list';
+export type Action = 'save' | 'rename' | 'duplicate' | 'delete' | 'backup' | 'restore' | 'open' | 'list' | 'bring' | 'account';
 
 const TRY_AGAIN = ' Please try again.';
 
@@ -15,6 +15,8 @@ const UNKNOWN: Record<Action, string> = {
   restore: `The poems could not be added, and your collection has not been changed.${TRY_AGAIN}`,
   open: `Your collection could not be read.${TRY_AGAIN}`,
   list: `Your collection could not be read.${TRY_AGAIN}`,
+  bring: `Could not add your poems to your account.${TRY_AGAIN}`,
+  account: `Could not delete your account.${TRY_AGAIN}`,
 };
 
 /** For these, a poem that is gone is simply not in the collection (the writer chose it from a list or a link). */

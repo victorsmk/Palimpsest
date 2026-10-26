@@ -151,6 +151,29 @@ describe('AuthManager', () => {
     expect(f.calls).toEqual(['signout']);
   });
 
+  describe('signing out when the service fails to say goodbye', () => {
+    it('is signed out all the same if the session is gone from this browser (the account may already be deleted)', async () => {
+      const f = fakeClient(ME);
+      const manager = new AuthManager(Promise.resolve(f.client));
+      await settled();
+      (f.client.signOut as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => {
+        f.set(null);
+        throw new AuthError('unavailable');
+      });
+      await expect(manager.signOut()).resolves.toBeUndefined();
+      expect(manager.getState()).toEqual({ status: 'signed-out' });
+    });
+
+    it('says so, and stays signed in, if the session is still there', async () => {
+      const f = fakeClient(ME);
+      const manager = new AuthManager(Promise.resolve(f.client));
+      await settled();
+      (f.client.signOut as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new AuthError('unavailable'));
+      await expect(manager.signOut()).rejects.toMatchObject({ code: 'unavailable' });
+      expect(manager.getState()).toEqual({ status: 'signed-in', user: ME.user });
+    });
+  });
+
   describe('when there is no sign-in service (not set up)', () => {
     const manager = () => new AuthManager(Promise.reject(new Error('not set up')));
 

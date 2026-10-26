@@ -1,12 +1,6 @@
 import type { PoemRepository } from '@/lib/repositories';
 import {
-  OfflineError,
-  PoemConflictError,
-  PoemExistsError,
   PoemGoneError,
-  PoemLimitError,
-  RateLimitedError,
-  UnauthorizedError,
   UnavailableError,
   parsePoemSummary,
   type Page,
@@ -16,19 +10,15 @@ import {
   type PoemSummary,
 } from '@/lib/models';
 import { parsePoem } from '@/lib/models/poemValidation';
-import type { SessionSource } from '@/lib/auth/session';
+import { ApiClient, type ApiClientOptions } from './ApiClient';
 
-export interface HttpPoemRepositoryOptions {
-  /** Who is signed in; the token is sent with every request. With nobody, nothing is sent at all. */
-  session: SessionSource;
-  /** Where the API is. Empty means this site, which is what the app uses. */
-  baseUrl?: string;
-  /** For tests. */
-  fetch?: typeof fetch;
+export interface HttpPoemRepositoryOptions extends ApiClientOptions {
+  /** How much goes in one request when many poems are imported. For tests; the defaults keep a request well under the server's limits. */
+  importBatch?: { bytes: number; poems: number };
 }
 
-/** The kinds of answer the API gives for a mistake of the client's own: nothing a writer can act on. */
-class BadRequest extends Error {}
+/** A request to import is kept below the 5 MB the server takes (and the few MB a host takes), and a few hundred poems. */
+const DEFAULT_IMPORT_BATCH = { bytes: 3 * 1024 * 1024, poems: 400 };
 
 /** The content of a draft and nothing else, so that a whole poem passed in as one does not send its id, times or revision. */
 function contentOf(draft: PoemDraft): PoemDraft {
@@ -52,82 +42,20 @@ function contentOf(draft: PoemDraft): PoemDraft {
  * offline or unavailable when the server cannot be reached or does not make sense.
  */
 export class HttpPoemRepository implements PoemRepository {
-  private session: SessionSource;
-  private baseUrl: string;
-  private doFetch: typeof fetch;
+  private api: ApiClient;
+  private importBatch: { bytes: number; poems: number };
 
   constructor(options: HttpPoemRepositoryOptions) {
-    this.session = options.session;
-    this.baseUrl = options.baseUrl ?? '';
-    this.doFetch = options.fetch ?? ((input, init) => fetch(input, init));
+    this.api = new ApiClient(options);
+    this.importBatch = options.importBatch ?? DEFAULT_IMPORT_BATCH;
   }
 
-  /** Sends a request as the signed-in user and returns the answer if it was a success; otherwise throws the matching error. */
-  private async send(method: string, path: string, options: { body?: unknown; headers?: Record<string, string> } = {}): Promise<Response> {
-    const token = await this.session.getToken();
-    if (!token) throw new UnauthorizedError();
-
-    const headers: Record<string, string> = { Authorization: `Bearer ${token}`, ...options.headers };
-    let body: string | undefined;
-    if (options.body !== undefined) {
-      body = JSON.stringify(options.body);
-      headers['Content-Type'] = 'application/json';
-    }
-
-    let response: Response;
-    try {
-      response = await this.doFetch(`${this.baseUrl}${path}`, { method, headers, body, cache: 'no-store' });
-    } catch (cause) {
-      // The request never got an answer: there is no connection, or the server is not there.
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new OfflineError({ cause });
-      throw new UnavailableError({ cause });
-    }
-    if (response.ok) return response;
-    throw await this.failure(response);
+  private send(method: string, path: string, options: { body?: unknown; headers?: Record<string, string> } = {}) {
+    return this.api.send(method, path, options);
   }
 
-  /** The error for an answer that says no. */
-  private async failure(response: Response): Promise<Error> {
-    let error: { code?: unknown; message?: unknown; current?: unknown } = {};
-    try {
-      const body = (await response.json()) as { error?: typeof error };
-      if (body && typeof body.error === 'object' && body.error !== null) error = body.error;
-    } catch {
-      /* not our API's answer (a proxy's page, for example): handled by status below */
-    }
-    const message = typeof error.message === 'string' ? error.message : '';
-
-    switch (response.status) {
-      case 401:
-        return new UnauthorizedError();
-      case 404:
-        return new PoemGoneError();
-      case 409: {
-        if (error.code === 'exists') return new PoemExistsError();
-        const current = parsePoem(error.current);
-        return current ? new PoemConflictError(current) : new UnavailableError({ cause: new Error('A conflict came without the poem') });
-      }
-      case 422:
-        return new PoemLimitError(message || 'That is over a limit.');
-      case 429:
-        return new RateLimitedError();
-      case 400:
-      case 413:
-      case 415:
-      case 428:
-        return new BadRequest(`The server could not use that request (${response.status}): ${message}`);
-      default:
-        return new UnavailableError({ cause: new Error(`The server answered ${response.status}`) });
-    }
-  }
-
-  /** The body of a success as JSON; an answer that is not JSON (or is empty) is the server failing, not the writer's doing. */
-  private async read(response: Response): Promise<unknown> {
-    try {
-      return await response.json();
-    } catch (cause) {
-      throw new UnavailableError({ cause });
-    }
+  private read(response: Response) {
+    return this.api.read(response);
   }
 
   private poem(raw: unknown): Poem {
@@ -167,8 +95,21 @@ export class HttpPoemRepository implements PoemRepository {
   async importMany(poems: Poem[]): Promise<void> {
     // An id is a key in the stored object of some repositories, and "__proto__" is not an ordinary key there.
     if (poems.some(poem => poem.id === '__proto__')) throw new Error('That poem cannot be stored.');
-    if (poems.length === 0) return;
-    await this.send('POST', '/api/collection/import', { body: { poems } });
+    // Many poems go in several requests. Each request is all or none; the poems already added stay added
+    // if a later request fails, and since an import only ever adds, doing it again finishes the job.
+    let batch: Poem[] = [];
+    let bytes = 0;
+    for (const poem of poems) {
+      const size = JSON.stringify(poem).length;
+      if (batch.length > 0 && (batch.length >= this.importBatch.poems || bytes + size > this.importBatch.bytes)) {
+        await this.send('POST', '/api/collection/import', { body: { poems: batch } });
+        batch = [];
+        bytes = 0;
+      }
+      batch.push(poem);
+      bytes += size;
+    }
+    if (batch.length > 0) await this.send('POST', '/api/collection/import', { body: { poems: batch } });
   }
 
   async get(id: string): Promise<Poem | null> {

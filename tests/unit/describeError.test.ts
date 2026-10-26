@@ -16,7 +16,7 @@ import {
 import { describeError, POEM_MISSING_MESSAGE, type Action } from '@/lib/errors/describe';
 
 const aPoem = { id: 'x' } as Poem;
-const ACTIONS: Action[] = ['save', 'rename', 'duplicate', 'delete', 'backup', 'restore', 'open', 'list'];
+const ACTIONS: Action[] = ['save', 'rename', 'duplicate', 'delete', 'backup', 'restore', 'open', 'list', 'bring', 'account'];
 
 describe('the errors a repository reports', () => {
   it('are all RepositoryErrors with their own code, and say whether trying again could help', () => {
@@ -131,7 +131,7 @@ describe('describeError', () => {
     const odd = new Error('TypeError: x is not a function at foo.js:12');
     const said = ACTIONS.map(action => describeError(odd, action));
     for (const text of said) expect(text).not.toMatch(/TypeError|foo\.js/);
-    expect(said).toEqual([
+    expect(said.slice(0, 8)).toEqual([
       'Could not save the draft.',
       'Could not rename this poem. Please try again.',
       'Could not duplicate this poem. Please try again.',
@@ -141,6 +141,8 @@ describe('describeError', () => {
       'Your collection could not be read. Please try again.',
       'Your collection could not be read. Please try again.',
     ]);
+    expect(describeError(odd, 'bring')).toBe('Could not add your poems to your account. Please try again.');
+    expect(describeError(odd, 'account')).toBe('Could not delete your account. Please try again.');
     expect(describeError('text', 'save')).toBe('Could not save the draft.');
     expect(describeError(undefined, 'delete')).toBe('This poem could not be deleted. Please try again.');
   });

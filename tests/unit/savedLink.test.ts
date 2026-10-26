@@ -3,13 +3,14 @@ import { describe, it, expect } from 'vitest';
 import {
   FOUND_HANDOFF_INVALID_MESSAGE,
   SAVED_MISSING_MESSAGE,
+  SAVED_SIGN_IN_MESSAGE,
   SAVED_UNREADABLE_MESSAGE,
   readOpenRequest,
   savedPoemHref,
 } from '@/lib/handoff';
 import { openSavedPoem } from '@/lib/poems/openSaved';
 import { bundledPassages } from '@/lib/library/bundled';
-import type { Poem } from '@/lib/models';
+import { UnauthorizedError, type Poem } from '@/lib/models';
 
 describe('a link to one of your saved poems', () => {
   it('is the Studio with the poem\'s id after "#open="', () => {
@@ -93,6 +94,11 @@ describe('opening a saved poem', () => {
   it('refuses a poem that no longer matches its passage, and repairs nothing', async () => {
     const result = await openSavedPoem('a', PassageLibrary.of(bundledPassages), collectionOf(poem({ retainedTokenIds: ['walden-woods-token-9999'], lineBreaks: [] })));
     expect(result).toEqual({ ok: false, message: '"Quiet Woods" no longer matches the current text of its passage, so it cannot be opened safely.' });
+  });
+
+  it('asks a visitor to sign in when the collection is the account’s and nobody is signed in', async () => {
+    const signedOut = { getPoem: async () => { throw new UnauthorizedError(); } };
+    expect(await openSavedPoem('a', PassageLibrary.of(bundledPassages), signedOut)).toEqual({ ok: false, message: SAVED_SIGN_IN_MESSAGE });
   });
 
   it('says so, and does not throw, when the collection cannot be read', async () => {

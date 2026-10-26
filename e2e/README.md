@@ -101,3 +101,15 @@ where Firefox starts there.
   the marked source stretch, "Show more", the passage in the address, opening a poem in the Studio with
   exactly its words, links to and from the other pages, title, skip link, keyboard, headings, 24px targets,
   contrast of the struck-through words and no sideways scroll on a phone.
+
+## The server backend (`e2e-server/`)
+
+The app with its poems on the server and the made-up sign-in is tested separately, by `playwright.server.config.ts`
+(`npm run test:e2e:server`, Chromium only), against a development server started with
+`NEXT_PUBLIC_DATA_BACKEND=server` and `NEXT_PUBLIC_TEST_AUTH=1` (the made-up sign-in is refused in a production
+build, which is what the main suite tests). `/api` is answered inside the test process by the real API handlers
+over a real SQL database (PGlite), a fresh one for every test; a test can make the server answer with a status or
+vanish (`server.answerWith`, `server.offline`). `account.spec.ts`: signing in with a code (every error), saving
+needing an account, My Collection signed out and in, each account's own poems, a link to a saved poem, backup
+and restore, a server that is down or a sign-in that has run out, two tabs, bringing the poems of the browser
+across (offered, added, "not now", twice, a failure), and deleting the account.

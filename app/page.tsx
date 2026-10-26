@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AccountControl } from '@/components/AccountControl';
 import { CollectionLink } from '@/components/CollectionLink';
 
 export default function Home() {
@@ -28,6 +29,7 @@ export default function Home() {
             Assisted poems
           </Link>
           <CollectionLink />
+          <AccountControl />
           <Link
             href="/studio"
             className="px-4 py-2 bg-[#24231F] text-[#F3EBDD] rounded text-xs font-medium hover:bg-[#3D3A33] transition-colors shadow-sm"

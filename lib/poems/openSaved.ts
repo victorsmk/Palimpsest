@@ -1,7 +1,7 @@
-import type { Passage, Poem } from '@/lib/models';
+import { UnauthorizedError, type Passage, type Poem } from '@/lib/models';
 import { reopenPoem, type EditorSnapshot } from '@/lib/editor';
 import { PASSAGE_UNAVAILABLE_MESSAGE, type PassageLibrary } from '@/lib/library/passageLibrary';
-import { SAVED_MISSING_MESSAGE, SAVED_UNREADABLE_MESSAGE } from '@/lib/handoff';
+import { SAVED_MISSING_MESSAGE, SAVED_SIGN_IN_MESSAGE, SAVED_UNREADABLE_MESSAGE } from '@/lib/handoff';
 
 export type OpenedSavedPoem =
   | { ok: true; poem: Poem; passage: Passage; snapshot: EditorSnapshot }
@@ -20,7 +20,8 @@ export async function openSavedPoem(
   let poem: Poem | null;
   try {
     poem = await collection.getPoem(id);
-  } catch {
+  } catch (error) {
+    if (error instanceof UnauthorizedError) return { ok: false, message: SAVED_SIGN_IN_MESSAGE };
     return { ok: false, message: SAVED_UNREADABLE_MESSAGE };
   }
   if (!poem) return { ok: false, message: SAVED_MISSING_MESSAGE };

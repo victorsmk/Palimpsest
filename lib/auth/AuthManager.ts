@@ -77,7 +77,16 @@ export class AuthManager {
 
   async signOut(): Promise<void> {
     const client = await this.client();
-    await client.signOut();
+    try {
+      await client.signOut();
+    } catch (error) {
+      // The service may fail to say goodbye (offline, or the account is already gone). If the session
+      // is gone from this browser all the same, the writer is signed out; if not, they are told.
+      const still = await client.getSession().catch(() => null);
+      this.set(still);
+      if (still) throw error;
+      return;
+    }
     this.set(null);
   }
 }

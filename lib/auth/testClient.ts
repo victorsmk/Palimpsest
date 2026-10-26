@@ -7,6 +7,11 @@ export const TEST_CODE = '123456';
 const KEY = 'palimpsest:test-session';
 const NAMESPACE = '2d7f6c3a-91b4-4e55-8a0c-6f1e3b9d4c21';
 
+/** The user the made-up sign-in makes of an address (the same every time, whatever its case). */
+export function testUserId(email: string): string {
+  return uuidV5(NAMESPACE, email.trim().toLowerCase());
+}
+
 interface Storage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -43,7 +48,7 @@ export function createTestAuthClient(storage: Storage = window.localStorage): Au
     async sendCode() {},
     async verifyCode(email, code) {
       if (code !== TEST_CODE) throw new AuthError('wrong-code');
-      const id = uuidV5(NAMESPACE, email.trim().toLowerCase());
+      const id = testUserId(email);
       storage.setItem(KEY, JSON.stringify({ token: `test-user:${id}`, user: { id, email: email.trim() } } satisfies AuthSession));
       tell();
     },

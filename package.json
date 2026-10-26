@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:server": "playwright test -c playwright.server.config.ts --project=chromium"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

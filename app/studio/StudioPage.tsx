@@ -11,7 +11,10 @@ import { BookText } from '@/components/BookText';
 import { ViewToggle, type StudioView } from '@/components/ViewToggle';
 import { ExtractedPoem } from '@/components/ExtractedPoem';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
+import { AccountControl } from '@/components/AccountControl';
 import { MyCollectionButton } from '@/components/MyCollectionButton';
+import { SignInDialog } from '@/components/SignInDialog';
+import { useAuth } from '@/components/useAuth';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { usePageDna } from '@/components/usePageDna';
 import { PageDnaStrip } from '@/components/PageDnaStrip';
@@ -150,6 +153,9 @@ function Studio({ library, opened }: { library: PassageLibrary; opened: OpenedSa
   // has been changed somewhere else since.
   const [currentRevision, setCurrentRevision] = useState<number | undefined>(() => (opened?.ok ? opened.poem.revision : undefined));
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
+  // Saving needs an account when the poems are kept on the server: ask to sign in first, with the poem left as it is.
+  const auth = useAuth();
+  const [signInToSave, setSignInToSave] = useState(false);
   const [view, setView] = useState<StudioView>('page');
   const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
@@ -517,6 +523,7 @@ function Studio({ library, opened }: { library: PassageLibrary; opened: OpenedSa
         {/* Right Header Navigation & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <MyCollectionButton library={library} onOpenPoem={handleLoadPoem} onRenamed={handleRenamedElsewhere} />
+          <AccountControl />
 
           {/* Passage Selector Tabs */}
           <div className="flex flex-wrap gap-2">
@@ -707,7 +714,7 @@ function Studio({ library, opened }: { library: PassageLibrary; opened: OpenedSa
             {/* Save & Reset Actions */}
             <div className="space-y-2 pt-1">
               <button
-                onClick={() => setIsSaveModalOpen(true)}
+                onClick={() => (auth.enabled && auth.state.status === 'signed-out' ? setSignInToSave(true) : setIsSaveModalOpen(true))}
                 className="w-full py-2 bg-[#6C3438] hover:bg-[#57292D] text-[#F3EBDD] rounded text-xs font-medium transition-colors shadow-sm flex items-center justify-center gap-1.5"
               >
                 <span aria-hidden="true">💾</span> Save Draft to Collection
@@ -787,6 +794,15 @@ function Studio({ library, opened }: { library: PassageLibrary; opened: OpenedSa
       </main>
 
       {/* Save Draft Modal */}
+      {signInToSave && auth.manager && (
+        <SignInDialog
+          manager={auth.manager}
+          reason="Sign in to save your poem. What is on the page stays just as it is."
+          onClose={() => setSignInToSave(false)}
+          onSignedIn={() => setIsSaveModalOpen(true)}
+        />
+      )}
+
       <SaveDraftModal
         isOpen={isSaveModalOpen}
         initialTitle={poemTitle}

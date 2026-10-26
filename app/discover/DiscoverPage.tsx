@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { Passage } from '@/lib/models';
 import { DiscoverBody } from '@/components/DiscoverBody';
+import { AccountControl } from '@/components/AccountControl';
 import { CollectionForPage } from '@/components/CollectionLink';
 import { useFoundAnalysis } from '@/components/useFoundAnalysis';
 import { discoverHash, readDiscoverPassage } from '@/lib/handoff';
@@ -103,6 +104,7 @@ function DiscoverView({ library, passage, chosenId, error, onChoose }: ViewProps
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <CollectionForPage library={library} />
+          <AccountControl />
           <div role="group" aria-label="Passage" className="flex flex-wrap gap-2">
             {summaries.map(p => {
               const isSelected = p.id === chosenId;

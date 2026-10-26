@@ -36,6 +36,7 @@ export { discoverHash, discoverHref, readDiscoverPassage } from './discover';
 export {
   SAVED_MISSING_MESSAGE,
   SAVED_PREFIX,
+  SAVED_SIGN_IN_MESSAGE,
   SAVED_UNREADABLE_MESSAGE,
   readOpenRequest,
   savedPoemHref,
