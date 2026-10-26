@@ -30,7 +30,7 @@ interface Dated {
   updatedAt: string;
 }
 
-const timeOf = (item: Dated) => Date.parse(item.updatedAt) || 0;
+const timeOf = (item: { updatedAt: string }) => Date.parse(item.updatedAt) || 0;
 
 /** The order poems are listed in: the most recently changed first, and by id among those changed at the same moment. */
 export function poemOrder(a: Dated, b: Dated): number {
@@ -40,6 +40,19 @@ export function poemOrder(a: Dated, b: Dated): number {
 /** Where a page of poems ended: the cursor to ask for the page after it. */
 export function poemCursor(item: Dated): string {
   return `${item.updatedAt}|${item.id}`;
+}
+
+/** The position a poem cursor names, or null if it is not one (so a stale or made-up cursor ends a walk). */
+export function parsePoemCursor(cursor: string): { updatedAt: string; id: string } | null {
+  const bar = cursor.indexOf('|');
+  if (bar < 0) return null;
+  const position = { updatedAt: cursor.slice(0, bar), id: cursor.slice(bar + 1) };
+  return Number.isNaN(Date.parse(position.updatedAt)) || position.id === '' ? null : position;
+}
+
+/** The moment a poem was last changed, as a number to order by. Every repository orders by this, then by id. */
+export function updatedMs(poem: { updatedAt: string }): number {
+  return timeOf(poem);
 }
 
 /**
@@ -52,9 +65,8 @@ export function pageOfPoems<T extends Dated>(all: readonly T[], request: PageReq
   const size = pageSize(request);
   let rest = [...all].sort(poemOrder);
   if (request?.after !== undefined) {
-    const bar = request.after.indexOf('|');
-    const position = { updatedAt: request.after.slice(0, bar), id: request.after.slice(bar + 1) };
-    if (bar < 0 || Number.isNaN(Date.parse(position.updatedAt)) || position.id === '') return { items: [], next: null };
+    const position = parsePoemCursor(request.after);
+    if (!position) return { items: [], next: null };
     rest = rest.filter(item => poemOrder(item, position) > 0);
   }
   const items = rest.slice(0, size);

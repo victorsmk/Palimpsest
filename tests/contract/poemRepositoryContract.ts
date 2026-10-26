@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { PoemRepository } from '@/lib/repositories';
-import { LIMITS, PoemConflictError, PoemGoneError, StorageError, type Poem, type PoemDraft } from '@/lib/models';
+import { LIMITS, PoemConflictError, PoemGoneError, RepositoryError, type Poem, type PoemDraft } from '@/lib/models';
 
 /**
  * What every PoemRepository must do, whatever stores the poems behind it. Written once and run
@@ -38,6 +38,9 @@ export const draftOf = (p: Poem): PoemDraft => {
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/** A write that could not be done: the place the poems are kept is full or blocked (storage), or cannot be reached (unavailable). */
+const isWriteFailure = (error: unknown) => error instanceof RepositoryError && (error.code === 'storage' || error.code === 'unavailable');
 
 const byId = (a: Poem, b: Poem) => (a.id < b.id ? -1 : 1);
 
@@ -332,7 +335,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         const { repo, failWrites, allowWrites } = await make();
         await repo.importMany([poem('existing')]);
         failWrites();
-        await expect(repo.importMany([poem('x'), poem('y')])).rejects.toBeInstanceOf(StorageError);
+        await expect(repo.importMany([poem('x'), poem('y')])).rejects.toSatisfy(isWriteFailure);
         allowWrites();
         expect((await all(repo)).map(p => p.id)).toEqual(['existing']);
       });
@@ -360,13 +363,13 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
     });
 
     describe('a failed write', () => {
-      it('is reported as a StorageError by create, update, delete and import, and leaves what was stored as it was', async () => {
+      it('is reported as a storage or unavailable error by create, update, delete and import, and leaves what was stored as it was', async () => {
         const { repo, failWrites, allowWrites } = await make();
         const made = await repo.create(draftOf(poem('a')));
         failWrites();
-        await expect(repo.create(draftOf(poem('b')))).rejects.toBeInstanceOf(StorageError);
-        await expect(repo.update(made.id, draftOf(poem('a', { title: 'Lost' })), 1)).rejects.toBeInstanceOf(StorageError);
-        await expect(repo.delete(made.id)).rejects.toBeInstanceOf(StorageError);
+        await expect(repo.create(draftOf(poem('b')))).rejects.toSatisfy(isWriteFailure);
+        await expect(repo.update(made.id, draftOf(poem('a', { title: 'Lost' })), 1)).rejects.toSatisfy(isWriteFailure);
+        await expect(repo.delete(made.id)).rejects.toSatisfy(isWriteFailure);
         allowWrites();
         expect(await all(repo)).toEqual([made]);
       });

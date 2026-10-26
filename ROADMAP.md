@@ -50,3 +50,10 @@ Gutenberg books. Things to settle: how passages are cut from a whole book, wheth
 on demand instead of bundled with the app (the three passages are bundled today, and the syllable
 dictionary is already 1.5 MB), verifying each text's source and licence as the spec requires, and the
 cost of running the searches on longer or more passages. This goes naturally with the backend item.
+
+## Google sign-in, as well as the email code (raised 2026-10-27)
+
+The first sign-in will be an email one-time code (BACKEND.md, step 6). The user would like Google sign-in
+as well, once the basics work: it also avoids the small free-tier email limit. Things to settle: setting up
+the Google OAuth client (the user's account), the redirect flow (it leaves the page, so unsaved work in the
+Studio must be kept across it), and linking a Google sign-in to an existing email account.

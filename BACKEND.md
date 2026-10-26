@@ -122,8 +122,29 @@ poem model to change (step 3), which is where the real backend work starts.
    - **Not done, and not needed yet:** a book picker (the selector buttons list every summary; fine for a
      handful of books, not for hundreds) and search over a long text on the server or in a worker (a ROADMAP
      item; the search still runs in the page, on the one passage on screen).
-6. **The real backend:** an HTTP poem repository, the API behind it, sign-in, and the "save needs an
-   account" flow.
+6. **The real backend** (decisions made 2026-10-27: Vercel for hosting, Supabase for Postgres and sign-in, our own
+   API routes, email one-time code and later Google, account deletion included; the user creates the accounts and
+   keeps the keys in environment settings).
+   - **6a, done:** `db/schema.sql` (one `poems` table, one row per poem per user, primary key `(user_id, id)`,
+     the words as `jsonb`, the list's summary data kept beside them, the times as the poem wrote them plus a
+     number to order by, an index in list order) and `db/supabase.sql` (the Supabase-only extras: delete a user's
+     poems with their account, and row level security on with no policies so the public keys can reach nothing).
+     `lib/server/PostgresPoemRepository.ts` implements `PoemRepository` for one user over a two-method `Db`
+     (`lib/server/db.ts`); `lib/server/pgDb.ts` is that `Db` over the `pg` driver. Every statement carries the
+     user's id. It applies the 2,000-poem limit itself, in the write's own transaction under a per-user advisory
+     lock. A database failure is an `UnavailableError`. The poem contract suite (58 rules) passes against it on
+     real SQL, run in an in-process Postgres (PGlite) with the real schema, plus its own tests (users cannot reach
+     each other's poems, the limit, exact round trips, atomic imports, failures). **Not verified:** the `pg`
+     adapter against a real Postgres (there is none here; its transaction handling is tested against a stand-in
+     driver only), the advisory lock under real concurrency (PGlite has one connection, so the race test cannot
+     tell it from nothing), and the `supabase.sql` statements on Supabase.
+   - **6b, next:** the API routes (`/api/poems/...`): check the signed-in user on every call, re-apply
+     validation and the limits, map errors to HTTP statuses. It must also refuse text the database cannot hold
+     (a NUL character fails in Postgres today, as a plain `RepositoryError`).
+   - **6c:** `HttpPoemRepository` and the `server` backend kind, run through the contract suite against the routes.
+   - **6d:** sign-in dialog (email code), signed-out behaviour, bringing local poems across, account deletion,
+     the wording changes. Google sign-in is in ROADMAP.md.
+   - **6e:** deployment guide and a manual checklist for the real Supabase and Vercel setup.
 7. **Named collections**, on the same repository pattern (`CollectionRepository` already exists as a type).
 
 ## What "server-first" means for the design
