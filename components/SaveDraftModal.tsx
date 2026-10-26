@@ -2,6 +2,7 @@
 
 import React, { useId, useState } from 'react';
 import { LIMITS } from '@/lib/models';
+import { describeError } from '@/lib/errors/describe';
 import { useDialog } from './useDialog';
 
 interface SaveDraftModalProps {
@@ -42,7 +43,7 @@ function SaveDraftForm({
       await onSave(title, notes);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the draft.');
+      setError(describeError(err, 'save'));
     } finally {
       setIsSaving(false);
     }

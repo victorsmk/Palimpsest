@@ -101,5 +101,17 @@ export interface Collection {
 export { LIMITS } from './limits';
 export { TOKENIZER_VERSION, legacyPoemId, passageVersionOf } from './versions';
 export { fingerprint, newId, uuidV5 } from './uuid';
-export { PoemLimitError, PoemConflictError, PoemGoneError } from './errors';
+export {
+  RepositoryError,
+  PoemLimitError,
+  PoemConflictError,
+  PoemGoneError,
+  StorageError,
+  OfflineError,
+  UnauthorizedError,
+  RateLimitedError,
+  UnavailableError,
+  storageFailureOf,
+} from './errors';
+export type { RepositoryErrorCode, StorageFailure } from './errors';
 export { parsePoem, poemLimitProblem } from './poemValidation';

@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PoemGoneError, passageVersionOf } from '@/lib/models';
+import { describeError } from '@/lib/errors/describe';
 import { useEditor, reopenPoem, createDefaultSnapshot, snapshotsEqual, type EditorSnapshot } from '@/lib/editor';
 import { StyleSelector } from '@/components/StyleSelector';
 import { BookText } from '@/components/BookText';
@@ -326,7 +327,7 @@ function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSaved
         void poemService
           .getPoem(request.id)
           .then(poem => (poem ? handleLoadPoem(poem) : showNotice(SAVED_MISSING_MESSAGE, 'error')))
-          .catch(() => showNotice('Your collection could not be read. Please try again.', 'error'));
+          .catch(err => showNotice(describeError(err, 'open'), 'error'));
         return;
       }
       const next = readHandoff(window.location.hash, passages);

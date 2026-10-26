@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { BrowserBookRepository, BrowserPoemRepository, MemoryStorageAdapter } from '@/lib/repositories';
-import type { Passage, Poem } from '@/lib/models';
+import { StorageError, type Passage, type Poem } from '@/lib/models';
 
 describe('BrowserBookRepository', () => {
   const dummyPassages: Passage[] = [
@@ -222,7 +222,7 @@ describe('BrowserPoemRepository', () => {
         removeItem: () => {},
       };
       const repo = new BrowserPoemRepository(failing);
-      await expect(repo.importMany([dummyPoem])).rejects.toThrow(/browser storage/);
+      await expect(repo.importMany([dummyPoem])).rejects.toBeInstanceOf(StorageError);
     });
   });
 });

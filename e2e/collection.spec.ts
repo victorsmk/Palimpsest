@@ -191,7 +191,7 @@ test.describe('deleting a poem from My Collection', () => {
     });
     await confirm(page, 'Doomed').getByRole('button', { name: 'Delete poem' }).click();
 
-    await expect(confirm(page, 'Doomed').getByRole('alert')).toHaveText('This poem could not be deleted. Please try again.');
+    await expect(confirm(page, 'Doomed').getByRole('alert')).toHaveText('Your browser has no room left to store this. Delete some poems, or back up and clear space, then try again.');
     await expect(card(page, 'Doomed')).toBeVisible();
   });
 });

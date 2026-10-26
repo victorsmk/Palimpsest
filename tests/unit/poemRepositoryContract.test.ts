@@ -1,3 +1,4 @@
+import { StorageError } from '@/lib/models';
 import { BrowserPoemRepository, MemoryPoemRepository, MemoryStorageAdapter } from '@/lib/repositories';
 import { runPoemRepositoryContract } from '../contract/poemRepositoryContract';
 
@@ -12,7 +13,7 @@ runPoemRepositoryContract('MemoryPoemRepository', () => {
     delete: repo.delete.bind(repo),
   };
   const fail = async () => {
-    throw new Error('the store is full');
+    throw new StorageError('full');
   };
   return {
     repo,

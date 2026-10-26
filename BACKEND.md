@@ -41,7 +41,7 @@ poem model to change (step 3), which is where the real backend work starts.
 | 5 | No single place chose the implementation; the poem service silently defaulted to the browser one | **Done**: `lib/services/container.ts`, setting `NEXT_PUBLIC_DATA_BACKEND` |
 | 6 | Limits were uneven (titles capped only on rename and copy) | **Done**: `lib/models/limits.ts`, one set, enforced when writing |
 | 7 | Listing returns everything; passages come with their whole text | **Open** (step 5, with many books) |
-| 8 | Errors are generic ("browser storage full") | **Started**: `PoemLimitError`; typed errors still open (step 4) |
+| 8 | Errors are generic ("browser storage full") | **Done** (step 4): every repository failure is a typed `RepositoryError`, and `describeError` is the one place that decides what the writer is told |
 | 9 | Named collections are defined as types only | **Open**: build once, before or with the backend |
 | 10 | No sign-in, no "not signed in" or offline state | **Open** (the backend work itself) |
 | 11 | Tests only covered the browser implementation | **Done**: one contract suite, run against every repository |
@@ -87,9 +87,14 @@ poem model to change (step 3), which is where the real backend work starts.
      last saved and says so on every save; renaming from My Collection says the revision its list showed.
      The messages are plain text in the save form and in the collection panel. A server repository
      keeps the same rules (the contract suite checks them), with `If-Match` carrying the revision.
-4. **Typed repository errors:** limit, conflict and gone exist (`PoemLimitError`, `PoemConflictError`,
-   `PoemGoneError`); still to come: not signed in, offline, rate-limited, and a typed storage failure in
-   place of the generic one; and the matching screen messages.
+4. ~~**Typed repository errors.**~~ **Done.** `RepositoryError` (in `lib/models/errors.ts`) has a `code` and a
+   `retryable` flag: `limit`, `conflict`, `gone`, `storage` (full, blocked or other: the browser repository tells
+   them apart from the error the browser threw), and, defined for the backend but unreachable in the browser
+   version, `offline`, `unauthorized`, `rate-limited` and `unavailable`. `lib/errors/describe.ts` is the one place
+   that turns an error into the words a screen shows ("Please try again." only where trying again could help;
+   anything unknown gets a plain sentence about what was being done). The contract suite requires a failed write to
+   be a `StorageError`, so a server repository has to map its own failures too. Not yet done: the screens do not
+   have a "sign in" or "offline" state to show; that comes with the backend.
 5. **Paging and on-demand passages** (when there are many books): summary lists, passages fetched when
    opened, search on the server or in a worker for long texts.
 6. **The real backend:** an HTTP poem repository, the API behind it, sign-in, and the "save needs an

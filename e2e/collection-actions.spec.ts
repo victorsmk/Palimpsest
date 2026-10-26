@@ -92,7 +92,7 @@ test.describe('renaming a poem in My Collection', () => {
     const field = dialog(page).getByLabel('New title for “Old Pond”');
     await field.fill('Evening Pond');
     await dialog(page).getByRole('button', { name: 'Save name' }).click();
-    await expect(dialog(page).getByRole('alert')).toHaveText('Could not rename this poem. Please try again.');
+    await expect(dialog(page).getByRole('alert')).toHaveText('Your browser has no room left to store this. Delete some poems, or back up and clear space, then try again.');
     await expect(field).toHaveValue('Evening Pond');
   });
 
@@ -195,7 +195,7 @@ test.describe('duplicating a poem in My Collection', () => {
       };
     });
     await page.getByRole('button', { name: 'Duplicate draft Old Pond' }).click();
-    await expect(dialog(page).getByRole('alert')).toHaveText('Could not duplicate this poem. Please try again.');
+    await expect(dialog(page).getByRole('alert')).toHaveText('Your browser has no room left to store this. Delete some poems, or back up and clear space, then try again.');
     expect(await titles(page)).toEqual(['Quiet Woods', 'Old Pond']);
   });
 });

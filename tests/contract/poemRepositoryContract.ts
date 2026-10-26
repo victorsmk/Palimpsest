@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { PoemRepository } from '@/lib/repositories';
-import { PoemConflictError, PoemGoneError, type Poem, type PoemDraft } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, StorageError, type Poem, type PoemDraft } from '@/lib/models';
 
 /**
  * What every PoemRepository must do, whatever stores the poems behind it. Written once and run
@@ -320,7 +320,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         const { repo, failWrites, allowWrites } = await make();
         await repo.importMany([poem('existing')]);
         failWrites();
-        await expect(repo.importMany([poem('x'), poem('y')])).rejects.toThrow();
+        await expect(repo.importMany([poem('x'), poem('y')])).rejects.toBeInstanceOf(StorageError);
         allowWrites();
         expect((await repo.list()).map(p => p.id)).toEqual(['existing']);
       });
@@ -348,13 +348,13 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
     });
 
     describe('a failed write', () => {
-      it('is reported by create, update and delete, and leaves what was stored as it was', async () => {
+      it('is reported as a StorageError by create, update, delete and import, and leaves what was stored as it was', async () => {
         const { repo, failWrites, allowWrites } = await make();
         const made = await repo.create(draftOf(poem('a')));
         failWrites();
-        await expect(repo.create(draftOf(poem('b')))).rejects.toThrow();
-        await expect(repo.update(made.id, draftOf(poem('a', { title: 'Lost' })), 1)).rejects.toThrow();
-        await expect(repo.delete(made.id)).rejects.toThrow();
+        await expect(repo.create(draftOf(poem('b')))).rejects.toBeInstanceOf(StorageError);
+        await expect(repo.update(made.id, draftOf(poem('a', { title: 'Lost' })), 1)).rejects.toBeInstanceOf(StorageError);
+        await expect(repo.delete(made.id)).rejects.toBeInstanceOf(StorageError);
         allowWrites();
         expect(await repo.list()).toEqual([made]);
       });

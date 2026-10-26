@@ -1,5 +1,5 @@
 import type { PoemRepository } from '@/lib/repositories';
-import { PoemConflictError, PoemGoneError, type Poem, type PoemDraft } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, StorageError, storageFailureOf, type Poem, type PoemDraft } from '@/lib/models';
 import { parseStoredPoem } from '@/lib/models/poemValidation';
 import { stampNew, stampUpdate } from '@/lib/models/stamp';
 
@@ -86,7 +86,7 @@ export class BrowserPoemRepository implements PoemRepository {
     try {
       this.storage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (cause) {
-      throw new Error('Could not write to browser storage (it may be full or disabled).', { cause });
+      throw new StorageError(storageFailureOf(cause), { cause });
     }
   }
 

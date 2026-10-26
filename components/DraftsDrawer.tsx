@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { PoemConflictError, PoemGoneError, PoemLimitError, type Passage, type Poem } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, type Passage, type Poem } from '@/lib/models';
+import { describeError } from '@/lib/errors/describe';
 import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
 import { downloadTextFile } from '@/lib/export/text';
 import { poemPreview } from '@/lib/poems/preview';
@@ -103,8 +104,8 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
       // The Delete button that opened the question is gone with its poem, so keep the reader's
       // place in the collection instead of dropping focus onto the page.
       focusLater(() => dialogRef.current);
-    } catch {
-      setDeleteError('This poem could not be deleted. Please try again.');
+    } catch (err) {
+      setDeleteError(describeError(err, 'delete'));
     } finally {
       setDeleting(false);
     }
@@ -140,14 +141,14 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
       if (err instanceof PoemConflictError || err instanceof PoemGoneError) {
         // The list on screen is out of date: say so, and show the collection as it is now.
         setRenamingId(null);
-        setNotice({ text: err instanceof PoemGoneError ? 'That poem is no longer in your collection.' : err.message, tone: 'error' });
+        setNotice({ text: describeError(err, 'rename'), tone: 'error' });
         try {
           setDrafts(await poemService.listPoems());
         } catch {
           /* the message above stands */
         }
       } else {
-        setRenameError('Could not rename this poem. Please try again.');
+        setRenameError(describeError(err, 'rename'));
       }
     } finally {
       setRenameBusy(false);
@@ -168,7 +169,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
       }, 0);
     } catch (err) {
       setNotice({
-        text: err instanceof PoemLimitError ? err.message : 'Could not duplicate this poem. Please try again.',
+        text: describeError(err, 'duplicate'),
         tone: 'error',
       });
     } finally {
@@ -188,8 +189,8 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
       }
       downloadTextFile(backup.filename, backup.text, 'application/json');
       setNotice({ text: `Backed up ${backup.count} ${backup.count === 1 ? 'poem' : 'poems'} to ${backup.filename}.`, tone: 'ok' });
-    } catch {
-      setNotice({ text: 'Could not create the backup. Please try again.', tone: 'error' });
+    } catch (err) {
+      setNotice({ text: describeError(err, 'backup'), tone: 'error' });
     }
   };
 
@@ -247,11 +248,7 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
       setNotice({ text: `Added ${added} ${added === 1 ? 'poem' : 'poems'} from the backup.`, tone: 'ok' });
       focusLater(() => restoreButton.current);
     } catch (err) {
-      setRestoreError(
-        err instanceof PoemLimitError
-          ? `${err.message} Your collection has not been changed.`
-          : 'The poems could not be added, and your collection has not been changed. Please try again.'
-      );
+      setRestoreError(describeError(err, 'restore'));
     } finally {
       setRestoring(false);
     }

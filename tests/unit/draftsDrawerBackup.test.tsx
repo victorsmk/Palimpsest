@@ -177,7 +177,7 @@ describe('restoring from My Collection', () => {
     });
     click(button('Add 1 poem'));
     await settle();
-    expect(alertText()).toBe('The poems could not be added, and your collection has not been changed. Please try again.');
+    expect(alertText()).toBe('Your browser has no room left to store this. Delete some poems, or back up and clear space, then try again. Your collection has not been changed.');
     expect(question()).not.toBeNull(); // still open, to try again
     expect(localStorage.getItem(STORAGE_KEY)).toBe(before);
   });

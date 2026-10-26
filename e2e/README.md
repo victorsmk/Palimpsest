@@ -74,6 +74,9 @@ where Firefox starts there.
   file chosen again after the browser forgets everything), the question before restoring, only ever adding,
   keeping your own version of a changed poem, files that are not backups, hostile entries, a full browser,
   keyboard and phone.
+- `storage-errors.spec.ts`: what is said when the browser's storage is full, blocked, or fails for another reason (saving
+  keeps the form open and the words; renaming keeps what was typed; duplicating). The same error is also checked where each
+  action is tested.
 - `conflicts.spec.ts`: two tabs of one browser on one collection. A save from an out-of-date revision is refused with the
   conflict message and changes nothing (the other tab's version stays, the words stay on the page); opening the poem again
   and saving works; a poem deleted in the other tab is reported, not brought back, and saving again makes a new poem;

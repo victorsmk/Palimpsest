@@ -159,7 +159,7 @@ test.describe('unreadable drafts', () => {
 
     await saveDraft(page, 'Will not fit');
     const dialog = page.getByRole('dialog', { name: 'Save Poem Draft' });
-    await expect(dialog.getByRole('alert')).toContainText('browser storage');
+    await expect(dialog.getByRole('alert')).toHaveText('Your browser has no room left to store this. Delete some poems, or back up and clear space, then try again.');
     await expect(dialog).toBeVisible(); // stays open so nothing is lost
     await expect(page.getByRole('status').filter({ hasText: 'saved' })).toHaveCount(0);
   });

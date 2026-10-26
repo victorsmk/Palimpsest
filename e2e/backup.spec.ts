@@ -242,7 +242,7 @@ test.describe('files that are not good backups', () => {
       };
     });
     await question(page).getByRole('button', { name: 'Add 1 poem' }).click();
-    await expect(question(page).getByRole('alert')).toHaveText('The poems could not be added, and your collection has not been changed. Please try again.');
+    await expect(question(page).getByRole('alert')).toHaveText('Your browser has no room left to store this. Delete some poems, or back up and clear space, then try again. Your collection has not been changed.');
     await expect(question(page)).toBeVisible();
     expect(await stored(page)).toHaveLength(2);
   });

@@ -13,7 +13,7 @@ import {
 } from '@/lib/backup';
 import { PoemService } from '@/lib/services';
 import { BrowserPoemRepository, MemoryStorageAdapter } from '@/lib/repositories';
-import type { Poem } from '@/lib/models';
+import { StorageError, type Poem } from '@/lib/models';
 
 const poem = (id: string, overrides: Partial<Poem> = {}): Poem => ({
   id,
@@ -289,7 +289,7 @@ describe('backing up and restoring a collection', () => {
     storage.setItem = () => {
       throw new Error('quota');
     };
-    await expect(service.restoreBackup([poem('x'), poem('y')])).rejects.toThrow('browser storage');
+    await expect(service.restoreBackup([poem('x'), poem('y')])).rejects.toBeInstanceOf(StorageError);
     storage.setItem = MemoryStorageAdapter.prototype.setItem.bind(storage);
     expect(storage.getItem('palimpsest:poems:v1')).toBe(before);
     expect(await service.listPoems()).toHaveLength(1);
