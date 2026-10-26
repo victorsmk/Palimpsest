@@ -8,6 +8,7 @@ export interface Health {
   database: string;
   signIn: string;
   accountDeletion: string;
+  rateLimiting: string;
 }
 
 export interface HealthInput {
@@ -27,7 +28,7 @@ const isConfig = (config: HealthInput['config']): config is ServerConfig => !('p
  * needs no sign-in itself, and so it tells only what is missing (by name) and what works, nothing more.
  */
 export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 503; body: Health }> {
-  const body: Health = { ok: false, settings: 'ok', database: 'not checked', signIn: 'not checked', accountDeletion: 'not checked' };
+  const body: Health = { ok: false, settings: 'ok', database: 'not checked', signIn: 'not checked', accountDeletion: 'not checked', rateLimiting: 'not checked' };
   const { config } = input;
   if (!isConfig(config)) {
     body.settings = config.problem;
@@ -42,6 +43,18 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
     const code = (error as { code?: unknown } | null)?.code;
     const cause = (error as { cause?: unknown } | null)?.cause;
     body.database = code === '42P01' || (cause as { code?: unknown } | null)?.code === '42P01' ? 'connected, but the poems table is missing (run db/schema.sql)' : 'could not be reached';
+  }
+
+  // The request counters, which need their table (db/schema.sql). Without it requests still go through, unlimited.
+  if (body.database === 'ok') {
+    try {
+      await input.db!.query('select 1 from rate_limits limit 1');
+      body.rateLimiting = 'ok';
+    } catch (error) {
+      const code = (error as { code?: unknown } | null)?.code;
+      const cause = (error as { cause?: unknown } | null)?.cause;
+      body.rateLimiting = code === '42P01' || (cause as { code?: unknown } | null)?.code === '42P01' ? 'the rate_limits table is missing (run db/schema.sql again)' : 'could not be reached';
+    }
   }
 
   // The sign-in service.
@@ -61,6 +74,6 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
   }
 
   body.accountDeletion = config.testAuth || config.serviceRoleKey ? 'ready' : 'not set up (needs SUPABASE_SECRET_KEY)';
-  body.ok = body.database === 'ok' && (body.signIn === 'ok' || config.testAuth) && body.accountDeletion === 'ready';
+  body.ok = body.database === 'ok' && body.rateLimiting === 'ok' && (body.signIn === 'ok' || config.testAuth) && body.accountDeletion === 'ready';
   return { status: body.ok ? 200 : 503, body };
 }

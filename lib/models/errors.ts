@@ -121,7 +121,8 @@ export class RateLimitedError extends RepositoryError {
   readonly code = 'rate-limited' as const;
   readonly retryable = false;
 
-  constructor() {
+  /** `retryAfterSeconds`: how long until the server will take requests again, when it knows. */
+  constructor(readonly retryAfterSeconds = 30) {
     super('Too many requests just now. Wait a moment, then try again.');
     this.name = 'RateLimitedError';
   }

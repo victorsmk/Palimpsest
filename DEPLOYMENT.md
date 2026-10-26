@@ -41,11 +41,14 @@ in this mode in production.
    cannot be changed later, and Vercel's functions should be near it (part 4).
 2. Open **SQL Editor**. Paste the whole of [`db/schema.sql`](db/schema.sql) and run it. Then paste the whole of
    [`db/supabase.sql`](db/supabase.sql) and run that. Both are safe to run again.
-   - `schema.sql` makes the `poems` table.
+   - `schema.sql` makes the `poems` table, and the small `rate_limits` table that counts requests (part 6).
    - `supabase.sql` deletes a user's poems when their account goes, and switches on **row level security with
      no rules**, so that the public key every browser gets can read and write nothing in the table. All access
      goes through this app's own API.
-3. Check: **Table Editor** should show a `poems` table, marked as having row level security enabled.
+3. Check: **Table Editor** should show a `poems` and a `rate_limits` table, both marked as having row level
+   security enabled. **If you set the database up before rate limiting existed, run both files again now** (they
+   are safe to run again): the site works without the new table, but nothing is limited, and the health page
+   says so.
 4. Get the **connection string**: click **Connect** at the top of the project, choose **Transaction pooler**,
    copy the string, and put your database password where it says `[YOUR-PASSWORD]` (if the password has
    characters such as `@`, `/` or `#`, they must be percent-encoded: `@` is `%40`, `/` is `%2F`, `#` is `%23`).
@@ -245,7 +248,7 @@ Open `https://YOUR-SITE/api/health`. It needs no sign-in and shows only what wor
 name. You want:
 
 ```json
-{ "ok": true, "settings": "ok", "database": "ok", "signIn": "ok", "accountDeletion": "ready" }
+{ "ok": true, "settings": "ok", "database": "ok", "signIn": "ok", "accountDeletion": "ready", "rateLimiting": "ok" }
 ```
 
 | It says | What to do |
@@ -257,6 +260,7 @@ name. You want:
 | `signIn`: `Supabase answered 401 …` | `SUPABASE_URL` or `SUPABASE_PUBLISHABLE_KEY` is wrong. |
 | `signIn`: `Supabase could not be reached` | `SUPABASE_URL` is wrong, or the project is **paused** (below). |
 | `accountDeletion`: `not set up` | Add `SUPABASE_SECRET_KEY` and redeploy. |
+| `rateLimiting`: `the rate_limits table is missing` | Run `db/schema.sql` and then `db/supabase.sql` again (part 1). The site works meanwhile, but requests are not limited. |
 
 The health page does not prove that the email code works or that the sign-in in the browser is configured;
 those are in the checklist.
@@ -271,8 +275,21 @@ those are in the checklist.
   My Collection to keep a file. Consider doing the same for the database from time to time.
 - **Secrets:** if a key was ever shown anywhere it should not have been, make a new one (Supabase → Project
   Settings → API, and Database for the password), update Vercel, redeploy.
-- **Rate limiting:** the app itself does not limit how fast one person can call the API. Vercel and Supabase
-  have their own limits.
+- **Rate limiting, two layers.**
+  - *In the app:* each signed-in user may make **300 reading requests and 60 writing requests a minute**, and
+    **5 attempts at deleting an account an hour**. Over that, the API answers 429 with a `Retry-After`, and the
+    page says to wait a moment. The counts are kept in the `rate_limits` table. If the database cannot count,
+    requests go through (and the Vercel log says so), so the limiter can never be the reason the site is down.
+    The numbers are in `lib/server/api/rateLimit.ts`.
+  - *At the edge, which you set up in Vercel (the app cannot):* **Project → Firewall → Configure → New Rule**.
+    Name it "API per IP". Condition: *Request Path* **starts with** `/api/`. Then: **Rate Limit**, *Fixed
+    Window*, 60 seconds, 120 requests, key *IP*, action *Default (429)*. Save, then **Review Changes → Publish**.
+    This is free on the Hobby plan (one such rule per project). It stops floods before they reach the app, and
+    it covers `/api/health`, which anyone can call. Vercel keeps these counters per region, so it is a brake,
+    not a guarantee.
+  - *Not covered:* many accounts being made (that happens between the browser, Google and Supabase, so only
+    their own limits apply), and the free 500 MB database being filled by many accounts (each account is capped
+    at 2,000 poems, but there is no cap on total size yet).
 
 ## 7. The checklist: run it once, on the live site
 
@@ -378,5 +395,5 @@ over real HTTP.
 
 **Not tested, and what to watch for:** the real Supabase email and code; Supabase's real error replies (mapped
 from its documentation); the call that deletes a user at Supabase; the `pg` driver against a real Postgres and
-Supabase's certificate; the per-user lock under real concurrency; the `supabase.sql` statements on Supabase;
+Supabase's certificate; the per-user lock and the request counter under real concurrency; the `supabase.sql` statements on Supabase;
 Vercel's build and functions; a real network; Safari, phones and screen readers.

@@ -21,7 +21,7 @@ describe('the health check', () => {
     const fetcher = supabaseAnswers();
     const { status, body } = await checkHealth({ config: config(), db, fetch: fetcher });
     expect(status).toBe(200);
-    expect(body).toEqual({ ok: true, settings: 'ok', database: 'ok', signIn: 'ok', accountDeletion: 'ready' });
+    expect(body).toEqual({ ok: true, settings: 'ok', database: 'ok', signIn: 'ok', accountDeletion: 'ready', rateLimiting: 'ok' });
     const [url, init] = (fetcher as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://abc.supabase.co/auth/v1/health');
     expect(init.headers).toEqual({ apikey: 'ANON-KEY-VALUE' });
@@ -30,7 +30,7 @@ describe('the health check', () => {
   it('says which setting is wrong when the settings cannot be read, and checks nothing else', async () => {
     const { status, body } = await checkHealth({ config: { problem: 'DATABASE_URL is not set.' } });
     expect(status).toBe(503);
-    expect(body).toEqual({ ok: false, settings: 'DATABASE_URL is not set.', database: 'not checked', signIn: 'not checked', accountDeletion: 'not checked' });
+    expect(body).toEqual({ ok: false, settings: 'DATABASE_URL is not set.', database: 'not checked', signIn: 'not checked', accountDeletion: 'not checked', rateLimiting: 'not checked' });
   });
 
   it('says the poems table is missing when the schema has not been run', async () => {
@@ -41,6 +41,17 @@ describe('the health check', () => {
     expect(body.database).toBe('connected, but the poems table is missing (run db/schema.sql)');
     expect(body.ok).toBe(false);
     await empty.close();
+  });
+
+  it('says the rate_limits table is missing when the schema was run before it existed, and is not ok then', async () => {
+    const old = await createTestDb();
+    await old.exec('drop table rate_limits');
+    const { status, body } = await checkHealth({ config: config(), db: old, fetch: supabaseAnswers() });
+    expect(status).toBe(503);
+    expect(body.database).toBe('ok');
+    expect(body.rateLimiting).toBe('the rate_limits table is missing (run db/schema.sql again)');
+    expect(body.ok).toBe(false);
+    await old.close();
   });
 
   it('says the database could not be reached when it cannot', async () => {

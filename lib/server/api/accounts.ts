@@ -34,6 +34,8 @@ export interface AccountStoreOptions {
  */
 export function createAccountStore(options: AccountStoreOptions): AccountStore {
   const canDelete = () => Boolean(options.noAuthUser || options.supabase);
+  /** Once the account is gone, so are its request counters. If they cannot be removed that is no reason to fail (they are cleaned up in time). */
+  const forgetCounters = (userId: string) => options.db.query('delete from rate_limits where subject = $1', [userId]).then(() => undefined, () => undefined);
   return {
     canDelete,
     async deleteAccount(userId) {
@@ -43,7 +45,7 @@ export function createAccountStore(options: AccountStoreOptions): AccountStore {
       } catch (cause) {
         throw new UnavailableError({ cause });
       }
-      if (options.noAuthUser || !options.supabase) return;
+      if (options.noAuthUser || !options.supabase) return forgetCounters(userId);
 
       const { url, serviceRoleKey } = options.supabase;
       let response: Response;
@@ -59,6 +61,7 @@ export function createAccountStore(options: AccountStoreOptions): AccountStore {
       if (!response.ok && response.status !== 404) {
         throw new UnavailableError({ cause: new Error(`Supabase answered ${response.status} to the deletion of a user`) });
       }
+      await forgetCounters(userId);
     },
   };
 }

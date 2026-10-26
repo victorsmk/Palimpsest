@@ -31,7 +31,7 @@ async function save(page: Page, title: string) {
 test('the server is up and set up for the demo', async ({ request }) => {
   const health = await request.get('/api/health');
   expect(health.status()).toBe(200);
-  expect(await health.json()).toEqual({ ok: true, settings: 'ok', database: 'ok', signIn: 'test sign-in (development only)', accountDeletion: 'ready' });
+  expect(await health.json()).toEqual({ ok: true, settings: 'ok', database: 'ok', signIn: 'test sign-in (development only)', accountDeletion: 'ready', rateLimiting: 'ok' });
 });
 
 test('a poem saved while signed in is kept on the server: it is there after a reload, and for the same address in a fresh browser', async ({ page, browser }) => {

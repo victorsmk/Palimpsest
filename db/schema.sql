@@ -29,3 +29,16 @@ create table if not exists poems (
 
 -- A user's poems, the most recently changed first, then by id: the order of every list.
 create index if not exists poems_by_user_recent on poems (user_id, updated_ms desc, id);
+
+-- How many requests of each kind a user has made in the current window (see lib/server/api/rateLimit.ts).
+-- One row per kind of request and user. "subject" is the user's id; window_start is the start of the window
+-- in milliseconds, hits the requests counted in it.
+create table if not exists rate_limits (
+  bucket       text   collate "C" not null,
+  subject      text   collate "C" not null,
+  window_start bigint not null,
+  hits         integer not null check (hits >= 0),
+  primary key (bucket, subject)
+);
+
+create index if not exists rate_limits_by_window on rate_limits (window_start);

@@ -6,6 +6,7 @@ import { supabaseAuthenticator, testAuthenticator } from './auth';
 import { ConfigError, readServerConfig, type ServerConfig } from './config';
 import type { Db } from '../db';
 import { checkHealth } from './health';
+import { createDbRateLimiter } from './rateLimit';
 import { createPoemsApi, type PoemsApi } from './handlers';
 import { errorResponse, json } from './http';
 
@@ -34,6 +35,7 @@ async function build(): Promise<Running> {
     accounts,
     authenticate: config.testAuth ? testAuthenticator() : supabaseAuthenticator(config.supabase!),
     poemsOf: userId => new PostgresPoemRepository(db, userId),
+    limiter: createDbRateLimiter(db),
   });
   return { api, config, db };
 }

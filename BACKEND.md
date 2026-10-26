@@ -223,6 +223,13 @@ poem model to change (step 3), which is where the real backend work starts.
      (`serverExternalPackages`), and the sign-in dialog says what to type. Tested: the real script started and
      asked over HTTP, and `e2e-demo/` (`npm run test:e2e:demo`, 5 browser tests with nothing standing in for
      the server: saving, a fresh browser seeing the same poem, separate accounts, a conflict, deleting an account).
+   - **Rate limiting, done** (decided 2026-10-28): per signed-in user, counted in Postgres (`rate_limits`: one row per
+     kind of request and user, a fixed window; one statement so concurrent requests are all counted; Vercel's
+     functions share no memory, so counting in memory would not work). 300 reads and 60 writes a minute, 5
+     account deletions an hour; 429 with `Retry-After` (the time left in the window). Fails open: if the counter
+     cannot be written the request goes through and the log says so; `/api/health` reports a missing table.
+     The user is counted after sign-in is checked, so unsigned floods are for Vercel's firewall rule
+     (DEPLOYMENT.md part 6). Not covered: account-creation floods, total storage per account.
    - **Google-only mode, done** (decided 2026-10-27, because a free custom SMTP sender was not available):
      `NEXT_PUBLIC_EMAIL_SIGN_IN=off` makes the sign-in dialog show Google's button alone (no email form, no "or";
      Google's failure message loses "or use your email"; with no Google client id it says sign-in is not

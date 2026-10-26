@@ -60,7 +60,7 @@ export function errorResponse(error: unknown): Response {
   if (error instanceof PoemGoneError) return problem(404, error.code, error.message);
   if (error instanceof PoemExistsError) return problem(409, error.code, error.message);
   if (error instanceof PoemLimitError) return problem(422, error.code, error.message);
-  if (error instanceof RateLimitedError) return problem(429, error.code, error.message, {}, { 'Retry-After': '30' });
+  if (error instanceof RateLimitedError) return problem(429, error.code, error.message, {}, { 'Retry-After': String(error.retryAfterSeconds) });
   if (error instanceof UnavailableError || error instanceof OfflineError || error instanceof StorageError) {
     console.error('The server could not reach its data:', error instanceof ConfigError ? error.problem : (error.cause ?? error));
     return problem(503, 'unavailable', 'The server could not be reached.');
