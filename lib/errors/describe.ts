@@ -1,7 +1,7 @@
 import { PoemConflictError, PoemGoneError, RepositoryError } from '@/lib/models';
 
 /** What the writer was doing when something went wrong. */
-export type Action = 'save' | 'rename' | 'duplicate' | 'delete' | 'backup' | 'restore' | 'open' | 'list' | 'bring' | 'account';
+export type Action = 'save' | 'rename' | 'duplicate' | 'delete' | 'backup' | 'download' | 'restore' | 'open' | 'list' | 'bring' | 'account';
 
 const TRY_AGAIN = ' Please try again.';
 
@@ -12,6 +12,7 @@ const UNKNOWN: Record<Action, string> = {
   duplicate: `Could not duplicate this poem.${TRY_AGAIN}`,
   delete: `This poem could not be deleted.${TRY_AGAIN}`,
   backup: `Could not create the backup.${TRY_AGAIN}`,
+  download: `Could not make the file of your poems.${TRY_AGAIN}`,
   restore: `The poems could not be added, and your collection has not been changed.${TRY_AGAIN}`,
   open: `Your collection could not be read.${TRY_AGAIN}`,
   list: `Your collection could not be read.${TRY_AGAIN}`,

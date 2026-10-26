@@ -58,10 +58,16 @@ as well, once the basics work: it also avoids the small free-tier email limit. T
 the Google OAuth client (the user's account), the redirect flow (it leaves the page, so unsaved work in the
 Studio must be kept across it), and linking a Google sign-in to an existing email account.
 
-## Rethink "Back up all poems" and "Restore from a backup" (raised 2026-10-27)
+## Rethink "Back up all poems" and "Restore from a backup" (raised 2026-10-27; done 2026-10-28)
+
+**Done.** Decided with the user: with an account, the JSON buttons are not shown at all, and **Download my poems as
+text** gives a plain text file (`lib/export/collectionText.ts`). In the browser-only version the text download is
+there too, and the machine-readable copy stays under plainer names ("Download a copy of all my poems", "Add poems
+from a downloaded copy…"). The restore code is untouched, since bringing browser poems into an account uses it.
+A Word-style document remains an idea for later. What was weighed:
 
 The user finds the JSON backup file unnecessary and unintuitive: fewer than 5% of people know what a JSON file
-is. Not changed yet, waiting for a decision. Things to settle:
+is. Things that were to be settled:
 
 - With poems kept in an account, the account is the backup, so the two buttons could simply go for signed-in
   people. For the browser-only version they are the only way to move poems to another browser or to keep a copy

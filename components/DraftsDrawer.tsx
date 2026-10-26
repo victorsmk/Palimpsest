@@ -8,7 +8,8 @@ import { NoticeDialog } from './NoticeDialog';
 import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
 import { downloadTextFile } from '@/lib/export/text';
 import { poemPreview } from '@/lib/poems/preview';
-import { poemService } from '@/lib/services';
+import { backendKind, poemService } from '@/lib/services';
+import { collectionTextFilename, collectionToText } from '@/lib/export/collectionText';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { RenamePoemForm } from './RenamePoemForm';
@@ -30,7 +31,7 @@ interface DraftsDrawerProps {
 const ACTION =
   'rounded px-2.5 py-1 text-xs text-[#57544E] hover:bg-[#E4D8C2]/60 hover:text-[#24231F] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
 
-/** The smaller buttons above "Close Collection": back up, restore. */
+/** The smaller buttons above "Close Collection": download as text, and (browser-only) download a copy, add from a copy. */
 const FOOTER_ACTION =
   'rounded border border-[#E0D4BE] px-3 py-1.5 text-xs font-medium text-[#24231F] hover:bg-[#E4D8C2]/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
 
@@ -269,6 +270,30 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
       setNotice({ text: `Backed up ${backup.count} ${backup.count === 1 ? 'poem' : 'poems'} to ${backup.filename}.`, tone: 'ok' });
     } catch (err) {
       setNotice({ text: describeError(err, 'backup'), tone: 'error' });
+    }
+  };
+
+  // The whole collection as a plain text file anyone can open.
+  const downloadAsText = async () => {
+    setNotice(null);
+    try {
+      const poems = await poemService.listPoems();
+      if (poems.length === 0) {
+        setNotice({ text: 'You have no poems to download yet.', tone: 'ok' });
+        return;
+      }
+      const passages = new Map((await library.ensure(poems.map(poem => poem.passageId))).map(passage => [passage.id, passage]));
+      const now = new Date();
+      const { text, written, skipped } = collectionToText(poems, passages, now);
+      const filename = collectionTextFilename(now);
+      downloadTextFile(filename, text, 'text/plain');
+      const count = (n: number) => `${n} ${n === 1 ? 'poem' : 'poems'}`;
+      setNotice({
+        text: skipped > 0 ? `Downloaded ${count(written)} to ${filename}. ${count(skipped)} could not be included, because the text ${skipped === 1 ? 'it was' : 'they were'} found in could not be opened.` : `Downloaded ${count(written)} to ${filename}.`,
+        tone: skipped > 0 ? 'error' : 'ok',
+      });
+    } catch (err) {
+      setNotice({ text: describeError(err, 'download'), tone: 'error' });
     }
   };
 
@@ -536,24 +561,32 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
         {/* Footer */}
         <div className="pt-4 border-t border-[#E0D4BE] text-center">
           <div className={`mb-2 flex-wrap justify-center gap-2 ${blocked?.kind === 'sign-in' ? 'hidden' : 'flex'}`}>
-            <button type="button" onClick={backUp} className={FOOTER_ACTION}>
-              Back up all poems
+            <button type="button" onClick={downloadAsText} className={FOOTER_ACTION}>
+              Download my poems as text
             </button>
-            <button
-              type="button"
-              ref={restoreButton}
-              onClick={() => fileInput.current?.click()}
-              className={FOOTER_ACTION}
-            >
-              Restore from a backup…
-            </button>
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".json,application/json"
-              hidden
-              onChange={chooseBackup}
-            />
+            {/* With an account the account keeps the poems. A saved copy for restoring is for poems kept in this browser. */}
+            {backendKind === 'browser' && (
+              <>
+                <button type="button" onClick={backUp} className={FOOTER_ACTION}>
+                  Download a copy of all my poems
+                </button>
+                <button
+                  type="button"
+                  ref={restoreButton}
+                  onClick={() => fileInput.current?.click()}
+                  className={FOOTER_ACTION}
+                >
+                  Add poems from a downloaded copy…
+                </button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept=".json,application/json"
+                  hidden
+                  onChange={chooseBackup}
+                />
+              </>
+            )}
           </div>
           <button
             type="button"

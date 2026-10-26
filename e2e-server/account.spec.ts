@@ -220,14 +220,14 @@ test.describe('My Collection', () => {
     await openStudio(page);
     await openCollection(page);
     await expect(panel(page)).toContainText('Sign in to see your collection');
-    await expect(panel(page).getByRole('button', { name: 'Back up all poems' })).toBeHidden();
+    await expect(panel(page).getByRole('button', { name: 'Download my poems as text' })).toBeHidden();
 
     await panel(page).getByRole('button', { name: 'Sign in' }).click();
     await completeSignIn(page, ME);
     await expect(panel(page).getByRole('listitem')).toHaveCount(1);
     await expect(panel(page).getByRole('listitem')).toContainText('Waiting for me');
     await expect(panel(page).getByRole('listitem')).toContainText('From Walden');
-    await expect(panel(page).getByRole('button', { name: 'Back up all poems' })).toBeVisible();
+    await expect(panel(page).getByRole('button', { name: 'Download my poems as text' })).toBeVisible();
   });
 
   test('is each account’s own: another address sees none of it, and signing back in brings it back', async ({ page }) => {
@@ -285,27 +285,25 @@ test.describe('My Collection', () => {
     await expect(page.getByText('Editing: "Linked"')).toBeVisible();
   });
 
-  test('can be backed up, and a backup restored into the account', async ({ page, server }) => {
-    await server.poemsOf(ME).create({ passageId: 'walden-woods', title: 'Backed up', notes: 'n', retainedTokenIds: ids(14, 20), lineBreaks: [], erasureStyle: 'blackout' });
+  test('can be downloaded as readable text, and has no file of codes to back up or restore', async ({ page, server }) => {
+    await server.poemsOf(ME).create({ passageId: 'walden-woods', title: 'Backed up', notes: 'my note', retainedTokenIds: ids(14, 20), lineBreaks: [ids(14, 20)[2]], erasureStyle: 'blackout' });
     await openStudio(page);
     await signIn(page, ME);
     await openCollection(page);
-    const download = page.waitForEvent('download');
-    await panel(page).getByRole('button', { name: 'Back up all poems' }).click();
-    const file = await download;
-    const text = await (await import('node:fs')).promises.readFile((await file.path())!, 'utf-8');
-    expect(JSON.parse(text).poems).toHaveLength(1);
+    // The account keeps the poems, so the JSON backup and restore are not offered.
+    await expect(panel(page).getByRole('button', { name: /copy of all my poems|from a downloaded copy/ })).toHaveCount(0);
+    await expect(panel(page).locator('input[type="file"]')).toHaveCount(0);
 
-    // Another account restores that file.
-    await panel(page).getByRole('button', { name: 'Close Collection', exact: true }).click();
-    await headerButton(page, 'Account').click();
-    await page.getByRole('button', { name: 'Sign out' }).click();
-    await signIn(page, YOU);
-    await openCollection(page);
-    await panel(page).locator('input[type="file"]').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(text) });
-    await page.getByRole('alertdialog', { name: 'Restore from this backup?' }).getByRole('button', { name: 'Add 1 poem' }).click();
-    await expect(panel(page).getByRole('listitem')).toHaveCount(1);
-    expect(await server.poemsOf(YOU).count()).toBe(1);
+    const download = page.waitForEvent('download');
+    await panel(page).getByRole('button', { name: 'Download my poems as text' }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toMatch(/^palimpsest-poems-\d{4}-\d{2}-\d{2}\.txt$/);
+    const text = await (await import('node:fs')).promises.readFile((await file.path())!, 'utf-8');
+    expect(text).toContain('My poems from Palimpsest');
+    expect(text).toContain('Backed up');
+    expect(text).toContain('Found in ');
+    expect(text).toContain('my note');
+    await expect(panel(page).getByRole('status')).toHaveText(`Downloaded 1 poem to ${file.suggestedFilename()}.`);
   });
 });
 

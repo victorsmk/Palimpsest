@@ -7,8 +7,8 @@ const P = ids(14, 28);
 
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Saved Poems & Drafts' });
 const question = (page: Page) => page.getByRole('alertdialog', { name: 'Restore from this backup?' });
-const backUpButton = (page: Page) => dialog(page).getByRole('button', { name: 'Back up all poems' });
-const restoreButton = (page: Page) => dialog(page).getByRole('button', { name: 'Restore from a backup…' });
+const backUpButton = (page: Page) => dialog(page).getByRole('button', { name: 'Download a copy of all my poems' });
+const restoreButton = (page: Page) => dialog(page).getByRole('button', { name: 'Add poems from a downloaded copy…' });
 const status = (page: Page) => dialog(page).getByRole('status');
 const titles = (page: Page) => dialog(page).locator('li .font-serif').allInnerTexts();
 const stored = (page: Page) =>
@@ -52,6 +52,37 @@ test.describe('backing up', () => {
     page.on('download', () => { downloaded = true; });
     await backUpButton(page).click();
     await expect(status(page)).toHaveText('You have no poems to back up yet.');
+    expect(downloaded).toBe(false);
+  });
+});
+
+test.describe('downloading as text', () => {
+  const textButton = (page: Page) => dialog(page).getByRole('button', { name: 'Download my poems as text' });
+
+  test('downloads one dated text file anyone can read, with every poem in it, and says so', async ({ page }) => {
+    await seed(page);
+    await openStudio(page);
+    await openCollection(page);
+    const [download] = await Promise.all([page.waitForEvent('download'), textButton(page).click()]);
+
+    expect(download.suggestedFilename()).toMatch(/^palimpsest-poems-\d{4}-\d{2}-\d{2}\.txt$/);
+    await expect(status(page)).toHaveText(`Downloaded 2 poems to ${download.suggestedFilename()}.`);
+    const text = readFileSync((await download.path())!, 'utf8');
+    expect(text).toContain('My poems from Palimpsest\n2 poems, downloaded');
+    expect(text).toContain('Quiet Woods\n\n');
+    expect(text).toContain('Old Pond\n\n');
+    expect(text.match(/Found in Walden/g)).toHaveLength(2);
+    expect(text).toContain('Notes:\nkeep me');
+    expect(text).not.toMatch(/palimpsest-backup|"format"|retainedTokenIds/);
+  });
+
+  test('says there is nothing to download, and downloads nothing, when the collection is empty', async ({ page }) => {
+    await openStudio(page);
+    await openCollection(page);
+    let downloaded = false;
+    page.on('download', () => { downloaded = true; });
+    await textButton(page).click();
+    await expect(status(page)).toHaveText('You have no poems to download yet.');
     expect(downloaded).toBe(false);
   });
 });

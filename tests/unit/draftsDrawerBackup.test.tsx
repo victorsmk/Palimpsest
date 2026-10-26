@@ -59,10 +59,47 @@ async function show(stored: Record<string, unknown> = {}) {
 const backupOf = (poems: unknown[]) => JSON.stringify({ format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: '2026-10-25T00:00:00.000Z', poems });
 const stored = () => JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, { title: string }>;
 
+describe('downloading as text from My Collection', () => {
+  it('downloads every poem as one readable text file, and says what it did', async () => {
+    const { button, notice } = await show({ a: poem('a', 'Quiet Woods', { notes: 'for spring' }), b: poem('b', 'Old Pond') });
+    click(button('Download my poems as text'));
+    await settle();
+
+    expect(download).toHaveBeenCalledOnce();
+    const [filename, text, mime] = download.mock.calls[0];
+    expect(filename).toMatch(/^palimpsest-poems-\d{4}-\d{2}-\d{2}\.txt$/);
+    expect(mime).toBe('text/plain');
+    expect(text).toContain('2 poems, downloaded');
+    expect(text).toContain('Quiet Woods');
+    expect(text).toContain('Old Pond');
+    expect(text).toContain('Notes:\nfor spring');
+    expect(text).toContain('Found in Walden');
+    expect(text).not.toContain('retainedTokenIds');
+    expect(notice()).toBe(`Downloaded 2 poems to ${filename}.`);
+  });
+
+  it('downloads nothing, and says so, when there are no poems', async () => {
+    const { button, notice } = await show();
+    click(button('Download my poems as text'));
+    await settle();
+    expect(download).not.toHaveBeenCalled();
+    expect(notice()).toBe('You have no poems to download yet.');
+  });
+
+  it('says which poems could not be included, when their text cannot be opened', async () => {
+    const { button, alertText } = await show({ a: poem('a', 'Fine'), b: poem('b', 'Lost', { passageId: 'not-a-passage' }) });
+    click(button('Download my poems as text'));
+    await settle();
+    expect(download.mock.calls[0][1]).toContain('Fine');
+    expect(download.mock.calls[0][1]).not.toContain('Lost');
+    expect(alertText()).toContain('1 poem could not be included');
+  });
+});
+
 describe('backing up from My Collection', () => {
   it('downloads every poem as one file, and says what it did', async () => {
     const { button, notice } = await show({ a: poem('a', 'Quiet Woods'), b: poem('b', 'Old Pond') });
-    click(button('Back up all poems'));
+    click(button('Download a copy of all my poems'));
     await settle();
 
     expect(download).toHaveBeenCalledOnce();
@@ -75,14 +112,14 @@ describe('backing up from My Collection', () => {
 
   it('uses the singular for one poem', async () => {
     const { button, notice } = await show({ a: poem('a', 'Quiet Woods') });
-    click(button('Back up all poems'));
+    click(button('Download a copy of all my poems'));
     await settle();
     expect(notice()).toMatch(/^Backed up 1 poem to /);
   });
 
   it('downloads nothing, and says so, when there is nothing to back up', async () => {
     const { button, notice } = await show();
-    click(button('Back up all poems'));
+    click(button('Download a copy of all my poems'));
     await settle();
     expect(download).not.toHaveBeenCalled();
     expect(notice()).toBe('You have no poems to back up yet.');
@@ -96,7 +133,7 @@ describe('restoring from My Collection', () => {
     expect(input.accept).toBe('.json,application/json');
     expect(input.hidden).toBe(true);
     const open = vi.spyOn(input, 'click').mockImplementation(() => {});
-    click(button('Restore from a backup…'));
+    click(button('Add poems from a downloaded copy…'));
     expect(open).toHaveBeenCalledOnce();
   });
 
@@ -133,7 +170,7 @@ describe('restoring from My Collection', () => {
     await settle();
     expect(question()).toBeNull();
     expect(Object.keys(stored())).toEqual([]);
-    expect(document.activeElement).toBe(button('Restore from a backup…'));
+    expect(document.activeElement).toBe(button('Add poems from a downloaded copy…'));
   });
 
   it('keeps the current version of a poem that differs, and says so', async () => {

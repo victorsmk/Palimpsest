@@ -122,7 +122,7 @@ test.describe('managing the collection from another page', () => {
   test('back up and restore work on Assisted', async ({ page }) => {
     await seed(page);
     await openPanel(page, '/assist', PAGES[2].ready);
-    const [download] = await Promise.all([page.waitForEvent('download'), panel(page).getByRole('button', { name: 'Back up all poems' }).click()]);
+    const [download] = await Promise.all([page.waitForEvent('download'), panel(page).getByRole('button', { name: 'Download a copy of all my poems' }).click()]);
     expect(download.suggestedFilename()).toMatch(/^palimpsest-backup-/);
 
     await page.getByRole('button', { name: 'Delete draft Old Pond' }).click();

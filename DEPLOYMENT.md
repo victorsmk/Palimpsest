@@ -271,8 +271,9 @@ those are in the checklist.
   says Supabase could not be reached). Restore it from the Supabase dashboard. Before a demonstration, open
   the site and sign in the day before.
 - **Vercel Hobby is for non-commercial use**, one function region, and has usage limits.
-- **Backups:** the free Supabase plan is not a backup service. Each person can use **Back up all poems** in
-  My Collection to keep a file. Consider doing the same for the database from time to time.
+- **Backups:** the free Supabase plan is not a backup service, and the app has no backup file for accounts any
+  more. Each person can use **Download my poems as text** in My Collection to keep a readable copy of their poems.
+  The database itself is yours to copy from time to time (Supabase's dashboard, or `pg_dump`).
 - **Secrets:** if a key was ever shown anywhere it should not have been, make a new one (Supabase → Project
   Settings → API, and Database for the password), update Vercel, redeploy.
 - **Rate limiting, two layers.**
@@ -333,7 +334,8 @@ Supabase organization, unless you set up SMTP). Tell me which lines fail and wha
 - [ ] Rename, copy and delete a poem. Open one: its notes and words are all there.
 - [ ] In two tabs open the same poem, save in one, then save in the other: the second says the poem was
       changed somewhere else.
-- [ ] **Back up all poems**, then sign in as a different address and **Restore from a backup**: the poems appear.
+- [ ] **Download my poems as text**: a `.txt` file arrives with a heading, each poem (title, lines, "Found in …",
+      notes if you wrote some) and a line between poems. There is no "Back up" or "Restore" button with an account.
 - [ ] Signed out, My Collection says "Sign in to see your collection".
 
 **Bringing poems across** (needs a browser with poems saved in its own storage, as the browser-only version of the
