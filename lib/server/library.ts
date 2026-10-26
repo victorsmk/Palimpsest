@@ -14,6 +14,7 @@ interface BookRow {
   source: string;
   url: string;
   license_note: string;
+  form: 'prose' | 'verse';
 }
 
 interface PassageRow extends BookRow {
@@ -30,7 +31,7 @@ interface PassageRow extends BookRow {
 
 const attributionOf = (row: BookRow) => ({ title: row.title, author: row.author, year: Number(row.year), source: row.source, url: row.url, licenseNote: row.license_note });
 
-const bookOf = (row: BookRow): Book => ({ id: row.id, title: row.title, author: row.author, year: Number(row.year), attribution: attributionOf(row) });
+const bookOf = (row: BookRow): Book => ({ id: row.id, title: row.title, author: row.author, year: Number(row.year), attribution: attributionOf(row), form: row.form });
 
 /** Where a page of books ended: the title as it is sorted, and the id, which together fix a book's place. */
 const encodeCursor = (sortKey: string, id: string) => Buffer.from(JSON.stringify([sortKey, id])).toString('base64url');
@@ -68,9 +69,9 @@ export class LibraryReader {
     }
     params.push(size + 1);
     const { rows } = await this.db.query<BookRow & { sort_key: string }>(
-      `select b.id, b.title, b.author, b.year, b.source, b.url, b.license_note, b.sort_key
+      `select b.id, b.title, b.author, b.year, b.source, b.url, b.license_note, b.form, b.sort_key
        from (
-         select id, title, author, year, source, url, license_note,
+         select id, title, author, year, source, url, license_note, form,
                 translate(lower(title || ' ' || author), $1, $2) as folded,
                 (regexp_replace(translate(lower(title), $1, $2), '^(the|a|an) ', '')) collate "C" as sort_key
          from books
@@ -86,7 +87,7 @@ export class LibraryReader {
   }
 
   async getBook(id: string): Promise<Book | null> {
-    const { rows } = await this.db.query<BookRow>('select id, title, author, year, source, url, license_note from books where id = $1', [id]);
+    const { rows } = await this.db.query<BookRow>('select id, title, author, year, source, url, license_note, form from books where id = $1', [id]);
     return rows[0] ? bookOf(rows[0]) : null;
   }
 

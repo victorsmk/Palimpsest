@@ -228,6 +228,11 @@ poem model to change (step 3), which is where the real backend work starts.
      rules in `scripts/library/cut.mjs` (frozen per CUTTER_VERSION; excerpts are never re-cut), and
      `npm run import:library` reading Gutenberg files saved by hand (no automated download, by Gutenberg's
      policy). Nothing on the site reads them yet.
+   - **Verse support, done** (step 4a of the book library, 2026-10-28; see LIBRARY.md "Verse"): the tokenizer marks the first
+     word of each line after a line separator (U+2028) with `lineStart` (additive: prose tokens are unchanged, a test pins it),
+     the page draws the lines, the cutter has a verse mode (poems as sections, short poems packed, long ones cut at line ends),
+     a book has a `form` ("prose" or "verse", a new column that `db/schema.sql` adds to the existing table), the API sends it and
+     the picker shows "· poetry". `CUTTER_VERSION` is 2 for new imports; the pilot books keep 1 (the prose rules are identical).
    - **Book picker, done** (step 3 of the book library, 2026-10-28): `BookBrowser` (search + a book's excerpts, in
      the page or in a window), `PassageSwitcher` (current excerpt, Previous/Next from the server's `position`, Change),
      `ChooseBookScreen` (what Discover, Assisted and the Studio show before a choice; option B, chosen by the user

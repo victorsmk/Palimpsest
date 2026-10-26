@@ -61,6 +61,10 @@ create table if not exists books (
   cutter_version integer not null                  -- which version of the cutting rules made its excerpts
 );
 
+-- Whether a book is prose or verse (poetry): added after the first books were imported, so it is added to a table
+-- that already exists. A verse excerpt's text has its lines separated (see scripts/library/cut.mjs).
+alter table books add column if not exists form text not null default 'prose' check (form in ('prose', 'verse'));
+
 create table if not exists passages (
   id          text    collate "C" primary key,     -- "pg1342-0042"
   book_id     text    collate "C" not null references books (id) on delete cascade,

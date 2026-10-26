@@ -20,6 +20,8 @@ export interface Token {
   position: number;       // 0-indexed token order in the passage
   paragraphIndex: number;
   lineBreakBefore: boolean;
+  /** True for the first word of a line of verse after the first line of its stanza (the text has a line separator there). Absent for prose. */
+  lineStart?: boolean;
   kind: TokenKind;        // 'word' or 'separator' (such as em dash '—')
   isSelectable: boolean;  // false for separators
 }
@@ -32,6 +34,8 @@ export interface Book {
   author: string;
   year: number;
   attribution: Attribution;
+  /** Poetry or prose, for a book of the server's library. */
+  form?: 'prose' | 'verse';
 }
 
 /** Where an excerpt of a long book sits in it, so that a reader can step to the one before or after. */

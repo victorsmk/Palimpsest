@@ -1,0 +1,8 @@
+[
+  { "gutenbergId": 1065, "title": "The Raven", "author": "Edgar Allan Poe", "year": 1845, "form": "verse" },
+  { "gutenbergId": 1934, "title": "Songs of Innocence and of Experience", "author": "William Blake", "year": 1794, "form": "verse" },
+  { "gutenbergId": 26, "title": "Paradise Lost", "author": "John Milton", "year": 1667, "form": "verse" },
+  { "gutenbergId": 1322, "title": "Leaves of Grass", "author": "Walt Whitman", "year": 1855, "form": "verse" },
+  { "gutenbergId": 12242, "title": "Poems by Emily Dickinson", "author": "Emily Dickinson", "year": 1890, "form": "verse" },
+  { "gutenbergId": 1041, "title": "Shakespeare's Sonnets", "author": "William Shakespeare", "year": 1609, "form": "verse" }
+]

@@ -14,11 +14,11 @@ export async function saveBook(db, entry, excerpts) {
   const id = `pg${entry.gutenbergId}`;
   return db.transaction(async tx => {
     const inserted = await tx.query(
-      `insert into books (id, gutenberg_id, title, author, year, language, source, url, license_note, passage_count, word_count, cutter_version)
-       values ($1, $2, $3, $4, $5, 'en', 'Project Gutenberg', $6, 'Public domain in the USA', $7, $8, $9)
+      `insert into books (id, gutenberg_id, title, author, year, language, source, url, license_note, passage_count, word_count, cutter_version, form)
+       values ($1, $2, $3, $4, $5, 'en', 'Project Gutenberg', $6, 'Public domain in the USA', $7, $8, $9, $10)
        on conflict do nothing
        returning id`,
-      [id, entry.gutenbergId, entry.title, entry.author, entry.year, `https://www.gutenberg.org/ebooks/${entry.gutenbergId}`, excerpts.length, excerpts.reduce((sum, e) => sum + e.wordCount, 0), CUTTER_VERSION]
+      [id, entry.gutenbergId, entry.title, entry.author, entry.year, `https://www.gutenberg.org/ebooks/${entry.gutenbergId}`, excerpts.length, excerpts.reduce((sum, e) => sum + e.wordCount, 0), CUTTER_VERSION, entry.form ?? 'prose']
     );
     if (inserted.rows.length === 0) return 'exists';
     for (let i = 0; i < excerpts.length; i += BATCH) {

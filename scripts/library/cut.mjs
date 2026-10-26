@@ -5,7 +5,11 @@
 // frozen once a book is imported (a saved poem points at the words of an excerpt by position), so a change
 // to the rules must raise CUTTER_VERSION and must never be applied to books already imported.
 
-export const CUTTER_VERSION = 1;
+// Version 2 adds the rules for verse (a book listed with form "verse"). Prose is cut exactly as in version 1: the
+// tests pin the output for real books, and books imported with version 1 stay as they are.
+export const CUTTER_VERSION = 2;
+/** What separates the lines of a stanza in the text of a verse excerpt (the tokenizer shows each line on its own). */
+export const LINE_SEPARATOR = '\u2028';
 /** An excerpt ends at the first paragraph break after this many words ... */
 export const TARGET_WORDS = 450;
 /** ... or earlier, if the next paragraph would take it past this many (the least an excerpt may have, before it is joined to a long paragraph, is MIN_TAIL_WORDS). */
@@ -91,11 +95,19 @@ const CREDITS = /^(?:Produced by|Transcribed|Transcriber|E-text prepared by|Upda
 const NOT_TEXT = /^\[(?:Illustration|Footnote|Sidenote|Transcriber|Frontispiece|Note)/i;
 const ORNAMENT = /^[*\s.\-–—_=~#•]+$/;
 
+/** In verse, a line in capitals with no sentence in it, on a line of its own, is the title of a poem ("THE RAVEN"). */
+function isTitleLine(paragraph) {
+  const letters = paragraph.replace(/[^A-Za-z]/g, '');
+  return paragraph.length <= 70 && letters.length >= 3 && !/[,;:]$/.test(paragraph) && !ROMAN.test(paragraph) && upperShare(paragraph) >= 0.9;
+}
+
 /**
  * Whether a paragraph is a heading. A "strong" heading names itself ("Chapter IV", "XII. THE COPPER BEECHES");
  * a "weak" one is only a number on a line, which may as well number the parts of a story.
  */
-function headingKind(paragraph) {
+function headingKind(paragraph, verse = false) {
+  if (verse && paragraph.includes(LINE_SEPARATOR)) return null; // a stanza is not a heading
+  if (verse && (/^(?:CANTO|Canto)\s+(?:[IVXLCDM]+|\d+)\b/.test(paragraph) || isTitleLine(paragraph))) return 'strong';
   if (paragraph.length > 80) return paragraph.length <= 220 && LONG_LABELLED.test(paragraph) ? 'strong' : null;
   if (LABELLED.test(paragraph) || TITLED.test(paragraph)) return 'strong';
   if (ROMAN.test(paragraph) || /^\d{1,3}\.?$/.test(paragraph)) return 'weak';
@@ -114,22 +126,25 @@ function display(text) {
     .toLowerCase()
     .replace(/(^|[\s(—–-])([a-z])/g, (_, before, letter) => before + letter.toUpperCase())
     .replace(/^([ivxlcdm]+)\./i, (_, number) => `${number.toUpperCase()}.`)
-    .replace(/^(Chapter|Book|Part|Volume|Letter|Stave|Act|Section) ([ivxlcdm]+)\b/i, (_, label, number) => `${label} ${number.toUpperCase()}`);
+    .replace(/^(Chapter|Book|Part|Volume|Letter|Stave|Act|Section|Canto) ([ivxlcdm]+)\b/i, (_, label, number) => `${label} ${number.toUpperCase()}`);
 }
 
-/** The paragraphs of the book: blank-line separated, each on one line, with italics marks and non-text removed. */
-export function paragraphsOf(body) {
+/**
+ * The paragraphs of the book: blank-line separated, each on one line, with italics marks and non-text removed.
+ * In verse (`verse: true`) a paragraph is a stanza, and its lines stay separate, joined with LINE_SEPARATOR.
+ */
+export function paragraphsOf(body, { verse = false } = {}) {
   const out = [];
   for (const block of body.split(/\n[ \t]*\n/)) {
-    const text = block
+    const lines = block
       .split('\n')
       .map(line => line.trim())
-      .filter(Boolean)
-      .join(' ')
-      .replace(/_([^_]+)_/g, '$1')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (!text || ORNAMENT.test(text) || NOT_TEXT.test(text)) continue;
+      .filter(Boolean);
+    const text = verse
+      ? lines.map(line => line.replace(/_([^_]+)_/g, '$1').replace(/\s+/g, ' ')).join(LINE_SEPARATOR)
+      : lines.join(' ').replace(/_([^_]+)_/g, '$1').replace(/\s+/g, ' ').trim();
+    const flat = text.replaceAll(LINE_SEPARATOR, ' ');
+    if (!text || ORNAMENT.test(flat) || NOT_TEXT.test(flat)) continue;
     out.push(text);
   }
   // Credits come in the first few paragraphs, after Gutenberg's start line.
@@ -150,8 +165,8 @@ const isSubtitle = text => text.length <= 70 && !/[.!?"”,;:]$/.test(text) && !
  * A contents list (CONTENTS_RUN or more headings with no text between them) is left out, with the front
  * matter that follows it, and so is anything before the first chapter.
  */
-export function sectionsOf(paragraphs) {
-  const kinds = paragraphs.map(headingKind);
+export function sectionsOf(paragraphs, { verse = false } = {}) {
+  const kinds = paragraphs.map(paragraph => headingKind(paragraph, verse));
   const useWeak = kinds.filter(kind => kind === 'strong').length < MIN_HEADINGS;
   const sections = [{ label: null, key: null, paragraphs: [] }];
   for (let i = 0; i < paragraphs.length; i++) {
@@ -160,7 +175,7 @@ export function sectionsOf(paragraphs) {
       let label = display(paragraphs[i]);
       const key = headingKey(paragraphs[i]);
       const next = paragraphs[i + 1];
-      if (!TITLED.test(paragraphs[i]) && next !== undefined && isSubtitle(next) && paragraphs[i + 2] !== undefined) {
+      if (!verse && !TITLED.test(paragraphs[i]) && next !== undefined && isSubtitle(next) && paragraphs[i + 2] !== undefined) {
         label = `${label} — ${display(next)}`;
         i++;
       }
@@ -217,9 +232,29 @@ function splitLong(paragraph) {
   return pieces;
 }
 
+/** A very long run of verse lines with no blank line in it, in pieces of about TARGET_WORDS that end at the end of a line. */
+function splitVerse(block) {
+  const pieces = [];
+  let current = [];
+  let count = 0;
+  const flush = () => {
+    if (current.length > 0) pieces.push(current.join(LINE_SEPARATOR));
+    current = [];
+    count = 0;
+  };
+  for (const line of block.split(LINE_SEPARATOR)) {
+    const n = wordCount(line);
+    if (current.length > 0 && count + n > TARGET_WORDS) flush();
+    current.push(line);
+    count += n;
+  }
+  flush();
+  return pieces;
+}
+
 /** One section's paragraphs, grouped into excerpts of about TARGET_WORDS, each ending at a paragraph end. */
-export function windowsOf(paragraphs) {
-  const pieces = paragraphs.flatMap(p => (wordCount(p) > MAX_WORDS ? splitLong(p) : [p]));
+export function windowsOf(paragraphs, { verse = false } = {}) {
+  const pieces = paragraphs.flatMap(p => (wordCount(p) > MAX_WORDS ? (verse ? splitVerse(p) : splitLong(p)) : [p]));
   const windows = [];
   let current = [];
   let count = 0;
@@ -260,27 +295,84 @@ export function describe(text, max = 140) {
 }
 
 /**
- * The excerpts of a book. `entry` is { gutenbergId, title, author, year }. Each excerpt is
- * { id, ordinal, title, description, sourceText, wordCount }; the id is "pg<number>-<ordinal, 4 digits>".
+ * Verse: a poem is whole where it can be. Short poems are packed one after another into an excerpt of about
+ * TARGET_WORDS (named for the poems in it, and with each poem's title in the text so that the reader sees where one
+ * ends); a poem too long for one excerpt is cut at stanza and line ends, and is named "Title (2 of 3)".
+ */
+function verseExcerpts(sections) {
+  const units = [];
+  let pack = { titles: [], blocks: [], words: 0 };
+  const flush = () => {
+    if (pack.blocks.length > 0) units.push(pack);
+    pack = { titles: [], blocks: [], words: 0 };
+  };
+  for (const section of sections) {
+    const words = wordCount(section.paragraphs.join(' '));
+    if (section.label !== null && words > MAX_WORDS) {
+      flush();
+      const windows = windowsOf(section.paragraphs, { verse: true });
+      windows.forEach((window, index) => units.push({ titles: [windows.length > 1 ? `${section.label} (${index + 1} of ${windows.length})` : section.label], blocks: window.paragraphs, words: window.words }));
+      continue;
+    }
+    if (pack.words > 0 && pack.words + words > MAX_WORDS) flush();
+    pack.titles.push(section.label);
+    // With more than one poem in an excerpt, each keeps its title in the text; a poem alone is named by the excerpt.
+    pack.blocks.push({ title: section.label, paragraphs: section.paragraphs });
+    pack.words += words;
+    if (pack.words >= TARGET_WORDS) flush();
+  }
+  flush();
+  // A short last pack is joined to the one before it.
+  const last = units[units.length - 1];
+  const before = units[units.length - 2];
+  if (last && before && last.words < MIN_TAIL_WORDS && last.blocks[0]?.paragraphs !== undefined && before.blocks[0]?.paragraphs !== undefined && before.words + last.words <= MAX_WORDS + MIN_TAIL_WORDS) {
+    before.titles.push(...last.titles);
+    before.blocks.push(...last.blocks);
+    before.words += last.words;
+    units.pop();
+  }
+  return units.map(unit => {
+    const poems = unit.blocks.length > 0 && unit.blocks[0].paragraphs !== undefined;
+    const text = poems
+      ? unit.blocks.length === 1
+        ? unit.blocks[0].paragraphs.join('\n\n')
+        : unit.blocks.flatMap(poem => [poem.title, ...poem.paragraphs]).join('\n\n')
+      : unit.blocks.join('\n\n');
+    const label = unit.titles.length === 1 ? unit.titles[0] : describe(unit.titles.join(' · '), 90);
+    return { label, sourceText: text };
+  });
+}
+
+/**
+ * The excerpts of a book. `entry` is { gutenbergId, title, author, year, form }, with form "verse" for poetry (the
+ * default is prose). Each excerpt is { id, ordinal, title, description, sourceText, wordCount }; the id is
+ * "pg<number>-<ordinal, 4 digits>".
  */
 export function cutBook(raw, entry) {
-  const sections = sectionsOf(paragraphsOf(stripGutenberg(raw)));
+  const verse = entry.form === 'verse';
+  const sections = sectionsOf(paragraphsOf(stripGutenberg(raw), { verse }), { verse });
   const excerpts = [];
-  for (const section of sections) {
-    const windows = windowsOf(section.paragraphs);
-    windows.forEach((window, index) => {
-      const ordinal = excerpts.length + 1;
-      const part = section.label === null ? `Part ${ordinal}` : windows.length > 1 ? `${section.label} (${index + 1} of ${windows.length})` : section.label;
-      const sourceText = window.paragraphs.join('\n\n');
-      excerpts.push({
-        id: `pg${entry.gutenbergId}-${pad(ordinal)}`,
-        ordinal,
-        title: `${entry.title} — ${part}`,
-        description: describe(sourceText),
-        sourceText,
-        wordCount: wordCount(sourceText),
-      });
+  const add = (label, sourceText) => {
+    const ordinal = excerpts.length + 1;
+    excerpts.push({
+      id: `pg${entry.gutenbergId}-${pad(ordinal)}`,
+      ordinal,
+      title: `${entry.title} — ${label ?? `Part ${ordinal}`}`,
+      description: describe(sourceText),
+      sourceText,
+      wordCount: wordCount(sourceText),
     });
+  };
+  if (verse && sections[0].label !== null) {
+    for (const unit of verseExcerpts(sections)) add(unit.label, unit.sourceText);
+  } else {
+    for (const section of sections) {
+      const windows = windowsOf(section.paragraphs, { verse });
+      windows.forEach((window, index) => {
+        const part = section.label === null ? null : windows.length > 1 ? `${section.label} (${index + 1} of ${windows.length})` : section.label;
+        add(part, window.paragraphs.join('\n\n'));
+      });
+    }
   }
   if (excerpts.length === 0) throw new CutError('No text was left after the cutting, so there is nothing to make an excerpt from.');
   return excerpts;

@@ -4,7 +4,7 @@ import { keepFirstWords, keptWords } from '../e2e/helpers';
 
 // Choosing a book. With a library of books on the server no page picks one for the reader: each asks, with a
 // search by title or author, then the book's excerpts. The server holds two real books here (Jane Eyre, The
-// Picture of Dorian Gray); the three bundled passages are not offered.
+// Picture of Dorian Gray) and a small book of verse (Poems of Poe); the three bundled passages are not offered.
 
 const start = (page: Page) => page.getByRole('heading', { level: 1, name: 'Choose a book to begin' });
 const search = (page: Page) => page.getByLabel('Search by title or author');
@@ -27,7 +27,7 @@ test.describe('before a book is chosen', () => {
       await expect(bookButton(page, 'The Picture of Dorian Gray')).toBeVisible();
       await expect(page.getByRole('button', { name: /Walden/ })).toHaveCount(0);
       await expect(page.getByText('Where I Lived')).toHaveCount(0);
-      await expect(count(page)).toHaveText('2 books');
+      await expect(count(page)).toHaveText('3 books');
     });
   }
 
@@ -35,7 +35,44 @@ test.describe('before a book is chosen', () => {
     await page.goto('/discover');
     await expect(bookButton(page, 'Jane Eyre')).toBeVisible();
     const titles = await page.locator('main ul li button .font-serif').allInnerTexts();
-    expect(titles).toEqual(['Jane Eyre', 'The Picture of Dorian Gray']);
+    expect(titles).toEqual(['Jane Eyre', 'The Picture of Dorian Gray', 'Poems of Poe']);
+  });
+});
+
+test.describe('poetry', () => {
+  test('is marked as poetry in the list of books, and only poetry is', async ({ page }) => {
+    await page.goto('/discover');
+    await expect(bookButton(page, 'Poems of Poe')).toContainText('Edgar Allan Poe, 1845 · poetry');
+    await expect(bookButton(page, 'Jane Eyre')).not.toContainText('poetry');
+  });
+
+  test('is found by its author, with the accents and capitals of the search ignored', async ({ page }) => {
+    await page.goto('/discover');
+    await search(page).fill('EDGAR poe');
+    await expect(count(page)).toHaveText('1 book');
+  });
+
+  test('shows its lines as lines in the Studio, a stanza apart from the next, with every word a button', async ({ page }) => {
+    await page.goto('/studio');
+    await choose(page, 'Poems of Poe', /^The Raven/);
+    const article = page.locator('article');
+    await expect(article).toBeVisible();
+    // The first stanza of The Raven has six lines, so five line breaks, and stanzas are separate paragraphs.
+    const stanzas = article.locator('p');
+    await expect(stanzas.nth(1).locator('br')).toHaveCount(5);
+    await expect(stanzas.nth(1).locator('button[data-token-id]').first()).toHaveText('Once');
+    await expect(stanzas.nth(1).locator('button', { hasText: /^Over$/ })).toBeVisible();
+    const lineBreakBeforeOver = await stanzas.nth(1).locator('button', { hasText: /^Over$/ }).evaluate(el => el.previousElementSibling?.tagName);
+    expect(lineBreakBeforeOver).toBe('BR');
+    // and the first word of the stanza has none in front of it
+    const beforeOnce = await stanzas.nth(1).locator('button', { hasText: /^Once$/ }).evaluate(el => el.previousElementSibling?.tagName ?? 'none');
+    expect(beforeOnce).not.toBe('BR');
+  });
+
+  test('can be worked on like any other text: keep some words, and they read as the poem', async ({ page }) => {
+    await openStudio(page, 'pg9999-0001');
+    await keepFirstWords(page, 4);
+    await expect(keptWords(page)).toHaveCount(4);
   });
 });
 
@@ -56,12 +93,12 @@ test.describe('searching', () => {
     await search(page).fill('zzzz');
     await expect(count(page)).toHaveText('No book matches “zzzz”.');
     await search(page).fill('');
-    await expect(count(page)).toHaveText('2 books');
+    await expect(count(page)).toHaveText('3 books');
   });
 
   test('does not ask the server for every letter typed', async ({ page, server }) => {
     await page.goto('/discover');
-    await expect(count(page)).toHaveText('2 books');
+    await expect(count(page)).toHaveText('3 books');
     const before = server.requests.filter(r => r.path === '/api/library/books').length;
     await search(page).pressSequentially('dorian', { delay: 30 });
     await expect(count(page)).toHaveText('1 book');

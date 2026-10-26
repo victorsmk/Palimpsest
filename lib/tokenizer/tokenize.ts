@@ -22,6 +22,9 @@ function normalizeWord(raw: string): string {
  *  - Attached punctuation remains part of the display text of the word token.
  *  - Internal hyphens ('honey-sweet') and apostrophes ("don't") remain intact.
  *  - Stable token IDs: `${passageId}-token-${paddedPosition}`.
+ *  - A line separator (U+2028) inside a paragraph marks a line of verse. It is whitespace like any other, so it
+ *    changes no word and no id; the first token after it has lineStart = true, so that a page can show the line.
+ *    (No prose text has one, so no prose token has `lineStart` at all.)
  */
 export function tokenize(passageId: string, sourceText: string): Token[] {
   const tokens: Token[] = [];
@@ -36,43 +39,55 @@ export function tokenize(passageId: string, sourceText: string): Token[] {
 
     let isFirstInPara = true;
 
-    // Split paragraph by em dash (—) while capturing the em dash
-    const segments = paragraphText.split(/(—)/);
+    // Lines of verse are separated by U+2028; every line after the first starts a line on the page.
+    const lines = paragraphText.split('\u2028');
+    let startsLine = false;
 
-    for (const segment of segments) {
-      if (segment === '—') {
-        tokens.push({
-          id: `${passageId}-token-${String(position).padStart(4, '0')}`,
-          text: '—',
-          word: '',
-          position: position++,
-          paragraphIndex: pIdx,
-          lineBreakBefore: false,
-          kind: 'separator',
-          isSelectable: false,
-        });
-        isFirstInPara = false;
-        continue;
-      }
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex];
+      if (lineIndex > 0) startsLine = true;
+      // Split the line by em dash (—) while capturing the em dash
+      const segments = line.split(/(—)/);
 
-      // Split segment into whitespace-delimited words
-      const rawWords = segment.split(/\s+/).filter(Boolean);
+      for (const segment of segments) {
+        if (segment === '—') {
+          tokens.push({
+            id: `${passageId}-token-${String(position).padStart(4, '0')}`,
+            text: '—',
+            word: '',
+            position: position++,
+            paragraphIndex: pIdx,
+            lineBreakBefore: false,
+            ...(startsLine ? { lineStart: true } : {}),
+            kind: 'separator',
+            isSelectable: false,
+          });
+          isFirstInPara = false;
+          startsLine = false;
+          continue;
+        }
 
-      for (const rawWord of rawWords) {
-        const cleanWord = normalizeWord(rawWord);
+        // Split segment into whitespace-delimited words
+        const rawWords = segment.split(/\s+/).filter(Boolean);
 
-        tokens.push({
-          id: `${passageId}-token-${String(position).padStart(4, '0')}`,
-          text: rawWord,
-          word: cleanWord,
-          position: position++,
-          paragraphIndex: pIdx,
-          lineBreakBefore: isFirstInPara && pIdx > 0,
-          kind: 'word',
-          isSelectable: true,
-        });
+        for (const rawWord of rawWords) {
+          const cleanWord = normalizeWord(rawWord);
 
-        isFirstInPara = false;
+          tokens.push({
+            id: `${passageId}-token-${String(position).padStart(4, '0')}`,
+            text: rawWord,
+            word: cleanWord,
+            position: position++,
+            paragraphIndex: pIdx,
+            lineBreakBefore: isFirstInPara && pIdx > 0,
+            ...(startsLine ? { lineStart: true } : {}),
+            kind: 'word',
+            isSelectable: true,
+          });
+
+          isFirstInPara = false;
+          startsLine = false;
+        }
       }
     }
   }

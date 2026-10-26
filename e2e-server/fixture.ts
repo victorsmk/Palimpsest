@@ -7,7 +7,7 @@ import { testUserId, TEST_CODE } from '@/lib/auth/testClient';
 import { createTestDb } from '../tests/helpers/pgliteDb';
 import { inProcessFetch } from '../tests/helpers/inProcessApi';
 import { createLibraryApi } from '@/lib/server/api/library';
-import { seedRealBooks } from '../tests/helpers/library';
+import { seedRealBooks, seedVerseBook } from '../tests/helpers/library';
 
 export { expect, TEST_CODE, testUserId };
 
@@ -43,7 +43,8 @@ export interface FakeServer {
 export const test = base.extend<{ server: FakeServer }>({
   server: [async ({ context }, use) => {
     const db = await createTestDb();
-    await seedRealBooks(db, 'dorianGray', 'janeEyre'); // a book in the server's library, besides the ones bundled with the app
+    await seedRealBooks(db, 'dorianGray', 'janeEyre'); // books in the server's library, besides the ones bundled with the app
+    await seedVerseBook(db); // and a small book of verse
     const api = createPoemsApi({
       authenticate: testAuthenticator(),
       poemsOf: userId => new PostgresPoemRepository(db, userId),

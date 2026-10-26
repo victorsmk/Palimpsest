@@ -38,6 +38,7 @@ export function readList(path) {
     if (typeof entry.title !== 'string' || !entry.title.trim()) bad.push('title');
     if (typeof entry.author !== 'string' || !entry.author.trim()) bad.push('author');
     if (!Number.isInteger(entry.year)) bad.push('year');
+    if (entry.form !== undefined && entry.form !== 'prose' && entry.form !== 'verse') bad.push('form (prose or verse)');
     if (bad.length > 0) throw new Error(`${path}: an entry has a missing or wrong ${bad.join(', ')}: ${JSON.stringify(entry)}`);
     if (entry.year > LAST_PUBLIC_DOMAIN_YEAR) {
       throw new Error(`${entry.title} was published in ${entry.year}. Only books published in ${LAST_PUBLIC_DOMAIN_YEAR} or before are known to be public domain in the USA, so it is not imported.`);
@@ -83,7 +84,7 @@ export async function main(argv, log = console.log) {
 
   log(`Cutting rules version ${CUTTER_VERSION}. ${list.length} books in the list.`);
   for (const { entry, excerpts, words, bytes } of books) {
-    log(`  ${entry.title} (${entry.author}, ${entry.year}): ${excerpts.length} excerpts, ${words.toLocaleString('en')} words, ${megabytes(bytes)} of text`);
+    log(`  ${entry.title} (${entry.author}, ${entry.year}${entry.form === 'verse' ? ', verse' : ''}): ${excerpts.length} excerpts, ${words.toLocaleString('en')} words, ${megabytes(bytes)} of text`);
   }
   const totalBytes = books.reduce((sum, b) => sum + b.bytes, 0);
   log(`Together: ${books.length} books, ${books.reduce((s, b) => s + b.excerpts.length, 0).toLocaleString('en')} excerpts, ${megabytes(totalBytes)} of text.`);

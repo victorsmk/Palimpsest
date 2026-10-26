@@ -106,6 +106,7 @@ function BookList({ search, onSearch, onPick, autoFocus }: { search: string; onS
                 <span className="block font-serif text-base font-bold leading-snug text-[#24231F]">{item.title}</span>
                 <span className="block text-xs text-[#57544E]">
                   {item.author}, {item.year}
+                  {item.form === 'verse' && <span> · poetry</span>}
                 </span>
               </button>
             </li>

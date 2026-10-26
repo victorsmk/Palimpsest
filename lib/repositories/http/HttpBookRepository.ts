@@ -34,7 +34,7 @@ function isPosition(value: unknown): value is NonNullable<Passage['position']> {
   );
 }
 
-const isBook = (value: unknown): value is Book => isRecord(value) && isText(value.id) && isText(value.title) && isText(value.author) && typeof value.year === 'number' && isAttribution(value.attribution);
+const isBook = (value: unknown): value is Book => isRecord(value) && (value.form === undefined || value.form === 'prose' || value.form === 'verse') && isText(value.id) && isText(value.title) && isText(value.author) && typeof value.year === 'number' && isAttribution(value.attribution);
 
 const isSummary = (value: unknown): value is PassageSummary =>
   isRecord(value) && isText(value.id) && isText(value.bookId) && isText(value.title) && isText(value.description) && isAttribution(value.attribution);

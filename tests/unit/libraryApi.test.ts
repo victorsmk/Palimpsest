@@ -28,6 +28,7 @@ describe('listing the books', () => {
       author: 'Charlotte Brontë',
       year: 1847,
       attribution: { title: 'Jane Eyre', author: 'Charlotte Brontë', year: 1847, source: 'Project Gutenberg', url: 'https://www.gutenberg.org/ebooks/1260', licenseNote: 'Public domain in the USA' },
+      form: 'prose',
     });
   });
 

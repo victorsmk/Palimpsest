@@ -31,10 +31,38 @@ list and searched by title or author. This file is how books get in. The plan is
    excerpt in the Studio asks first when the poem has unsaved changes. The three bundled passages are no longer
    offered anywhere (they remain only so that old poems open). Without a server library (the browser-only version)
    nothing changed: the buttons for the bundled passages are still there.
-4. **The full list of about 200 books** (not started): drafted by Claude, reviewed by you, imported with the
-   same command.
+4. **The full list of about 200 books** (in progress). Decided 2026-10-28 with the user: **poetry first**, even at the cost
+   of fewer authors, and several works by one author are fine when they are poetry (Poe, Milton, Blake, Whitman, Dickinson,
+   Keats, Shelley, Byron, Wordsworth, Coleridge, Tennyson, the Brownings, the Rossettis, Yeats, Frost, Hardy, Housman, Kipling,
+   Hopkins, Longfellow, Swinburne, Donne, Marvell, Pope, Burns, Sandburg, Eliot, Masters and others), about 130 to 150 books of
+   verse and 50 to 70 of prose; **translations of classic verse** (Homer, Dante and the like) are in if the translation was first
+   published in 1930 or earlier; **Shakespeare's sonnets are in, his plays are out** (a play's speaker names are not handled).
+   - **4a. Verse support (done 2026-10-28).** See "Verse" below. A book is listed with `"form": "verse"`.
+   - **4b. The list.** The user downloads Gutenberg's own catalogue file (`pg_catalog.csv`, offered for exactly this); a small
+     script matches the draft list against it so that the Gutenberg numbers are checked, not remembered.
+   - **4c. The files.** Saved by hand in batches of about 50 (a link and a file name for each), a dry run on each batch checked
+     before it is imported.
 
 Until step 2, nothing on the site uses these tables. Importing books changes nothing you can see.
+
+## Verse (poetry)
+
+A book listed with `"form": "verse"` (see [`data/library/poetry-pilot.json`](data/library/poetry-pilot.json)) is cut differently:
+
+- **Lines are kept.** Each line of a stanza stays a line (the text of an excerpt has a line separator, U+2028, between lines),
+  and the page shows it that way: one line under another, a stanza apart from the next, no paragraph indent. Nothing about a
+  word or its id changes (the separator is whitespace to the tokenizer), and prose is untouched: its tokens do not even have the
+  new field, and a test pins the exact output for real books.
+- **A poem is a section.** A title in capitals on a line of its own (`THE RAVEN`), `BOOK I`, `CANTO II`, or a number with a title
+  starts a poem. A line in capitals *inside* a stanza is not a title.
+- **Short poems are packed** one after another into an excerpt of about 450 words, named for them ("Poems — The Raven · Annabel
+  Lee · Eldorado"), with each poem's title in the text so that the reader sees where one ends. **A poem alone** is named for itself
+  and has no title line in its text. **A poem too long for one excerpt** (an epic) is cut at the end of a stanza or, where a book
+  runs hundreds of lines together, at the end of a line, and named "Title (2 of 7)".
+- **No titles found** (fewer than three): the book is cut as one run, in numbered parts, with its stanzas kept.
+- The book list shows "· poetry" for these books.
+- **Not handled:** plays (speaker names), verse with line numbers in the margin (the dry run will show them if a book has them),
+  indentation that carries meaning (it is dropped), and poems whose titles are not in capitals (they stay inside the poem before).
 
 ## What the import does
 
@@ -124,7 +152,7 @@ Not tested: a run against your real Supabase (needs your database); books other 
 Dracula and the rest may have headings the rules do not recognise, which the dry run's excerpt counts will
 show); the real size of the tables with TOAST compression (the pilot measures it).
 
-**Known limits of the rules (version 1).**
+**Known limits of the rules (version 2; prose is cut exactly as in version 1).**
 - Chapters are found by headings such as `CHAPTER IV`, `Book Two`, `Part 1`, `Letter 3`, or a number with a title
   (`I. A SCANDAL IN BOHEMIA`). A bare number on its own line counts as a chapter only if nothing better is found.
 - A contents list (four or more headings in a row) is left out, with the front matter after it, so a book with

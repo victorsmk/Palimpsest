@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { ErasureStyle, Token } from '@/lib/models';
 import { ErasureWord } from './ErasureWord';
 
@@ -58,17 +58,20 @@ export function BookText({ paragraphs, retainedSet, style, onToggle }: BookTextP
       className="font-literary text-[17px] leading-[2.1] text-[#24231F] select-none"
     >
       {paragraphs.map((paragraph, pIdx) => (
-        <p key={pIdx} className="mb-6 indent-6">
+        // A stanza of verse has its lines one under another and no indent; prose is run on, with its first line indented.
+        <p key={pIdx} className={paragraph.some(token => token.lineStart) ? 'mb-6' : 'mb-6 indent-6'}>
           {paragraph.map(token => (
-            <ErasureWord
-              key={token.id}
-              token={token}
-              isRetained={retainedSet.has(token.id)}
-              style={style}
-              onToggle={onToggle}
-              tabIndex={token.id === tabStopId ? 0 : -1}
-              onFocus={setFocusedId}
-            />
+            <Fragment key={token.id}>
+              {token.lineStart && <br />}
+              <ErasureWord
+                token={token}
+                isRetained={retainedSet.has(token.id)}
+                style={style}
+                onToggle={onToggle}
+                tabIndex={token.id === tabStopId ? 0 : -1}
+                onFocus={setFocusedId}
+              />
+            </Fragment>
           ))}
         </p>
       ))}
