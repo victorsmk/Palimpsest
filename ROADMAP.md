@@ -78,3 +78,16 @@ is. Things that were to be settled:
   use; a readable copy is a different use.
 - The restore machinery must stay: "add the poems kept in this browser to my account" is built on it.
 - Whatever changes, the tests of backup and restore (unit and browser) would change with it.
+
+## Look and feel: specific changes the user asked for (raised 2026-10-28; noted, not started)
+
+To do together with the "Look and feel" pass above, or earlier if they are quick:
+
+1. **A bigger title.** The PALIMPSEST name at the top is too small.
+2. **My Collection and Account at the right of the page, in the top corner**, rather than among the other
+   navigation buttons (Discover, Assisted, the Studio).
+3. **Remove the offer to add poems saved in this browser to an account** (the "bring across" dialog and the
+   Account dialog's button for it). The user sees no point to it. I read this as the bring-across step; this
+   needs confirming before it is done. If it goes, `lib/account/bringAcross.ts`, `BringAcrossDialog` and their
+   tests go too, but the restore code stays only if something else uses it (the browser-only version's
+   "Add poems from a downloaded copy…" does).
