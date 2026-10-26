@@ -129,6 +129,7 @@ export {
   PoemLimitError,
   PoemConflictError,
   PoemGoneError,
+  PoemExistsError,
   StorageError,
   OfflineError,
   UnauthorizedError,

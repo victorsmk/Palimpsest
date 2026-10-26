@@ -138,9 +138,37 @@ poem model to change (step 3), which is where the real backend work starts.
      adapter against a real Postgres (there is none here; its transaction handling is tested against a stand-in
      driver only), the advisory lock under real concurrency (PGlite has one connection, so the race test cannot
      tell it from nothing), and the `supabase.sql` statements on Supabase.
-   - **6b, next:** the API routes (`/api/poems/...`): check the signed-in user on every call, re-apply
-     validation and the limits, map errors to HTTP statuses. It must also refuse text the database cannot hold
-     (a NUL character fails in Postgres today, as a plain `RepositoryError`).
+   - **6b, done:** the poems API. Framework-free handlers in `lib/server/api/` (`handlers.ts`: plain functions from a
+     `Request` to a `Response`), thin route files under `app/api/`, wired to the environment in `server.ts`.
+     Endpoints, all JSON, all `Authorization: Bearer <token>`, never cached:
+
+     | Method and path | Does | Success |
+     |---|---|---|
+     | `GET /api/poems?after=&limit=&full=1` | a page of summaries (whole poems with `full=1`), newest change first | 200 `{items, next}` |
+     | `POST /api/poems` | saves a new poem | 201 the poem |
+     | `GET /api/poems/:id` | one poem | 200 |
+     | `PUT /api/poems/:id` + `If-Match: <revision>` | saves over a poem | 200 the poem |
+     | `DELETE /api/poems/:id` | deletes (idempotent) | 204 |
+     | `GET /api/collection/count` | how many | 200 `{count}` |
+     | `POST /api/collection/lookup {ids}` | those poems, whole | 200 `{poems}` |
+     | `POST /api/collection/import {poems}` | adds poems with their own ids/times/revisions, all or none | 201 `{added}` |
+
+     Errors are `{error: {code, message, current?}}`: 400 `invalid` (malformed), 401 `unauthorized` (with
+     `WWW-Authenticate: Bearer`), 404 `gone`, 409 `conflict` (with `current`, the poem as stored) or `exists`,
+     413/415/428 `invalid`, 422 `limit` (a message to show), 503 `unavailable`, 500 anything else. The cause of a
+     failure is logged on the server and never sent. Who is asking is settled first, before the body is read:
+     `supabaseAuthenticator` asks Supabase's `/auth/v1/user` with the token (no extra package); a failure of
+     Supabase is "unavailable", never "signed out". The browser is not trusted: `validate.ts` checks every
+     field (ids, lengths, the limits, no control characters, line breaks only after kept words), cuts and
+     repairs nothing, and the server assigns id, times and revision whatever the request says. Settings
+     (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, optional `PALIMPSEST_TEST_AUTH`) are in `.env.example`;
+     a missing or wrong one makes every request answer 503, and the test sign-in is refused in production.
+     **Tested:** 91 tests of the handlers on real SQL (PGlite), plus the real Next server over HTTP in
+     development and production mode (routes, 401/400/415/428 answers, the production refusal of the test
+     sign-in, and a database that is not there giving 503 through the real `pg` driver). **Not verified:** the
+     Supabase answer to `/auth/v1/user` (tested against a stand-in for what its documentation says), a real
+     database, and no rate limiting yet (the `429` is defined but nothing sends it; Vercel and Supabase have
+     their own limits).
    - **6c:** `HttpPoemRepository` and the `server` backend kind, run through the contract suite against the routes.
    - **6d:** sign-in dialog (email code), signed-out behaviour, bringing local poems across, account deletion,
      the wording changes. Google sign-in is in ROADMAP.md.

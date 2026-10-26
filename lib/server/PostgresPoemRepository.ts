@@ -2,6 +2,7 @@ import type { PoemRepository } from '@/lib/repositories';
 import {
   LIMITS,
   PoemConflictError,
+  PoemExistsError,
   PoemGoneError,
   PoemLimitError,
   RepositoryError,
@@ -17,9 +18,6 @@ import {
 import { stampNew, stampUpdate } from '@/lib/models/stamp';
 import { pageSize, parsePoemCursor, poemCursor, updatedMs } from '@/lib/repositories/paging';
 import type { Db } from './db';
-
-/** Something refused on purpose, in words of its own: not a failure of the database. */
-class Refused extends Error {}
 
 const COLLECTION_FULL = `Your collection is full: it can hold up to ${LIMITS.poemsMax.toLocaleString('en-US')} poems. Delete some to save more.`;
 
@@ -106,7 +104,7 @@ export class PostgresPoemRepository implements PoemRepository {
     try {
       return await work();
     } catch (error) {
-      if (error instanceof RepositoryError || error instanceof Refused) throw error;
+      if (error instanceof RepositoryError) throw error;
       throw new UnavailableError({ cause: error });
     }
   }
@@ -198,13 +196,13 @@ export class PostgresPoemRepository implements PoemRepository {
   async importMany(poems: Poem[]): Promise<void> {
     // The same refusal as the other repositories: this id is not an ordinary key in some of them.
     if (poems.some(poem => poem.id === '__proto__')) throw new Error('That poem cannot be stored.');
-    if (new Set(poems.map(poem => poem.id)).size !== poems.length) throw new Error('A poem with that id is already stored.');
+    if (new Set(poems.map(poem => poem.id)).size !== poems.length) throw new PoemExistsError();
     if (poems.length === 0) return;
     await this.run(() =>
       this.db.transaction(async tx => {
         await this.lockUser(tx);
         const taken = await tx.query('select 1 from poems where user_id = $1 and id = any($2::text[]) limit 1', [this.userId, poems.map(poem => poem.id)]);
-        if (taken.rows.length > 0) throw new Refused('A poem with that id is already stored.');
+        if (taken.rows.length > 0) throw new PoemExistsError();
         await this.assertRoomFor(tx, poems.length);
         for (const poem of poems) await this.insert(tx, structuredClone(poem));
       })

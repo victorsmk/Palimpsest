@@ -1,5 +1,5 @@
 import type { PoemRepository } from '@/lib/repositories';
-import { PoemConflictError, PoemGoneError, StorageError, storageFailureOf, summarizePoem, type Page, type PageRequest, type Poem, type PoemDraft, type PoemSummary } from '@/lib/models';
+import { PoemConflictError, PoemExistsError, PoemGoneError, StorageError, storageFailureOf, summarizePoem, type Page, type PageRequest, type Poem, type PoemDraft, type PoemSummary } from '@/lib/models';
 import { parseStoredPoem } from '@/lib/models/poemValidation';
 import { stampNew, stampUpdate } from '@/lib/models/stamp';
 import { pageOfPoems } from '../paging';
@@ -123,7 +123,7 @@ export class BrowserPoemRepository implements PoemRepository {
     const data = this.loadRaw();
     const seen = new Set<string>();
     for (const poem of poems) {
-      if (Object.hasOwn(data, poem.id) || seen.has(poem.id)) throw new Error('A poem with that id is already stored.');
+      if (Object.hasOwn(data, poem.id) || seen.has(poem.id)) throw new PoemExistsError();
       seen.add(poem.id);
     }
     for (const poem of poems) data[poem.id] = structuredClone(poem);

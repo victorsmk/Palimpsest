@@ -1,7 +1,7 @@
 import type { Poem } from './index';
 
 /** Why a repository could not do what it was asked. A screen tells these apart by `code`. */
-export type RepositoryErrorCode = 'limit' | 'conflict' | 'gone' | 'storage' | 'offline' | 'unauthorized' | 'rate-limited' | 'unavailable';
+export type RepositoryErrorCode = 'limit' | 'conflict' | 'gone' | 'exists' | 'storage' | 'offline' | 'unauthorized' | 'rate-limited' | 'unavailable';
 
 /**
  * Anything a repository can refuse or fail at, in words fit to show the writer. Every repository,
@@ -51,6 +51,17 @@ export class PoemGoneError extends RepositoryError {
   constructor() {
     super('This poem was deleted somewhere else, so it was not saved. You can save it again as a new poem.');
     this.name = 'PoemGoneError';
+  }
+}
+
+/** An import of a poem whose id is already stored. Nothing was added. */
+export class PoemExistsError extends RepositoryError {
+  readonly code = 'exists' as const;
+  readonly retryable = false;
+
+  constructor() {
+    super('A poem with that id is already stored.');
+    this.name = 'PoemExistsError';
   }
 }
 

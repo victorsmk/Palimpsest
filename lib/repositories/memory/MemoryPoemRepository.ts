@@ -1,5 +1,5 @@
 import type { PoemRepository } from '@/lib/repositories';
-import { PoemConflictError, PoemGoneError, summarizePoem, type Page, type PageRequest, type Poem, type PoemDraft, type PoemSummary } from '@/lib/models';
+import { PoemConflictError, PoemExistsError, PoemGoneError, summarizePoem, type Page, type PageRequest, type Poem, type PoemDraft, type PoemSummary } from '@/lib/models';
 import { pageOfPoems } from '../paging';
 import { stampNew, stampUpdate } from '@/lib/models/stamp';
 
@@ -34,7 +34,7 @@ export class MemoryPoemRepository implements PoemRepository {
     if (poems.some(poem => poem.id === '__proto__')) throw new Error('That poem cannot be stored.');
     const seen = new Set<string>();
     for (const poem of poems) {
-      if (this.poems.has(poem.id) || seen.has(poem.id)) throw new Error('A poem with that id is already stored.');
+      if (this.poems.has(poem.id) || seen.has(poem.id)) throw new PoemExistsError();
       seen.add(poem.id);
     }
     for (const poem of poems) this.poems.set(poem.id, structuredClone(poem));
