@@ -33,3 +33,11 @@ export {
 } from './shared';
 export type { ShareResult, SharedPoem } from './shared';
 export { discoverHash, discoverHref, readDiscoverPassage } from './discover';
+export {
+  SAVED_MISSING_MESSAGE,
+  SAVED_PREFIX,
+  SAVED_UNREADABLE_MESSAGE,
+  readOpenRequest,
+  savedPoemHref,
+} from './saved';
+export type { OpenRequest } from './saved';

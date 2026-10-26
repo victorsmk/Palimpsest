@@ -175,6 +175,7 @@ test.describe('keyboard and screen reader', () => {
     const links = linksInTabOrder(browserName);
     const expected = [
       ...(links ? ['Skip to main content', 'Home', 'Assisted', 'Studio'] : []),
+      'My Collection',
       'Jane Eyre',
       'Walden',
       'The Picture of Dorian Gray',

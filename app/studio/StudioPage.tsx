@@ -9,7 +9,7 @@ import { BookText } from '@/components/BookText';
 import { ViewToggle, type StudioView } from '@/components/ViewToggle';
 import { ExtractedPoem } from '@/components/ExtractedPoem';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
-import { DraftsDrawer } from '@/components/DraftsDrawer';
+import { MyCollectionButton } from '@/components/MyCollectionButton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { usePageDna } from '@/components/usePageDna';
 import { PageDnaStrip } from '@/components/PageDnaStrip';
@@ -18,7 +18,16 @@ import { poemService } from '@/lib/services';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
 import { downloadTextFile, poemLines, poemToText } from '@/lib/export/text';
 import { PrintablePoem } from '@/components/PrintablePoem';
-import { discoverHref, readHandoff, sharedPoemFromEditor, sharedPoemHref, type ReadHandoff } from '@/lib/handoff';
+import {
+  SAVED_MISSING_MESSAGE,
+  discoverHref,
+  readHandoff,
+  readOpenRequest,
+  sharedPoemFromEditor,
+  sharedPoemHref,
+  type ReadHandoff,
+} from '@/lib/handoff';
+import { openSavedPoem, type OpenedSavedPoem } from '@/lib/poems/openSaved';
 import type { Passage, Poem } from '@/lib/models';
 
 type Notice = { text: string; tone: 'ok' | 'error' };
@@ -34,6 +43,12 @@ function noticeForHandoff(handoff: ReadHandoff): Notice | null {
   }
   if (handoff.kind === 'invalid') return { text: handoff.message, tone: 'error' };
   return null;
+}
+
+function noticeForOpened(opened: OpenedSavedPoem | null): Notice | null {
+  if (!opened) return null;
+  if (!opened.ok) return { text: opened.message, tone: 'error' };
+  return { text: `Loaded draft "${opened.poem.title || 'Untitled'}"`, tone: 'ok' };
 }
 
 /** Drops the hash from the address bar (keeping Next's history state) so a reload does not reapply it. */
@@ -72,20 +87,48 @@ export default function StudioPage() {
   if (library.passages.length === 0) {
     return <StudioMessage role="alert">The library has no passages yet.</StudioMessage>;
   }
-  return <Studio passages={library.passages} />;
+  return <StudioEntry passages={library.passages} />;
 }
 
-function Studio({ passages }: { passages: Passage[] }) {
+/**
+ * Opens the Studio, first fetching the saved poem a link such as `#open=<id>` names (from My
+ * Collection on another page), so that the poem is on screen from the first render instead of the
+ * default page showing first.
+ */
+function StudioEntry({ passages }: { passages: Passage[] }) {
+  // Only rendered in the browser, after the library has loaded, so the hash can be read here.
+  const [request] = useState(() => readOpenRequest(window.location.hash));
+  const [opened, setOpened] = useState<OpenedSavedPoem | null>(null);
+
+  useEffect(() => {
+    if (request.kind !== 'poem') return;
+    let cancelled = false;
+    void openSavedPoem(request.id, passages, poemService).then(result => {
+      if (!cancelled) setOpened(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [request, passages]);
+
+  if (request.kind === 'poem' && opened === null) {
+    return <StudioMessage role="status">Opening your poem…</StudioMessage>;
+  }
+  const result: OpenedSavedPoem | null =
+    request.kind === 'invalid' ? { ok: false, message: request.message } : request.kind === 'poem' ? opened : null;
+  return <Studio passages={passages} opened={result} />;
+}
+
+function Studio({ passages, opened }: { passages: Passage[]; opened: OpenedSavedPoem | null }) {
   // A poem sent from Discover arrives in the URL hash. Studio only renders in the browser, after
   // the library has loaded, so the hash can be read while choosing the initial state: the poem is
   // open on the first render instead of the default page flashing first.
   const [handoff] = useState<ReadHandoff>(() => readHandoff(window.location.hash, passages));
   const [selectedPassageId, setSelectedPassageId] = useState<string>(() =>
-    handoff.kind === 'open' ? handoff.passage.id : passages[0].id
+    handoff.kind === 'open' ? handoff.passage.id : opened?.ok ? opened.passage.id : passages[0].id
   );
-  const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(undefined);
+  const [currentPoemId, setCurrentPoemId] = useState<string | undefined>(() => (opened?.ok ? opened.poem.id : undefined));
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [view, setView] = useState<StudioView>('page');
   const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
@@ -96,12 +139,16 @@ function Studio({ passages }: { passages: Passage[] }) {
   // The poem as last saved or opened, for the passage it belongs to. Unsaved changes are whatever
   // differs from it (or, before anything is saved or opened, from the untouched passage).
   const [baseline, setBaseline] = useState<{ passageId: string; snapshot: EditorSnapshot } | null>(() =>
-    handoff.kind === 'open' ? { passageId: handoff.passage.id, snapshot: handoff.snapshot } : null
+    handoff.kind === 'open'
+      ? { passageId: handoff.passage.id, snapshot: handoff.snapshot }
+      : opened?.ok
+        ? { passageId: opened.passage.id, snapshot: opened.snapshot }
+        : null
   );
   // Something that would replace the poem on screen, held until the writer says it is all right.
   const [pendingReplace, setPendingReplace] = useState<{ message: string; run: () => void } | null>(null);
   const exportFrameRef = useRef<HTMLDivElement>(null);
-  const [statusNotice, setStatusNotice] = useState<Notice | null>(() => noticeForHandoff(handoff));
+  const [statusNotice, setStatusNotice] = useState<Notice | null>(() => noticeForHandoff(handoff) ?? noticeForOpened(opened));
 
   // One dismiss timer at a time: an older notice's timer must not remove a newer notice early.
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -144,7 +191,7 @@ function Studio({ passages }: { passages: Passage[] }) {
   } = useEditor({
     passageId: activePassage.id,
     tokens,
-    initialSnapshot: handoff.kind === 'open' ? handoff.snapshot : undefined,
+    initialSnapshot: handoff.kind === 'open' ? handoff.snapshot : opened?.ok ? opened.snapshot : undefined,
   });
 
   const untouched = useMemo(() => createDefaultSnapshot(tokens), [tokens]);
@@ -186,36 +233,11 @@ function Studio({ passages }: { passages: Passage[] }) {
 
   // Once a hand-off has been read, take it out of the address bar and let its notice go in time.
   useEffect(() => {
-    if (handoff.kind === 'none') return;
+    if (handoff.kind === 'none' && !opened) return;
     clearHash();
-    const timer = setTimeout(() => setStatusNotice(null), handoff.kind === 'open' ? 8000 : 7000);
+    const timer = setTimeout(() => setStatusNotice(null), handoff.kind === 'open' ? 8000 : opened?.ok ? 3500 : 7000);
     return () => clearTimeout(timer);
-  }, [handoff]);
-
-  // A link that changes only the hash while the Studio is already open does not reload the page.
-  useEffect(() => {
-    function onHashChange() {
-      const next = readHandoff(window.location.hash, passages);
-      if (next.kind === 'none') return;
-      clearHash();
-      if (next.kind === 'invalid') {
-        showNotice(next.message, 'error');
-        return;
-      }
-      askBeforeReplacing(
-        "Opening this poem will replace the one you are editing, which has changes you haven't saved.",
-        () => {
-          setSelectedPassageId(next.passage.id);
-          setCurrentPoemId(undefined);
-          loadSnapshot(next.snapshot, next.passage.id);
-          setBaseline({ passageId: next.passage.id, snapshot: next.snapshot });
-          showNotice(openedMessage(next.passage.attribution.title, next.mode), 'ok', 8000);
-        }
-      );
-    }
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, [passages, loadSnapshot, showNotice, askBeforeReplacing]);
+  }, [handoff, opened]);
 
   // Handle saving to repository
   const handleSaveDraft = async (title: string, notes: string) => {
@@ -270,6 +292,45 @@ function Studio({ passages }: { passages: Passage[] }) {
       }
     );
   }, [passages, loadSnapshot, showNotice, askBeforeReplacing]);
+
+  // A link that changes only the hash while the Studio is already open does not reload the page.
+  useEffect(() => {
+    function onHashChange() {
+      const request = readOpenRequest(window.location.hash);
+      if (request.kind !== 'none') {
+        clearHash();
+        if (request.kind === 'invalid') {
+          showNotice(request.message, 'error');
+          return;
+        }
+        // One of the writer's own saved poems: fetch it, then open it as if chosen from My Collection.
+        void poemService
+          .getPoem(request.id)
+          .then(poem => (poem ? handleLoadPoem(poem) : showNotice(SAVED_MISSING_MESSAGE, 'error')))
+          .catch(() => showNotice('Your collection could not be read. Please try again.', 'error'));
+        return;
+      }
+      const next = readHandoff(window.location.hash, passages);
+      if (next.kind === 'none') return;
+      clearHash();
+      if (next.kind === 'invalid') {
+        showNotice(next.message, 'error');
+        return;
+      }
+      askBeforeReplacing(
+        "Opening this poem will replace the one you are editing, which has changes you haven't saved.",
+        () => {
+          setSelectedPassageId(next.passage.id);
+          setCurrentPoemId(undefined);
+          loadSnapshot(next.snapshot, next.passage.id);
+          setBaseline({ passageId: next.passage.id, snapshot: next.snapshot });
+          showNotice(openedMessage(next.passage.attribution.title, next.mode), 'ok', 8000);
+        }
+      );
+    }
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [passages, loadSnapshot, showNotice, askBeforeReplacing, handleLoadPoem]);
 
   // A poem renamed in My Collection: if it is the one open here, take its new title, and count that
   // as part of what is saved so that the rename alone is not an unsaved change.
@@ -397,12 +458,7 @@ function Studio({ passages }: { passages: Passage[] }) {
 
         {/* Right Header Navigation & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="px-3.5 py-1.5 bg-[#FAF6EE] hover:bg-[#E4D8C2] border border-[#E0D4BE] rounded text-xs font-medium text-[#24231F] transition-colors shadow-sm flex items-center justify-center gap-1.5"
-          >
-            <span aria-hidden="true">📖</span> My Collection
-          </button>
+          <MyCollectionButton passages={passages} onOpenPoem={handleLoadPoem} onRenamed={handleRenamedElsewhere} />
 
           {/* Passage Selector Tabs */}
           <div className="flex flex-wrap gap-2">
@@ -674,15 +730,6 @@ function Studio({ passages }: { passages: Passage[] }) {
         retainedCount={retainedCount}
         onSave={handleSaveDraft}
         onClose={() => setIsSaveModalOpen(false)}
-      />
-
-      {/* My Collection Drawer */}
-      <DraftsDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        onLoadPoem={handleLoadPoem}
-        passages={passages}
-        onRenamed={handleRenamedElsewhere}
       />
 
       {pendingReplace && (

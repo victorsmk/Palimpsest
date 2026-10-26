@@ -61,6 +61,9 @@ where Firefox starts there.
   24px touch targets. In WebKit (like Safari) Tab skips links, so those checks adapt per browser.
 - `export.spec.ts`: the text download (name, lines as broken, source, no notes), the disabled state with nothing kept, Print / Save as PDF (the dialog is called; in print
   media only the poem is visible; Chromium renders a one-page PDF), and the notice timer.
+- `collection-pages.spec.ts`: My Collection on the home, Discover and Assisted pages (the same panel),
+  opening a saved poem in the Studio by `#open=<id>` (as the same poem, with its notes), refused links,
+  the unsaved-changes question, managing and backing up from those pages, keyboard and phone.
 - `share.spec.ts`: "Copy link to this poem" (the exact link: words, breaks, style, title, never notes), opening
   it for someone else, the hand copy fallback, a title shown as plain text, links that will not open, the
   unsaved-changes question, keyboard and phone. The clipboard is stubbed so every browser runs the same checks.

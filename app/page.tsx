@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { CollectionLink } from '@/components/CollectionLink';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-[#F3EBDD] text-[#24231F] flex flex-col justify-between py-12 px-6 sm:px-12">
       {/* Navigation */}
-      <header className="max-w-4xl mx-auto w-full flex items-center justify-between border-b border-[#E4D8C2] pb-6">
+      <header className="max-w-4xl mx-auto w-full flex flex-wrap items-center justify-between gap-4 border-b border-[#E4D8C2] pb-6">
         <div>
           <span className="text-2xl font-serif font-bold tracking-tight text-[#24231F]">
             PALIMPSEST
@@ -13,7 +14,7 @@ export default function Home() {
             Found Poetry & Erasure Workshop
           </p>
         </div>
-        <nav aria-label="Main" className="flex items-center gap-3">
+        <nav aria-label="Main" className="flex flex-wrap items-center gap-3">
           <Link
             href="/discover"
             className="px-4 py-2 border border-[#24231F] text-[#24231F] rounded text-xs font-medium hover:bg-[#E4D8C2]/50 transition-colors"
@@ -26,6 +27,7 @@ export default function Home() {
           >
             Assisted poems
           </Link>
+          <CollectionLink />
           <Link
             href="/studio"
             className="px-4 py-2 bg-[#24231F] text-[#F3EBDD] rounded text-xs font-medium hover:bg-[#3D3A33] transition-colors shadow-sm"

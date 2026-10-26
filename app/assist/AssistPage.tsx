@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { Passage } from '@/lib/models';
 import { AssistBody } from '@/components/AssistBody';
+import { CollectionForPage } from '@/components/CollectionLink';
 import { useAssistedPoems } from '@/components/useAssistedPoems';
 import { discoverHash, readDiscoverPassage } from '@/lib/handoff';
 import { plural } from '@/components/PageDnaStrip';
@@ -77,25 +78,28 @@ function Assist({ passages }: { passages: Passage[] }) {
           <h1 className="text-3xl font-serif font-bold tracking-tight mt-1">Poems you can erase your way to</h1>
         </div>
 
-        <div role="group" aria-label="Passage" className="flex flex-wrap gap-2">
-          {passages.map(p => {
-            const isSelected = p.id === passage.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => choosePassage(p.id)}
-                className={`px-3 py-1.5 rounded text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438] ${
-                  isSelected
-                    ? 'bg-[#24231F] text-[#F3EBDD] shadow-sm'
-                    : 'bg-[#E4D8C2]/60 hover:bg-[#E4D8C2] text-[#24231F]'
-                }`}
-              >
-                {p.attribution.title}
-              </button>
-            );
-          })}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <CollectionForPage passages={passages} />
+          <div role="group" aria-label="Passage" className="flex flex-wrap gap-2">
+            {passages.map(p => {
+              const isSelected = p.id === passage.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => choosePassage(p.id)}
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438] ${
+                    isSelected
+                      ? 'bg-[#24231F] text-[#F3EBDD] shadow-sm'
+                      : 'bg-[#E4D8C2]/60 hover:bg-[#E4D8C2] text-[#24231F]'
+                  }`}
+                >
+                  {p.attribution.title}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </header>
 
