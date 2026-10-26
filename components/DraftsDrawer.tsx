@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { PoemConflictError, PoemGoneError, UnauthorizedError, type Page, type Poem, type PoemSummary } from '@/lib/models';
 import type { PassageLibrary } from '@/lib/library/passageLibrary';
-import { POEM_MISSING_MESSAGE, describeError } from '@/lib/errors/describe';
+import { POEM_MISSING_MESSAGE, describeError, noticeFor, type ProblemNotice } from '@/lib/errors/describe';
+import { NoticeDialog } from './NoticeDialog';
 import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
 import { downloadTextFile } from '@/lib/export/text';
 import { poemPreview } from '@/lib/poems/preview';
@@ -78,6 +79,8 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
   // Why there is nothing to show, when it is not that the collection is empty: nobody is signed in, or it could not be read.
   const [blocked, setBlocked] = useState<{ kind: 'sign-in' } | { kind: 'error'; message: string } | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  // A poem changed somewhere else since this list was loaded: told in a pop-up.
+  const [problem, setProblem] = useState<ProblemNotice | null>(null);
   const auth = useAuth();
   const [loadingMore, setLoadingMore] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PoemSummary | null>(null);
@@ -214,7 +217,9 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
       if (err instanceof PoemConflictError || err instanceof PoemGoneError) {
         // The list on screen is out of date: say so, and show the collection as it is now.
         setRenamingId(null);
-        setNotice({ text: describeError(err, 'rename'), tone: 'error' });
+        const notice = noticeFor(err, 'rename');
+        if (notice) setProblem(notice);
+        else setNotice({ text: describeError(err, 'rename'), tone: 'error' });
         try {
           await refresh();
         } catch {
@@ -559,6 +564,8 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
           </button>
         </div>
       </div>
+
+      {problem && <NoticeDialog title={problem.title} body={problem.body} onClose={() => setProblem(null)} />}
 
       {signingIn && auth.manager && (
         <SignInDialog manager={auth.manager} reason="Sign in to see your saved poems." onClose={() => setSigningIn(false)} onSignedIn={() => void readFirstPage(library).then(showFirstPage)} />

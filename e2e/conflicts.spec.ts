@@ -3,8 +3,18 @@ import { STORAGE_KEY, keepFirstWords, keptWords, openCollection, openStudio, pag
 
 // Two tabs of one browser share one collection. These tests are those two tabs.
 
-const CONFLICT = 'This poem was changed somewhere else, for example in another tab. Open it again from My Collection to see the latest version.';
-const GONE = 'This poem was deleted somewhere else, so it was not saved. You can save it again as a new poem.';
+// A poem changed or deleted somewhere else is told in a pop-up (an alert dialog), not a line of small text.
+const CONFLICT_TITLE = 'This poem was changed somewhere else';
+const GONE_TITLE = 'This poem was deleted somewhere else';
+const popup = (page: Page, title: string) => page.getByRole('alertdialog', { name: title });
+/** The pop-up is there with its sentences; it is dismissed with its one button, and focus goes back to the form. */
+async function expectPopupThenDismiss(page: Page, title: string, sentence: RegExp) {
+  await expect(popup(page, title)).toBeVisible();
+  await expect(popup(page, title)).toContainText(sentence);
+  await expect(popup(page, title).getByRole('button', { name: 'OK' })).toBeFocused();
+  await popup(page, title).getByRole('button', { name: 'OK' }).click();
+  await expect(popup(page, title)).toHaveCount(0);
+}
 
 const panel = (page: Page) => page.getByRole('dialog', { name: 'Saved Poems & Drafts' });
 const saveForm = (page: Page) => page.getByRole('dialog', { name: 'Save Poem Draft' });
@@ -45,7 +55,8 @@ test.describe('the same poem open in two tabs', () => {
     await pageWords(tabB).nth(5).click();
     await expect(keptWords(tabB)).toHaveCount(4);
     await saveDraft(tabB, 'Shared by B');
-    await expect(saveForm(tabB).getByRole('alert')).toHaveText(CONFLICT);
+    await expectPopupThenDismiss(tabB, CONFLICT_TITLE, /nothing there was overwritten/);
+    await expect(saveForm(tabB).getByRole('alert')).toHaveCount(0); // told once, in the pop-up
 
     // Nothing was overwritten, and what tab B had typed is still there to copy.
     const poems = await stored(tabB);
@@ -64,7 +75,7 @@ test.describe('the same poem open in two tabs', () => {
     await expect(tabA.getByText('Draft "Shared by A" saved.')).toBeVisible();
 
     await saveDraft(tabB, 'Shared by B');
-    await expect(saveForm(tabB).getByRole('alert')).toHaveText(CONFLICT);
+    await expectPopupThenDismiss(tabB, CONFLICT_TITLE, /open it again from My Collection/);
     await saveForm(tabB).getByRole('button', { name: 'Cancel' }).click();
 
     // B opens the poem again, then saves from the new revision.
@@ -104,7 +115,7 @@ test.describe('the same poem open in two tabs', () => {
     // Tab B saves what it has.
     await pageWords(tabB).nth(5).click();
     await saveDraft(tabB, 'Shared');
-    await expect(saveForm(tabB).getByRole('alert')).toHaveText(GONE);
+    await expectPopupThenDismiss(tabB, GONE_TITLE, /was not brought back/);
     expect(await stored(tabB)).toHaveLength(0); // not brought back
     await expect(saveForm(tabB).getByLabel('Poem Title')).toHaveValue('Shared');
 
@@ -130,7 +141,7 @@ test.describe('renaming from a collection list that is out of date', () => {
     await tabB.getByRole('button', { name: 'Rename draft Shared' }).click();
     await panel(tabB).getByLabel('New title for “Shared”').fill('Renamed in B');
     await tabB.keyboard.press('Enter');
-    await expect(panel(tabB).getByRole('status').or(panel(tabB).getByRole('alert')).filter({ hasText: CONFLICT })).toBeVisible();
+    await expectPopupThenDismiss(tabB, CONFLICT_TITLE, /The new name was not saved/);
     await expect(panel(tabB).getByRole('listitem').filter({ hasText: 'Changed in A' })).toBeVisible();
     expect((await stored(tabB))[0]).toMatchObject({ title: 'Changed in A', revision: 2 });
   });
@@ -171,7 +182,7 @@ test.describe('renaming from a collection list that is out of date', () => {
 
     // ...but tab B's page is still the poem before A's change, so saving it must not overwrite A's words.
     await saveDraft(tabB, 'Renamed in B');
-    await expect(saveForm(tabB).getByRole('alert')).toHaveText(CONFLICT);
+    await expectPopupThenDismiss(tabB, CONFLICT_TITLE, /nothing there was overwritten/);
     expect((await stored(tabB))[0].retainedTokenIds).toHaveLength(4);
   });
 });

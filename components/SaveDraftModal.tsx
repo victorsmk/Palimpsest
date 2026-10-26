@@ -2,7 +2,8 @@
 
 import React, { useId, useState } from 'react';
 import { LIMITS } from '@/lib/models';
-import { describeError } from '@/lib/errors/describe';
+import { describeError, noticeFor, type ProblemNotice } from '@/lib/errors/describe';
+import { NoticeDialog } from './NoticeDialog';
 import { backendKind } from '@/lib/services';
 import { useDialog } from './useDialog';
 
@@ -33,6 +34,8 @@ function SaveDraftForm({
   const [notes, setNotes] = useState(initialNotes);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A poem changed or deleted somewhere else is news big enough for a pop-up, not a line of small text.
+  const [problem, setProblem] = useState<ProblemNotice | null>(null);
   const headingId = useId();
   const dialogRef = useDialog<HTMLDivElement>(onClose);
 
@@ -44,7 +47,9 @@ function SaveDraftForm({
       await onSave(title, notes);
       onClose();
     } catch (err) {
-      setError(describeError(err, 'save'));
+      const notice = noticeFor(err, 'save');
+      if (notice) setProblem(notice);
+      else setError(describeError(err, 'save'));
     } finally {
       setIsSaving(false);
     }
@@ -149,6 +154,7 @@ function SaveDraftForm({
           </div>
         </form>
       </div>
+      {problem && <NoticeDialog title={problem.title} body={problem.body} onClose={() => setProblem(null)} />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { RepositoryError } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, RepositoryError } from '@/lib/models';
 
 /** What the writer was doing when something went wrong. */
 export type Action = 'save' | 'rename' | 'duplicate' | 'delete' | 'backup' | 'restore' | 'open' | 'list' | 'bring' | 'account';
@@ -36,4 +36,36 @@ export function describeError(error: unknown, action: Action): string {
   const retry = error.retryable ? TRY_AGAIN : '';
   const unchanged = action === 'restore' ? ' Your collection has not been changed.' : '';
   return `${error.message}${retry}${unchanged}`;
+}
+
+/** News too big for a line of small text: a heading and a few plain sentences, shown in a pop-up. */
+export interface ProblemNotice {
+  title: string;
+  body: string;
+}
+
+/**
+ * The pop-up for a poem that was changed or deleted somewhere else (another tab, another device) after
+ * it was opened here, or null for any other error. It says what happened, that nothing was overwritten
+ * or lost, and what to do next. `what` is what was being done.
+ */
+export function noticeFor(error: unknown, what: 'save' | 'rename'): ProblemNotice | null {
+  if (error instanceof PoemConflictError) {
+    return what === 'save'
+      ? {
+          title: 'This poem was changed somewhere else',
+          body: 'It was saved from another tab or device after you opened it here. Your save was not made, so nothing there was overwritten, and what you have on this page is untouched. To see the latest version, open it again from My Collection.',
+        }
+      : {
+          title: 'This poem was changed somewhere else',
+          body: 'It was changed from another tab or device after this list was loaded. The new name was not saved, and the list now shows the poem as it is.',
+        };
+  }
+  if (error instanceof PoemGoneError && what === 'save') {
+    return {
+      title: 'This poem was deleted somewhere else',
+      body: 'Your save was not made, and the poem was not brought back. What you have on this page is untouched. Save again to keep it as a new poem.',
+    };
+  }
+  return null;
 }

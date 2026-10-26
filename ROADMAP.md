@@ -57,3 +57,18 @@ The first sign-in will be an email one-time code (BACKEND.md, step 6). The user 
 as well, once the basics work: it also avoids the small free-tier email limit. Things to settle: setting up
 the Google OAuth client (the user's account), the redirect flow (it leaves the page, so unsaved work in the
 Studio must be kept across it), and linking a Google sign-in to an existing email account.
+
+## Rethink "Back up all poems" and "Restore from a backup" (raised 2026-10-27)
+
+The user finds the JSON backup file unnecessary and unintuitive: fewer than 5% of people know what a JSON file
+is. Not changed yet, waiting for a decision. Things to settle:
+
+- With poems kept in an account, the account is the backup, so the two buttons could simply go for signed-in
+  people. For the browser-only version they are the only way to move poems to another browser or to keep a copy
+  if the browser's storage is cleared, so removing them there removes a safety net.
+- If a file stays, it could be named for what it does ("Download a copy of all my poems", "Add poems from a
+  downloaded copy") and the file could be something a person can read (a text or document file with the poems
+  in it) as well as, or instead of, the machine-readable one. Markdown export was removed earlier for lack of a
+  use; a readable copy is a different use.
+- The restore machinery must stay: "add the poems kept in this browser to my account" is built on it.
+- Whatever changes, the tests of backup and restore (unit and browser) would change with it.

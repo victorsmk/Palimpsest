@@ -366,7 +366,7 @@ test.describe('when the server or the sign-in lets the writer down', () => {
 
     await second.getByRole('button', { name: 'Save Draft to Collection' }).click();
     await second.getByRole('dialog', { name: 'Save Poem Draft' }).getByRole('button', { name: 'Save Draft', exact: true }).click();
-    await expect(second.getByRole('dialog', { name: 'Save Poem Draft' }).getByRole('alert')).toContainText('changed somewhere else');
+    await expect(second.getByRole('alertdialog', { name: 'This poem was changed somewhere else' })).toContainText('nothing there was overwritten');
     expect((await server.poemsOf(ME).list()).items[0]).toMatchObject({ title: 'Changed in the first', revision: 2 });
   });
 });

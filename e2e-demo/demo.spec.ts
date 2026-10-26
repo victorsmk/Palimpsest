@@ -99,7 +99,7 @@ test('two tabs of the same account: the second to save is told the poem changed 
   await save(page, 'Changed first');
   await second.getByRole('button', { name: 'Save Draft to Collection' }).click();
   await second.getByRole('dialog', { name: 'Save Poem Draft' }).getByRole('button', { name: 'Save Draft', exact: true }).click();
-  await expect(second.getByRole('dialog', { name: 'Save Poem Draft' }).getByRole('alert')).toContainText('changed somewhere else');
+  await expect(second.getByRole('alertdialog', { name: 'This poem was changed somewhere else' })).toContainText('nothing there was overwritten');
 });
 
 test('deleting the account removes its poems, and the address starts empty again', async ({ page }) => {
