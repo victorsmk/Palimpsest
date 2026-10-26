@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import {
   CutError,
   MAX_WORDS,
-  MIN_SECTION_WORDS,
+  CONTENTS_RUN,
   MIN_TAIL_WORDS,
   TARGET_WORDS,
   checkHeader,
@@ -150,9 +150,57 @@ describe('finding the chapters', () => {
     expect(sections.flatMap(s => s.paragraphs).join(' ')).not.toContain('Dedicated');
   });
 
-  it('leaves out a chapter shorter than the least a section may have', () => {
-    const sections = sectionsOf([...chapter('CHAPTER I'), ...chapter('CHAPTER II', MIN_SECTION_WORDS - 1), ...chapter('CHAPTER III'), ...chapter('CHAPTER IV')]);
-    expect(sections.map(s => s.label)).toEqual(['Chapter I', 'Chapter III', 'Chapter IV']);
+  it('keeps a short chapter as an excerpt of its own, and leaves out a heading with nothing under it', () => {
+    const sections = sectionsOf([...chapter('CHAPTER I'), ...chapter('CHAPTER II', 12), 'CHAPTER III', ...chapter('CHAPTER IV'), ...chapter('CHAPTER V')]);
+    expect(sections.map(s => s.label)).toEqual(['Chapter I', 'Chapter II', 'Chapter IV', 'Chapter V']);
+    expect(wordCount(sections[1].paragraphs.join(' '))).toBe(12);
+  });
+
+  it('leaves out a contents list of any length, whose lines may be long summaries, and the front matter after it', () => {
+    const lines = Array.from({ length: CONTENTS_RUN }, (_, i) => `CHAPTER ${i + 1}. A long summary of what happens.—And then something else.—And a third thing to read.—Last of all.`);
+    expect(lines[0].length).toBeGreaterThan(80);
+    const sections = sectionsOf(['CONTENTS.', ...lines, 'ILLUSTRATIONS.', para(300, 'front'), ...chapter('CHAPTER 1.', 300, 'a'), ...chapter('CHAPTER 2.', 300, 'b'), ...chapter('CHAPTER 3.', 300, 'c'), ...chapter('CHAPTER 4.', 300, 'd')]);
+    expect(sections.map(s => s.label)).toEqual(['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4']);
+    expect(sections.flatMap(s => s.paragraphs).join(' ')).not.toContain('front0');
+  });
+
+  it('does not take a book heading above a chapter for a contents list', () => {
+    const sections = sectionsOf(['BOOK THE FIRST', ...chapter('CHAPTER I'), ...chapter('CHAPTER II'), 'BOOK THE SECOND', ...chapter('CHAPTER III')]);
+    expect(sections.map(s => s.label)).toEqual(['Chapter I', 'Chapter II', 'Chapter III']);
+  });
+
+  it('uses a title with a number ("I. A SCANDAL IN BOHEMIA") as a chapter, and drops the bare numbers inside as neither chapters nor words', () => {
+    const paragraphs = ['I. A SCANDAL IN BOHEMIA', 'I.', para(300, 'a'), 'II.', para(300, 'b'), 'II. THE RED-HEADED LEAGUE', 'I.', para(300, 'c'), 'III. A CASE OF IDENTITY', para(300, 'd')];
+    const sections = sectionsOf(paragraphs);
+    expect(sections.map(s => s.label)).toEqual(['I. A Scandal In Bohemia', 'II. The Red-Headed League', 'III. A Case Of Identity']);
+    expect(sections[0].paragraphs).toHaveLength(2);
+    expect(sections.flatMap(s => s.paragraphs)).not.toContain('I.');
+  });
+
+  it('uses bare numbers as chapters when there is nothing better', () => {
+    const sections = sectionsOf(['I.', para(300, 'a'), 'II.', para(300, 'b'), 'III.', para(300, 'c')]);
+    expect(sections.map(s => s.label)).toEqual(['I', 'II', 'III']);
+  });
+
+  it('does not take a stage direction under a heading for its title', () => {
+    const sections = sectionsOf(['CHAPTER 1. Aloft', '(The main-top-sail yard)', para(300, 'a'), ...chapter('CHAPTER 2. Below'), ...chapter('CHAPTER 3. Away')]);
+    expect(sections[0].label).toBe('Chapter 1. Aloft'.replace('Chapter', 'CHAPTER'));
+    expect(sections[0].paragraphs[0]).toBe('(The main-top-sail yard)');
+  });
+
+  it('sets titles in capitals in ordinary case without capitalising after an apostrophe, and tidies the ends', () => {
+    const labelOf = (heading: string, subtitle: string) => sectionsOf([heading, subtitle, para(300, 'a'), ...chapter('CHAPTER II'), ...chapter('CHAPTER III')])[0].label;
+    expect(labelOf('CHAPTER III', 'JONATHAN HARKER’S JOURNAL')).toBe('Chapter III — Jonathan Harker’s Journal');
+    expect(labelOf('CHAPTER III', 'JONATHAN HARKER’S JOURNAL--continued')).toBe('Chapter III — Jonathan Harker’s Journal--Continued');
+    expect(sectionsOf(['Chapter I.]', para(300), 'Chapter II', para(300), 'Chapter III', para(300)])[0].label).toBe('Chapter I');
+  });
+
+  it('keeps a long title to a sensible length', () => {
+    const long = `CHAPTER 9. ${'A very long summary of everything.—'.repeat(4)}`;
+    const [first] = sectionsOf([long, para(300), ...chapter('CHAPTER 10.'), ...chapter('CHAPTER 11.')]);
+    const label = String(first.label);
+    expect(label.length).toBeLessThanOrEqual(91);
+    expect(label.endsWith('…')).toBe(true);
   });
 
   it('cuts the whole text as one run when there are fewer than three chapters', () => {
@@ -224,7 +272,7 @@ describe('cutting a run of paragraphs into excerpts', () => {
   });
 
   it('has the sizes the design says', () => {
-    expect([TARGET_WORDS, MAX_WORDS, MIN_TAIL_WORDS, MIN_SECTION_WORDS]).toEqual([450, 650, 200, 150]);
+    expect([TARGET_WORDS, MAX_WORDS, MIN_TAIL_WORDS, CONTENTS_RUN]).toEqual([450, 650, 200, 4]);
   });
 });
 
@@ -288,7 +336,7 @@ describe('three real books from Project Gutenberg', () => {
     const excerpts = cutBook(raw, e);
 
     for (const x of excerpts) {
-      expect(x.wordCount).toBeGreaterThanOrEqual(MIN_TAIL_WORDS);
+      expect(x.wordCount).toBeGreaterThanOrEqual(1);
       expect(x.wordCount).toBeLessThanOrEqual(MAX_WORDS + MIN_TAIL_WORDS);
       expect(x.sourceText).not.toMatch(/Project Gutenberg|\*\*\*|\r/i);
       expect(x.sourceText).toBe(x.sourceText.trim());

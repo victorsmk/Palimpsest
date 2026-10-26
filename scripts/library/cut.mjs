@@ -12,8 +12,8 @@ export const TARGET_WORDS = 450;
 export const MAX_WORDS = 650;
 /** A short end of a section is joined to the excerpt before it. */
 export const MIN_TAIL_WORDS = 200;
-/** A section (a chapter) with fewer words than this, such as a line of a contents list, is left out. */
-export const MIN_SECTION_WORDS = 150;
+/** Chapter headings that follow one another with no text between them, this many or more, are a contents list. */
+export const CONTENTS_RUN = 4;
 /** At least this many chapter headings must be found for the book to be cut by chapter. */
 export const MIN_HEADINGS = 3;
 
@@ -82,21 +82,38 @@ export function checkHeader(raw, entry) {
 
 const ROMAN = /^[IVXLCDM]+\.?$/;
 const LABELLED = /^(?:CHAPTER|Chapter|BOOK|Book|PART|Part|VOLUME|Volume|LETTER|Letter|STAVE|Stave|ACT|Act|SECTION|Section)\s+(?:[IVXLCDM]+|\d+|[A-Z][A-Za-z]+)\b(?:[.:—–-].*|\s.*)?$/;
+/** A contents list may give a chapter's whole summary on its line, so a long line is a heading too if it starts "CHAPTER", a number and a full stop. */
+const LONG_LABELLED = /^(?:CHAPTER|Chapter)\s+(?:[IVXLCDM]+|\d+|THE LAST|The Last)\.\s/;
+/** A roman number, a full stop and a title: "I. A SCANDAL IN BOHEMIA". */
+const TITLED = /^[IVXLCDM]+\.\s+[A-Z][^.!?]{2,70}$/;
 /** Front matter that Gutenberg's volunteers put at the start of the text. */
 const CREDITS = /^(?:Produced by|Transcribed|Transcriber|E-text prepared by|Updated editions|Character set encoding|Language:|Release date|Credits:)/i;
 const NOT_TEXT = /^\[(?:Illustration|Footnote|Sidenote|Transcriber|Frontispiece|Note)/i;
 const ORNAMENT = /^[*\s.\-–—_=~#•]+$/;
 
-const isHeading = paragraph => paragraph.length <= 80 && (ROMAN.test(paragraph) || /^\d{1,3}\.?$/.test(paragraph) || LABELLED.test(paragraph));
+/**
+ * Whether a paragraph is a heading. A "strong" heading names itself ("Chapter IV", "XII. THE COPPER BEECHES");
+ * a "weak" one is only a number on a line, which may as well number the parts of a story.
+ */
+function headingKind(paragraph) {
+  if (paragraph.length > 80) return paragraph.length <= 220 && LONG_LABELLED.test(paragraph) ? 'strong' : null;
+  if (LABELLED.test(paragraph) || TITLED.test(paragraph)) return 'strong';
+  if (ROMAN.test(paragraph) || /^\d{1,3}\.?$/.test(paragraph)) return 'weak';
+  return null;
+}
 
-const isAllCaps = text => text === text.toUpperCase() && /[A-Z]/.test(text);
-/** "CHAPTER IV" becomes "Chapter IV" (a roman number after a label stays in capitals), and a title in capitals is set in ordinary case. */
+const upperShare = text => {
+  const letters = text.replace(/[^A-Za-z]/g, '');
+  return letters === '' ? 0 : letters.replace(/[^A-Z]/g, '').length / letters.length;
+};
+/** "CHAPTER IV" becomes "Chapter IV" (a roman number after a label stays in capitals), and a title mostly in capitals is set in ordinary case. */
 function display(text) {
-  const clean = text.replace(/[.:]\s*$/, '');
-  if (!isAllCaps(clean) || ROMAN.test(clean)) return clean;
+  const clean = describe(text.replace(/^\[/, '').replace(/[.:\]\s]+$/, ''), 90);
+  if (ROMAN.test(clean) || upperShare(clean) < 0.7) return clean;
   return clean
     .toLowerCase()
-    .replace(/\b[a-z]/g, c => c.toUpperCase())
+    .replace(/(^|[\s(—–-])([a-z])/g, (_, before, letter) => before + letter.toUpperCase())
+    .replace(/^([ivxlcdm]+)\./i, (_, number) => `${number.toUpperCase()}.`)
     .replace(/^(Chapter|Book|Part|Volume|Letter|Stave|Act|Section) ([ivxlcdm]+)\b/i, (_, label, number) => `${label} ${number.toUpperCase()}`);
 }
 
@@ -121,31 +138,54 @@ export function paragraphsOf(body) {
   return out.slice(skipped);
 }
 
-/** A chapter heading may be followed by a short title of the chapter, which is not a sentence. */
-const isSubtitle = text => text.length <= 70 && !/[.!?"”,;:]$/.test(text) && !isHeading(text);
+/** What names a chapter in its heading, to tell a line of a contents list from the heading it points at: "CHAPTER VII" in "CHAPTER VII. Laying for Him.—Locked in the Cabin". */
+const headingKey = paragraph => paragraph.toUpperCase().match(/^[A-Z]+\s+(?:THE\s+)?[A-Z0-9]+/)?.[0] ?? paragraph.toUpperCase();
 
-/** Splits the paragraphs into sections at chapter headings. A section is { label, paragraphs }. */
+/** A chapter heading may be followed by a short title of the chapter, which is not a sentence. */
+const isSubtitle = text => text.length <= 70 && !/[.!?"”,;:]$/.test(text) && !text.startsWith('(') && headingKind(text) === null;
+
+/**
+ * Splits the paragraphs into sections at chapter headings. A section is { label, paragraphs }.
+ * Strong headings are used if there are enough of them; otherwise a bare number on a line counts too.
+ * A contents list (CONTENTS_RUN or more headings with no text between them) is left out, with the front
+ * matter that follows it, and so is anything before the first chapter.
+ */
 export function sectionsOf(paragraphs) {
-  const sections = [];
-  let current = { label: null, paragraphs: [] };
-  sections.push(current);
+  const kinds = paragraphs.map(headingKind);
+  const useWeak = kinds.filter(kind => kind === 'strong').length < MIN_HEADINGS;
+  const sections = [{ label: null, key: null, paragraphs: [] }];
   for (let i = 0; i < paragraphs.length; i++) {
-    const paragraph = paragraphs[i];
-    if (isHeading(paragraph)) {
-      let label = display(paragraph);
+    const kind = kinds[i];
+    if (kind === 'strong' || (kind === 'weak' && useWeak)) {
+      let label = display(paragraphs[i]);
+      const key = headingKey(paragraphs[i]);
       const next = paragraphs[i + 1];
-      if (next !== undefined && isSubtitle(next) && paragraphs[i + 2] !== undefined) {
+      if (!TITLED.test(paragraphs[i]) && next !== undefined && isSubtitle(next) && paragraphs[i + 2] !== undefined) {
         label = `${label} — ${display(next)}`;
         i++;
       }
-      current = { label, paragraphs: [] };
-      sections.push(current);
+      sections.push({ label, key, paragraphs: [] });
+    } else if (kind === 'weak') {
+      continue; // a number that only numbers the parts of a story: not a chapter, and not a word to make a poem from
     } else {
-      current.paragraphs.push(paragraph);
+      sections[sections.length - 1].paragraphs.push(paragraphs[i]);
     }
   }
-  const total = section => wordCount(section.paragraphs.join(' '));
-  const chapters = sections.filter(s => s.label !== null && total(s) >= MIN_SECTION_WORDS);
+
+  // A run of headings with nothing between them is a contents list. The section at the end of the run is
+  // the last line of the list plus whatever comes before the book, unless it is a real chapter, which is
+  // known by its heading not coming again later.
+  const contents = new Set();
+  for (let i = 1; i < sections.length; ) {
+    let j = i;
+    while (j < sections.length - 1 && sections[j].paragraphs.length === 0) j++;
+    if (j - i + 1 >= CONTENTS_RUN) {
+      for (let k = i; k < j; k++) contents.add(sections[k]);
+      if (sections.slice(j + 1).some(later => later.key === sections[j].key)) contents.add(sections[j]);
+    }
+    i = j + 1;
+  }
+  const chapters = sections.filter(section => section.label !== null && !contents.has(section) && section.paragraphs.length > 0);
   if (chapters.length >= MIN_HEADINGS) return chapters;
   return [{ label: null, paragraphs }]; // no usable chapters: the book is cut as one run of text
 }

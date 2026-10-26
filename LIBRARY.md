@@ -99,7 +99,20 @@ Not tested: a run against your real Supabase (needs your database); books other 
 Dracula and the rest may have headings the rules do not recognise, which the dry run's excerpt counts will
 show); the real size of the tables with TOAST compression (the pilot measures it).
 
-**Known limits of the rules (version 1).** Chapters are found by headings such as `CHAPTER IV`, `Book Two`,
-`Part 1`, a number or roman numeral on its own line. A book whose chapters are named in another way (Walden's
-are in capitals only) is cut in numbered parts instead. Verse and plays lose their line breaks (a paragraph
-becomes one line), so the library suits prose. A chapter under 150 words is left out.
+**Known limits of the rules (version 1).**
+- Chapters are found by headings such as `CHAPTER IV`, `Book Two`, `Part 1`, `Letter 3`, or a number with a title
+  (`I. A SCANDAL IN BOHEMIA`). A bare number on its own line counts as a chapter only if nothing better is found.
+- A contents list (four or more headings in a row) is left out, with the front matter after it, so a book with
+  chapters starts at its first chapter. A book with **no** headings found (Walden's are in capitals only) is cut in
+  numbered parts from its very first line, so its first excerpt holds the title page and contents.
+- A chapter heading with a short title under it takes the title into the name; a stage direction in brackets does not.
+- Verse and plays lose their line breaks (a paragraph becomes one line), so the library suits prose.
+- A short chapter stays as an excerpt of its own, so a few excerpts are under 200 words (Moby Dick's shortest has 44).
+
+**The pilot books after the dry run (2026-10-28):** all ten match their files. Looking at what the rules made of
+them found four faults, which are fixed: the contents lists of Moby Dick and Huckleberry Finn took the front
+matter into their first excerpt; Sherlock Holmes' twelve stories were not recognised; chapters under 150 words
+were being dropped; and a title came out as "Harker'S". The cutting rules (still version 1, since nothing had
+been imported) now give: Pride and Prejudice 61 chapters, Frankenstein 28, Moby Dick 135, Alice 12, Dracula 27,
+A Tale of Two Cities 45, Sherlock Holmes 12, Huckleberry Finn 43, Great Expectations 59, Walden none found;
+2,532 excerpts in all and 6.6 MB of text. Each begins at its first chapter, except Walden.
