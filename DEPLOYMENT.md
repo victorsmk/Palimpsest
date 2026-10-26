@@ -32,7 +32,7 @@ in this mode in production.
 | A Supabase account | Free. Sign up with GitHub or email at supabase.com. |
 | A Vercel account | Free ("Hobby"). Hobby is for **non-commercial** use only. |
 | The code somewhere Vercel can read it | Either a **private GitHub repository** (easiest), or Vercel's command-line tool. This folder has no remote yet, so you would create the repository and push it yourself. |
-| An email service, **if other people will sign in** | See the catch in part 2. For trying it yourself, none. |
+| An email service (custom SMTP), **to show the sign-in code in the email at all, and for anyone outside your Supabase organization** | See part 2. Or skip email codes and use Google sign-in only (part 2b). |
 
 ## 1. Make the database (Supabase)
 
@@ -70,11 +70,49 @@ in this mode in production.
 ## 2. Make the sign-in send a code (Supabase)
 
 Palimpsest signs people in with a **6-digit code** typed into the page (a link would take them away from
-the page and lose an unsaved poem). Supabase's emails contain a link unless you change them.
+the page and lose an unsaved poem). For that the email has to **show the code**. Whether it does depends on
+the email template, and Supabase only lets you change a template once you have set up **custom SMTP** (its
+dashboard says so: "Set up custom SMTP to edit their subject and body"). So there are three situations:
 
-1. **Authentication → Email Templates.** There are two that matter, and a new address gets one and a returning
-   address the other, so change **both**: **Confirm sign up**, and **Magic link** (it may be shown as
-   "Magic link or OTP"). Put the code in each, for example:
+**First, look at what you have.** **Authentication → Email Templates** → open **Magic link** (it may be called
+"Magic link or OTP") and **Confirm sign up**. If the body of either already contains `{{ .Token }}`, that email
+shows the code as it is. If it only has a link (`{{ .ConfirmationURL }}`), it does not, and the typed-code
+sign-in cannot work until you can edit it. (I could not confirm from Supabase's documentation which the
+defaults are, so please look.)
+
+Then choose:
+
+- **A. The templates already show the code.** Nothing to do for the code itself. Still read the limits below:
+  the built-in sender only emails people in your Supabase organization.
+- **B. Set up custom SMTP** (needed to edit the templates, and needed for anyone outside your organization to
+  receive any email at all). Part 2a below.
+- **C. Do not use email codes for now, and let people sign in with Google only** (part 2b). Google needs no email
+  service at all. The app would need a setting to hide the email form, because without a code in the email it
+  would just confuse people: tell me and I will add it. You can add custom SMTP later.
+
+**The limits of the built-in sender, whichever you choose.** It sends **only to addresses of people in your
+Supabase organization** (the Team tab), about **2 emails an hour**, with no promise of delivery. Fine for you and
+a teammate, not for anyone else.
+
+### 2a. Custom SMTP, if you chose B
+
+1. Pick an email service that offers SMTP and give it your details. Supabase names Resend, AWS SES, Postmark,
+   SendGrid, ZeptoMail and Brevo as examples. Two that fit a small free project (**check their current terms
+   yourself; I could only confirm the numbers from summaries and marketing pages**):
+   - **Brevo**: free plan about **300 emails a day**; you verify a **sender email address** (no domain needed to
+     start); you log in to SMTP with your Brevo login email and a generated **SMTP key** (not your password).
+     Host `smtp-relay.brevo.com`, port `587`. Mail from a free-mail address (like Gmail) as the sender often lands in
+     spam; a domain you own, with the service's DKIM/SPF records added, is much better.
+   - **Resend**: free plan **100 emails a day, 3,000 a month**, one verified domain. It needs a **domain you own**
+     to send to other people (without one it only sends test mail to your own address, as reported by third
+     parties; I could not confirm that in Resend's own documentation).
+   - A Gmail account's SMTP (with an "app password") is another common way for a school project; I have not
+     checked its current rules.
+2. In Supabase: **Authentication → Emails → SMTP Settings** (the dashboard says "Set up custom SMTP"): the
+   sender email and name, the host, the port, the username and the password / key. **The password or key is a
+   secret: type it into that page only, never into a chat.**
+3. Then **Authentication → Email Templates** can be edited. Change **both** templates (a new address gets
+   Confirm sign up, a returning one Magic link) to show the code, for example:
 
    - Subject: `Your Palimpsest sign-in code`
    - Body:
@@ -86,16 +124,11 @@ the page and lose an unsaved poem). Supabase's emails contain a link unless you 
      <p>It works for one hour. If you did not ask for it, you can ignore this email.</p>
      ```
 
-2. **Authentication → Providers → Email**: keep it enabled. Codes are 6 digits and last one hour by default;
-   the app accepts 6 to 10 digits, so changing the length is fine. Supabase lets a person ask for a new code
-   once every 60 seconds.
-3. **The catch with email.** Supabase's built-in email sender is for trying things out: it sends **only to
-   addresses of people in your Supabase organization** (the Team tab), about **2 emails an hour**, with no
-   promise of delivery. That is fine for you and a teammate. **For anyone else to sign in you need your own
-   email service**: **Authentication → SMTP Settings**, with the host, port, user and password of a service
-   that offers SMTP (Resend, Brevo, Mailgun and others do, many with a free allowance; check their current
-   terms), and a From address. Supabase then starts at 30 emails an hour, which you can raise on the Rate
-   Limits page.
+4. After saving the SMTP settings Supabase starts at **30 emails an hour**; you can raise it on the **Rate Limits**
+   page. Supabase also advises setting up DKIM, SPF and DMARC with a domain you own, and CAPTCHA against bots.
+5. **Authentication → Providers → Email**: keep it enabled. Codes are 6 digits and last one hour by default; the
+   app accepts 6 to 10 digits, so changing the length is fine. Supabase lets a person ask for a new code once every
+   60 seconds.
 
 Google sign-in (next part) needs no email at all, so it also gets around these limits for everyone who uses it.
 
