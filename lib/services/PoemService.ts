@@ -1,4 +1,5 @@
 import type { PoemRepository } from '@/lib/repositories';
+import type { Page, PageRequest, PoemSummary } from '@/lib/models';
 import { LIMITS, PoemLimitError, poemLimitProblem, type ErasureStyle, type Poem, type PoemDraft } from '@/lib/models';
 import { backupFilename, createBackup, planRestore, serializeBackup, type RestorePlan } from '@/lib/backup';
 
@@ -69,7 +70,7 @@ export class PoemService {
       // A poem that is no longer stored is reported by the repository, not created again.
       return this.repo.update(input.id, draft, input.expectedRevision);
     }
-    if ((await this.repo.list()).length >= LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
+    if ((await this.repo.count()) >= LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
     return this.repo.create(draft);
   }
 
@@ -77,10 +78,39 @@ export class PoemService {
     return this.repo.get(id);
   }
 
+  /** A page of the collection as summaries, the most recently changed first. Ask for the next page with `next`. */
+  async listSummaries(page?: PageRequest): Promise<Page<PoemSummary>> {
+    return this.repo.listSummaries(page);
+  }
+
+  /**
+   * The collection as summaries, from the start up to at least `atLeast` of them (or all of it, if it
+   * is smaller). A list on screen that is made again after a change asks for as many as it was showing.
+   */
+  async listSummariesUpTo(atLeast: number): Promise<Page<PoemSummary>> {
+    const items: PoemSummary[] = [];
+    let after: string | undefined;
+    do {
+      const page = await this.repo.listSummaries({ after });
+      items.push(...page.items);
+      after = page.next ?? undefined;
+    } while (after !== undefined && items.length < atLeast);
+    return { items, next: after ?? null };
+  }
+
+  /**
+   * Every poem, whole, the most recently changed first: taken page by page, but handed over together.
+   * For a backup and for tests; a list on screen is made from `listSummaries`.
+   */
   async listPoems(): Promise<Poem[]> {
-    const list = await this.repo.list();
-    // Sort by most recently updated first
-    return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    const poems: Poem[] = [];
+    let after: string | undefined;
+    do {
+      const page = await this.repo.list({ after });
+      poems.push(...page.items);
+      after = page.next ?? undefined;
+    } while (after !== undefined);
+    return poems;
   }
 
   /**
@@ -117,7 +147,7 @@ export class PoemService {
 
   /** What restoring these poems would do to the collection as it is now. Changes nothing. */
   async planRestore(incoming: Poem[]): Promise<RestorePlan> {
-    return planRestore(await this.repo.list(), incoming);
+    return planRestore(await this.repo.getMany(incoming.map(poem => poem.id)), incoming);
   }
 
   /**
@@ -127,9 +157,8 @@ export class PoemService {
    * asked is not overwritten.
    */
   async restoreBackup(incoming: Poem[]): Promise<RestorePlan> {
-    const existing = await this.repo.list();
-    const plan = planRestore(existing, incoming);
-    if (existing.length + plan.toAdd.length > LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
+    const plan = planRestore(await this.repo.getMany(incoming.map(poem => poem.id)), incoming);
+    if ((await this.repo.count()) + plan.toAdd.length > LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
     if (plan.toAdd.length > 0) await this.repo.importMany(plan.toAdd);
     return plan;
   }

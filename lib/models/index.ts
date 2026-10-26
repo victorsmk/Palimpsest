@@ -122,6 +122,8 @@ export interface Collection {
 export { LIMITS } from './limits';
 export { TOKENIZER_VERSION, legacyPoemId, passageVersionOf } from './versions';
 export { fingerprint, newId, uuidV5 } from './uuid';
+export { PREVIEW_LINES, PREVIEW_WORDS_PER_LINE, previewHeadOf, summarizePoem } from './summary';
+export type { PoemPreviewHead, PoemSummary } from './summary';
 export {
   RepositoryError,
   PoemLimitError,

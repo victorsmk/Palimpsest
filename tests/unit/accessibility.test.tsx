@@ -237,6 +237,10 @@ describe('DraftsDrawer keyboard access', () => {
     expect(open.contains(del)).toBe(false);
 
     click(open);
+    // The list holds summaries: the whole poem is fetched when it is chosen.
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 0));
+    });
     expect(onLoadPoem).toHaveBeenCalledExactlyOnceWith(poem);
     expect(onClose).toHaveBeenCalledOnce();
   });

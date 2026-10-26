@@ -92,7 +92,7 @@ describe('what a failed storage write means', () => {
       throw new DOMException('full', 'QuotaExceededError');
     };
     await expect(repo.create(draft)).rejects.toBeInstanceOf(StorageError);
-    expect(await repo.list()).toEqual([]);
+    expect((await repo.list()).items).toEqual([]);
   });
 });
 

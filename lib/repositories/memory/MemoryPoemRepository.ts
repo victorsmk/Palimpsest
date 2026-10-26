@@ -1,5 +1,6 @@
 import type { PoemRepository } from '@/lib/repositories';
-import { PoemConflictError, PoemGoneError, type Poem, type PoemDraft } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, summarizePoem, type Page, type PageRequest, type Poem, type PoemDraft, type PoemSummary } from '@/lib/models';
+import { pageOfPoems } from '../paging';
 import { stampNew, stampUpdate } from '@/lib/models/stamp';
 
 /**
@@ -44,8 +45,27 @@ export class MemoryPoemRepository implements PoemRepository {
     return poem ? structuredClone(poem) : null;
   }
 
-  async list(): Promise<Poem[]> {
-    return [...this.poems.values()].map(poem => structuredClone(poem));
+  async getMany(ids: string[]): Promise<Poem[]> {
+    const found: Poem[] = [];
+    for (const id of new Set(ids)) {
+      const poem = this.poems.get(id);
+      if (poem) found.push(structuredClone(poem));
+    }
+    return found;
+  }
+
+  async count(): Promise<number> {
+    return this.poems.size;
+  }
+
+  async listSummaries(page?: PageRequest): Promise<Page<PoemSummary>> {
+    const { items, next } = pageOfPoems([...this.poems.values()], page);
+    return { items: items.map(summarizePoem), next };
+  }
+
+  async list(page?: PageRequest): Promise<Page<Poem>> {
+    const { items, next } = pageOfPoems([...this.poems.values()], page);
+    return { items: items.map(poem => structuredClone(poem)), next };
   }
 
   async delete(id: string): Promise<void> {

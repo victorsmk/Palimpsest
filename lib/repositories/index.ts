@@ -1,4 +1,4 @@
-import type { Book, Page, PageRequest, Passage, PassageSummary, Poem, PoemDraft, Collection } from '@/lib/models';
+import type { Book, Page, PageRequest, Passage, PassageSummary, Poem, PoemDraft, PoemSummary, Collection } from '@/lib/models';
 
 /**
  * The library. Lists hold summaries and come a page at a time, in a fixed order; a passage's text and
@@ -29,7 +29,17 @@ export interface PoemRepository {
    */
   importMany(poems: Poem[]): Promise<void>;
   get(id: string): Promise<Poem | null>;
-  list(): Promise<Poem[]>;
+  /** The poems stored with these ids, whole, in the order asked for; an id with no poem is skipped. */
+  getMany(ids: string[]): Promise<Poem[]>;
+  /** How many poems are stored. */
+  count(): Promise<number>;
+  /**
+   * The poems without their words, a page at a time, the most recently changed first (see
+   * `poemOrder`). This is what a list of poems is made from.
+   */
+  listSummaries(page?: PageRequest): Promise<Page<PoemSummary>>;
+  /** The poems whole, a page at a time, in the same order. For taking everything out (a backup). */
+  list(page?: PageRequest): Promise<Page<Poem>>;
   delete(id: string): Promise<void>;
 }
 

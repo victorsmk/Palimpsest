@@ -35,7 +35,7 @@ const legacyStore = () => Object.fromEntries(OLD.map(id => [id, v1(id)]));
 describe('reading a collection saved by version 1', () => {
   it('lists every poem as version 2, under the id every poem now has, as revision 1, and with nothing else changed', async () => {
     const { repo } = setup(legacyStore());
-    const poems = await repo.list();
+    const poems = (await repo.list()).items;
     expect(poems.map(p => p.id).sort()).toEqual(OLD.map(legacyPoemId).sort());
     for (const old of OLD) {
       expect(await repo.get(legacyPoemId(old))).toEqual({ ...v1(old), id: legacyPoemId(old), schemaVersion: 2, revision: 1 });
@@ -62,8 +62,8 @@ describe('reading a collection saved by version 1', () => {
   it('reads the same collection the same way every time, from any repository on the same storage', async () => {
     const { repo, storage } = setup(legacyStore());
     const other = new BrowserPoemRepository(storage);
-    expect(await repo.list()).toEqual(await other.list());
-    expect(await repo.list()).toEqual(await repo.list());
+    expect((await repo.list()).items).toEqual((await other.list()).items);
+    expect((await repo.list()).items).toEqual((await repo.list()).items);
   });
 });
 
@@ -79,7 +79,7 @@ describe('the first write after that', () => {
       expect(entry.schemaVersion).toBe(2);
       expect(entry.revision).toBe(1);
     }
-    expect((await repo.list()).length).toBe(3);
+    expect(((await repo.list()).items).length).toBe(3);
   });
 
   it('saves an upgraded poem over itself: revision 2, the same id, one copy', async () => {
@@ -109,7 +109,7 @@ describe('the first write after that', () => {
     const afterFirst = raw();
     await service.renamePoem(legacyPoemId(OLD[0]), 'Once');
     expect(Object.keys(raw()).sort()).toEqual(Object.keys(afterFirst).sort());
-    expect(await repo.list()).toHaveLength(2);
+    expect((await repo.list()).items).toHaveLength(2);
   });
 });
 
@@ -126,14 +126,14 @@ describe('what the migration leaves alone', () => {
 
   it('does not list what it kept', async () => {
     const { repo } = setup({ ...legacyStore(), junk: { not: 'a poem' }, 'wrong-key': v1('real-id') });
-    expect(await repo.list()).toHaveLength(2);
+    expect((await repo.list()).items).toHaveLength(2);
   });
 
   it('keeps an old poem as it was stored, and shows the one already there, if the new id is taken', async () => {
     const taken = { ...v1('x'), id: legacyPoemId(OLD[0]), schemaVersion: 2, revision: 7, title: 'Already version 2' };
     const { repo, service, raw } = setup({ [OLD[0]]: v1(OLD[0]), [taken.id]: taken });
     expect((await repo.get(taken.id))!.title).toBe('Already version 2');
-    expect(await repo.list()).toHaveLength(1);
+    expect((await repo.list()).items).toHaveLength(1);
     await service.renamePoem(taken.id, 'Still mine');
     expect(raw()[OLD[0]]).toEqual(v1(OLD[0])); // the old one is still there, untouched
   });
@@ -141,7 +141,7 @@ describe('what the migration leaves alone', () => {
   it('upgrades a collection that holds version 1 and version 2 poems together', async () => {
     const modern = { ...v1('m'), id: 'b1d2c3e4-0000-4000-8000-000000000001', schemaVersion: 2, revision: 3 };
     const { repo } = setup({ ...legacyStore(), [modern.id]: modern });
-    const poems = await repo.list();
+    const poems = (await repo.list()).items;
     expect(poems).toHaveLength(3);
     expect(poems.find(p => p.id === modern.id)!.revision).toBe(3);
     expect(poems.filter(p => p.revision === 1)).toHaveLength(2);

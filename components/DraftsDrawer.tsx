@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { PoemConflictError, PoemGoneError, type Poem } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, type Page, type Poem, type PoemSummary } from '@/lib/models';
 import type { PassageLibrary } from '@/lib/library/passageLibrary';
-import { describeError } from '@/lib/errors/describe';
+import { POEM_MISSING_MESSAGE, describeError } from '@/lib/errors/describe';
 import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
 import { downloadTextFile } from '@/lib/export/text';
 import { poemPreview } from '@/lib/poems/preview';
@@ -31,19 +31,20 @@ const ACTION =
 const FOOTER_ACTION =
   'rounded border border-[#E0D4BE] px-3 py-1.5 text-xs font-medium text-[#24231F] hover:bg-[#E4D8C2]/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
 
-/**
- * The collection, with the passages its poems were made from loaded first, so that every card has its
- * book and first lines the moment it is shown. A passage that cannot be loaded leaves its poems
- * without a preview rather than the collection unreadable.
- */
-async function listCollection(library: PassageLibrary): Promise<Poem[]> {
-  const list = await poemService.listPoems();
+/** Loads the passages the poems on a page were made from, so that every card has its book and first lines the moment it is shown. */
+async function loadPassagesOf(library: PassageLibrary, poems: PoemSummary[]): Promise<void> {
   try {
-    await library.ensure(list.map(poem => poem.passageId));
+    await library.ensure(poems.map(poem => poem.passageId));
   } catch {
-    /* the cards say what they cannot show */
+    /* a passage that cannot be loaded leaves its cards without a preview, not the collection unreadable */
   }
-  return list;
+}
+
+/** The start of the collection, at least `atLeast` poems of it if there are that many, with their passages loaded. */
+async function loadCollection(library: PassageLibrary, atLeast = 0): Promise<Page<PoemSummary>> {
+  const page = await poemService.listSummariesUpTo(atLeast);
+  await loadPassagesOf(library, page.items);
+  return page;
 }
 
 export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
@@ -52,9 +53,12 @@ export function DraftsDrawer({ isOpen, ...panelProps }: DraftsDrawerProps) {
 }
 
 function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDrawerProps, 'isOpen'>) {
-  // null while the first fetch is in flight
-  const [drafts, setDrafts] = useState<Poem[] | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<Poem | null>(null);
+  // The poems shown, as summaries; null while the first fetch is in flight. `next` is what to ask for
+  // to show more, or null when everything is shown.
+  const [drafts, setDrafts] = useState<PoemSummary[] | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<PoemSummary | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -82,24 +86,52 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
   const titleId = useId();
   const dialogRef = useDialog<HTMLDivElement>(onClose);
 
-  const listWithPassages = () => listCollection(library);
+  // The list again after a change, as far as it was showing.
+  const refresh = async () => {
+    const page = await loadCollection(library, drafts?.length ?? 0);
+    setDrafts(page.items);
+    setNext(page.next);
+  };
 
   useEffect(() => {
     let cancelled = false;
-    listCollection(library)
-      .catch(() => [] as Poem[])
-      .then(list => {
-        if (!cancelled) setDrafts(list);
+    loadCollection(library)
+      .catch(() => ({ items: [] as PoemSummary[], next: null }))
+      .then(page => {
+        if (cancelled) return;
+        setDrafts(page.items);
+        setNext(page.next);
       });
     return () => {
       cancelled = true;
     };
   }, [library]);
 
+  const showMore = async () => {
+    if (next === null || loadingMore) return;
+    setLoadingMore(true);
+    setNotice(null);
+    try {
+      const page = await poemService.listSummaries({ after: next });
+      await loadPassagesOf(library, page.items);
+      const shown = new Set((drafts ?? []).map(poem => poem.id));
+      const added = page.items.filter(poem => !shown.has(poem.id));
+      setDrafts([...(drafts ?? []), ...added]);
+      setNext(page.next);
+      setNotice({ text: `Showing ${added.length} more ${added.length === 1 ? 'poem' : 'poems'}.`, tone: 'ok' });
+      // The button goes when there is nothing more to show; keep the reader's place.
+      if (page.next === null) focusLater(() => dialogRef.current);
+    } catch (err) {
+      setNotice({ text: describeError(err, 'list'), tone: 'error' });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   // Focus is set once the dialog has gone, after React has finished with it.
   const focusLater = (target: () => HTMLElement | null | undefined) => setTimeout(() => target()?.focus(), 0);
 
-  const askToDelete = (poem: Poem, trigger: HTMLElement) => {
+  const askToDelete = (poem: PoemSummary, trigger: HTMLElement) => {
     deleteTrigger.current = trigger;
     setDeleteError(null);
     setPendingDelete(poem);
@@ -115,7 +147,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
     setDeleting(true);
     try {
       await poemService.deletePoem(pendingDelete.id);
-      setDrafts(await listWithPassages());
+      await refresh();
       setPendingDelete(null);
       // The Delete button that opened the question is gone with its poem, so keep the reader's
       // place in the collection instead of dropping focus onto the page.
@@ -133,22 +165,22 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
       el => el.dataset[`${action}For`] === id
     );
 
-  const startRename = (poem: Poem) => {
+  const startRename = (poem: PoemSummary) => {
     setRenameError(null);
     setNotice(null);
     setRenamingId(poem.id);
   };
 
-  const stopRename = (poem: Poem) => {
+  const stopRename = (poem: PoemSummary) => {
     setRenamingId(null);
     focusLater(() => actionButton('rename', poem.id));
   };
 
-  const saveRename = async (poem: Poem, title: string) => {
+  const saveRename = async (poem: PoemSummary, title: string) => {
     setRenameBusy(true);
     try {
       const renamed = await poemService.renamePoem(poem.id, title, poem.revision);
-      setDrafts(await listWithPassages());
+      await refresh();
       setRenamingId(null);
       setNotice({ text: `Renamed to “${renamed.title}”.`, tone: 'ok' });
       onRenamed?.(renamed);
@@ -159,7 +191,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
         setRenamingId(null);
         setNotice({ text: describeError(err, 'rename'), tone: 'error' });
         try {
-          setDrafts(await listWithPassages());
+          await refresh();
         } catch {
           /* the message above stands */
         }
@@ -171,13 +203,13 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
     }
   };
 
-  const duplicate = async (poem: Poem) => {
+  const duplicate = async (poem: PoemSummary) => {
     if (duplicatingId) return;
     setDuplicatingId(poem.id);
     setNotice(null);
     try {
       const copy = await poemService.duplicatePoem(poem.id);
-      setDrafts(await listWithPassages());
+      await refresh();
       setNotice({ text: `Duplicated as “${copy.title}”.`, tone: 'ok' });
       // The copy is the newest poem, so it is first in the list: bring it into view.
       setTimeout(() => {
@@ -258,7 +290,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
     setRestoring(true);
     try {
       const done = await poemService.restoreBackup(pendingRestore.poems);
-      setDrafts(await listWithPassages());
+      await refresh();
       setPendingRestore(null);
       const added = done.toAdd.length;
       setNotice({ text: `Added ${added} ${added === 1 ? 'poem' : 'poems'} from the backup.`, tone: 'ok' });
@@ -270,9 +302,21 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
     }
   };
 
-  const handleSelect = (poem: Poem) => {
-    onLoadPoem(poem);
-    onClose();
+  // The list holds summaries; the poem itself is fetched when it is chosen.
+  const handleSelect = async (summary: PoemSummary) => {
+    setNotice(null);
+    try {
+      const poem = await poemService.getPoem(summary.id);
+      if (!poem) {
+        setNotice({ text: POEM_MISSING_MESSAGE, tone: 'error' });
+        await refresh().catch(() => {});
+        return;
+      }
+      onLoadPoem(poem);
+      onClose();
+    } catch (err) {
+      setNotice({ text: describeError(err, 'open'), tone: 'error' });
+    }
   };
 
   return (
@@ -330,6 +374,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
               <p>Save your work from the Studio to build your personal erasure anthology.</p>
             </div>
           ) : (
+            <>
             <ul className="space-y-3 list-none">
               {drafts.map(poem => {
                 const formattedDate = new Date(poem.updatedAt).toLocaleDateString(undefined, {
@@ -340,7 +385,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
                 });
                 const name = poem.title || 'Untitled Poem';
                 const passage = library.get(poem.passageId);
-                const preview = poemPreview(poem, passage);
+                const preview = poemPreview(poem.preview, passage);
 
                 return (
                   <li
@@ -396,7 +441,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
                               <span className="bg-[#E4D8C2] px-2 py-0.5 rounded text-[#24231F] font-medium uppercase text-[9px] tracking-wider">
                                 {poem.erasureStyle}
                               </span>
-                              <span className="text-[#57544E]">{poem.retainedTokenIds.length} words</span>
+                              <span className="text-[#57544E]">{poem.wordCount} words</span>
                             </span>
                             <span className="text-[#605C53] text-[10px]">{formattedDate}</span>
                           </span>
@@ -435,6 +480,14 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
                 );
               })}
             </ul>
+            {next !== null && (
+              <div className="py-4 text-center">
+                <button type="button" onClick={showMore} disabled={loadingMore} className={FOOTER_ACTION}>
+                  {loadingMore ? 'Loading…' : 'Show more poems'}
+                </button>
+              </div>
+            )}
+            </>
           )}
         </div>
 

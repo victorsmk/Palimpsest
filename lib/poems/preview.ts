@@ -1,5 +1,4 @@
-import type { Passage, Poem } from '@/lib/models';
-import { poemLines } from '@/lib/export/text';
+import type { Passage, PoemPreviewHead } from '@/lib/models';
 
 export interface PoemPreview {
   /** The first lines of the poem, as the writer broke them. A long line is cut short and ends in "…". */
@@ -17,21 +16,19 @@ function clip(line: string, maxChars: number): string {
 }
 
 /**
- * The start of a saved poem, for a list: its first few lines, taken from the passage's own words.
- * Null when the poem cannot be shown faithfully: its passage is not in the library, or one of its
- * words is not in the passage.
+ * The start of a saved poem, for a list: its first lines in words, taken from the passage's own text.
+ * `head` is the poem's preview (see PoemSummary), which holds the ids of the words of the first lines
+ * and no more than can be shown within 60 characters a line. Null when the poem cannot be shown
+ * faithfully: its passage is not in the library, or one of those words is not in the passage.
  */
-export function poemPreview(
-  poem: Pick<Poem, 'retainedTokenIds' | 'lineBreaks'>,
-  passage: Pick<Passage, 'tokens'> | undefined,
-  maxLines = 3,
-  maxChars = 60
-): PoemPreview | null {
+export function poemPreview(head: PoemPreviewHead, passage: Pick<Passage, 'tokens'> | undefined, maxChars = 60): PoemPreview | null {
   if (!passage) return null;
   const byId = new Map(passage.tokens.map(token => [token.id, token]));
-  const words = poem.retainedTokenIds.map(id => byId.get(id));
-  if (words.some(word => word === undefined)) return null;
-
-  const lines = poemLines(words as NonNullable<(typeof words)[number]>[], new Set(poem.lineBreaks));
-  return { lines: lines.slice(0, maxLines).map(line => clip(line, maxChars)), more: lines.length > maxLines };
+  const lines: string[] = [];
+  for (const ids of head.lines) {
+    const words = ids.map(id => byId.get(id));
+    if (words.some(word => word === undefined)) return null;
+    lines.push(clip(words.map(word => word!.text).join(' '), maxChars));
+  }
+  return { lines, more: head.more };
 }

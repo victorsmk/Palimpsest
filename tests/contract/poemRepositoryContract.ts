@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { PoemRepository } from '@/lib/repositories';
-import { PoemConflictError, PoemGoneError, StorageError, type Poem, type PoemDraft } from '@/lib/models';
+import { LIMITS, PoemConflictError, PoemGoneError, StorageError, type Poem, type PoemDraft } from '@/lib/models';
 
 /**
  * What every PoemRepository must do, whatever stores the poems behind it. Written once and run
@@ -41,12 +41,24 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 
 const byId = (a: Poem, b: Poem) => (a.id < b.id ? -1 : 1);
 
+/** Every poem in the repository, whole, by asking for page after page. */
+async function all(repo: PoemRepository): Promise<Poem[]> {
+  const poems: Poem[] = [];
+  let after: string | undefined;
+  do {
+    const page = await repo.list({ after });
+    poems.push(...page.items);
+    after = page.next ?? undefined;
+  } while (after !== undefined);
+  return poems;
+}
+
 export function runPoemRepositoryContract(name: string, make: () => PoemRepositoryUnderTest | Promise<PoemRepositoryUnderTest>) {
   describe(`PoemRepository contract: ${name}`, () => {
     describe('an empty collection', () => {
       it('lists nothing, finds nothing, and deleting nothing is fine', async () => {
         const { repo } = await make();
-        expect(await repo.list()).toEqual([]);
+        expect(await all(repo)).toEqual([]);
         expect(await repo.get('missing')).toBeNull();
         await expect(repo.delete('missing')).resolves.toBeUndefined();
       });
@@ -70,7 +82,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         const { repo } = await make();
         const ids = new Set([(await repo.create(draftOf(poem('a')))).id, (await repo.create(draftOf(poem('a')))).id, (await repo.create(draftOf(poem('a')))).id]);
         expect(ids.size).toBe(3);
-        expect(await repo.list()).toHaveLength(3);
+        expect(await all(repo)).toHaveLength(3);
       });
 
       it('does not let the caller choose the id, the times or the revision, even by passing a whole poem', async () => {
@@ -143,7 +155,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         const read = (await repo.get(made.id))!;
         read.title = 'Changed after reading';
         read.lineBreaks.length = 0;
-        const [listed] = await repo.list();
+        const [listed] = await all(repo);
         listed.title = 'Changed after listing';
         expect(await repo.get(made.id)).toEqual(made);
       });
@@ -165,7 +177,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         expect(updated).toMatchObject({ id: made.id, revision: 2, createdAt: made.createdAt, title: 'Second', erasureStyle: 'faded', schemaVersion: 2 });
         expect(new Date(updated.updatedAt).getTime()).toBeGreaterThanOrEqual(new Date(made.updatedAt).getTime());
         expect(await repo.get(made.id)).toEqual(updated);
-        expect(await repo.list()).toHaveLength(1);
+        expect(await all(repo)).toHaveLength(1);
       });
 
       it('goes on counting: the revision it returns is the one to start the next update from', async () => {
@@ -184,7 +196,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         const updated = await repo.update(made.id, poem('other', { revision: 99, createdAt: '2001-01-01T00:00:00.000Z', title: 'Kept title' }), made.revision);
         expect(updated).toMatchObject({ id: made.id, revision: 2, createdAt: made.createdAt, title: 'Kept title' });
         expect(await repo.get('other')).toBeNull();
-        expect(await repo.list()).toHaveLength(1);
+        expect(await all(repo)).toHaveLength(1);
       });
 
       it('keeps the passage version if the new content says none, and replaces it if it says one', async () => {
@@ -252,7 +264,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
       it('says it is gone, and does not create it', async () => {
         const { repo } = await make();
         await expect(repo.update('nothing', draftOf(poem('x')), 1)).rejects.toBeInstanceOf(PoemGoneError);
-        expect(await repo.list()).toEqual([]);
+        expect(await all(repo)).toEqual([]);
       });
 
       it('says so for a poem that was deleted after it was opened, and does not bring it back', async () => {
@@ -261,7 +273,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         await repo.delete(made.id);
         await expect(repo.update(made.id, draftOf(poem('a')), made.revision)).rejects.toBeInstanceOf(PoemGoneError);
         expect(await repo.get(made.id)).toBeNull();
-        expect(await repo.list()).toEqual([]);
+        expect(await all(repo)).toEqual([]);
       });
     });
 
@@ -269,14 +281,14 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
       it('lists every poem once, whatever the order', async () => {
         const { repo } = await make();
         await repo.importMany([poem('c'), poem('a'), poem('b')]);
-        expect((await repo.list()).sort(byId)).toEqual([poem('a'), poem('b'), poem('c')]);
+        expect((await all(repo)).sort(byId)).toEqual([poem('a'), poem('b'), poem('c')]);
       });
 
       it('lists nothing that was deleted', async () => {
         const { repo } = await make();
         await repo.importMany([poem('a'), poem('b')]);
         await repo.delete('a');
-        expect((await repo.list()).map(p => p.id)).toEqual(['b']);
+        expect((await all(repo)).map(p => p.id)).toEqual(['b']);
       });
     });
 
@@ -296,7 +308,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         const { repo } = await make();
         const many = Array.from({ length: 100 }, (_, i) => poem(`p${i}`, { revision: i + 1, createdAt: `2025-01-01T00:00:${String(i % 60).padStart(2, '0')}.000Z` }));
         await repo.importMany(many);
-        expect(await repo.list()).toHaveLength(100);
+        expect(await all(repo)).toHaveLength(100);
         expect(await repo.get('p42')).toEqual(many[42]);
       });
 
@@ -322,28 +334,28 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         failWrites();
         await expect(repo.importMany([poem('x'), poem('y')])).rejects.toBeInstanceOf(StorageError);
         allowWrites();
-        expect((await repo.list()).map(p => p.id)).toEqual(['existing']);
+        expect((await all(repo)).map(p => p.id)).toEqual(['existing']);
       });
 
       it('refuses a poem whose id is already stored, and stores none of the others', async () => {
         const { repo } = await make();
         await repo.importMany([poem('a', { title: 'Mine' })]);
         await expect(repo.importMany([poem('b'), poem('a', { title: 'Theirs' })])).rejects.toThrow(/already stored/);
-        expect((await repo.list()).map(p => p.id)).toEqual(['a']);
+        expect((await all(repo)).map(p => p.id)).toEqual(['a']);
         expect((await repo.get('a'))!.title).toBe('Mine');
       });
 
       it('refuses the same id twice in one list', async () => {
         const { repo } = await make();
         await expect(repo.importMany([poem('a'), poem('a')])).rejects.toThrow(/already stored/);
-        expect(await repo.list()).toEqual([]);
+        expect(await all(repo)).toEqual([]);
       });
 
       it('does nothing for an empty list', async () => {
         const { repo } = await make();
         await repo.importMany([poem('a')]);
         await repo.importMany([]);
-        expect(await repo.list()).toHaveLength(1);
+        expect(await all(repo)).toHaveLength(1);
       });
     });
 
@@ -356,7 +368,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         await expect(repo.update(made.id, draftOf(poem('a', { title: 'Lost' })), 1)).rejects.toBeInstanceOf(StorageError);
         await expect(repo.delete(made.id)).rejects.toBeInstanceOf(StorageError);
         allowWrites();
-        expect(await repo.list()).toEqual([made]);
+        expect(await all(repo)).toEqual([made]);
       });
     });
 
@@ -365,7 +377,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         const { repo } = await make();
         await repo.importMany([poem(id)]);
         expect(await repo.get(id)).toEqual(poem(id));
-        expect((await repo.list()).map(p => p.id)).toEqual([id]);
+        expect((await all(repo)).map(p => p.id)).toEqual([id]);
         expect((await repo.update(id, draftOf(poem(id)), 1)).revision).toBe(2);
       });
 
@@ -373,7 +385,7 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
         const { repo } = await make();
         await expect(repo.importMany([poem('__proto__')])).rejects.toThrow();
         await expect(repo.importMany([poem('fine'), poem('__proto__')])).rejects.toThrow();
-        expect(await repo.list()).toEqual([]);
+        expect(await all(repo)).toEqual([]);
         expect(({} as Record<string, unknown>).passageId).toBeUndefined(); // nothing leaked into every object
       });
 
@@ -383,7 +395,200 @@ export function runPoemRepositoryContract(name: string, make: () => PoemReposito
           expect(await repo.get(name)).toBeNull();
           await expect(repo.update(name, draftOf(poem('x')), 1)).rejects.toBeInstanceOf(PoemGoneError);
         }
-        expect(await repo.list()).toEqual([]);
+        expect(await all(repo)).toEqual([]);
+      });
+    });
+
+    describe('counting and fetching several', () => {
+      it('counts the poems stored, as they come and go', async () => {
+        const { repo } = await make();
+        expect(await repo.count()).toBe(0);
+        await repo.importMany([poem('a'), poem('b')]);
+        const made = await repo.create(draftOf(poem('x')));
+        expect(await repo.count()).toBe(3);
+        await repo.delete('a');
+        await repo.delete(made.id);
+        expect(await repo.count()).toBe(1);
+      });
+
+      it('gives the poems that are stored, whole, in the order asked for, and skips the rest', async () => {
+        const { repo } = await make();
+        await repo.importMany([poem('a'), poem('b'), poem('c')]);
+        expect(await repo.getMany(['c', 'nope', 'a'])).toEqual([poem('c'), poem('a')]);
+        expect(await repo.getMany([])).toEqual([]);
+        expect(await repo.getMany(['b', 'b', 'b'])).toEqual([poem('b')]);
+        expect(await repo.getMany(['__proto__', 'constructor', 'toString'])).toEqual([]);
+      });
+
+      it('gives copies', async () => {
+        const { repo } = await make();
+        await repo.importMany([poem('a')]);
+        const [got] = await repo.getMany(['a']);
+        got.title = 'Changed';
+        got.retainedTokenIds.length = 0;
+        expect(await repo.get('a')).toEqual(poem('a'));
+      });
+    });
+
+    describe('summaries', () => {
+      it('have what a list shows and none of the words or the notes', async () => {
+        const { repo } = await make();
+        await repo.importMany([poem('a', { passageVersion: 't1-0123456789abcdef', revision: 4 })]);
+        const [summary] = (await repo.listSummaries()).items;
+        expect(summary).toEqual({
+          id: 'a',
+          passageId: 'walden-woods',
+          passageVersion: 't1-0123456789abcdef',
+          revision: 4,
+          title: 'Poem a',
+          erasureStyle: 'blackout',
+          wordCount: 3,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-02T00:00:00.000Z',
+          preview: { lines: [['walden-woods-token-0001', 'walden-woods-token-0003'], ['walden-woods-token-0005']], more: false },
+        });
+        expect('notes' in summary).toBe(false);
+        expect('retainedTokenIds' in summary).toBe(false);
+        expect('lineBreaks' in summary).toBe(false);
+      });
+
+      it('leave out a title or passage version the poem does not have', async () => {
+        const { repo } = await make();
+        const bare = poem('bare');
+        delete bare.title;
+        await repo.importMany([bare]);
+        const [summary] = (await repo.listSummaries()).items;
+        expect('title' in summary).toBe(false);
+        expect('passageVersion' in summary).toBe(false);
+      });
+
+      it('stay small however long the poem is: the first lines only, and a count for the rest', async () => {
+        const { repo } = await make();
+        const words = Array.from({ length: 5000 }, (_, i) => `w-${i}`);
+        await repo.importMany([poem('big', { retainedTokenIds: words, lineBreaks: [words[1], words[3], words[5], words[7]] })]);
+        const [summary] = (await repo.listSummaries()).items;
+        expect(summary.wordCount).toBe(5000);
+        expect(summary.preview).toEqual({ lines: [['w-0', 'w-1'], ['w-2', 'w-3'], ['w-4', 'w-5']], more: true });
+        expect(JSON.stringify(summary).length).toBeLessThan(1000);
+      });
+
+      it('follow every change: a create, an update, a delete', async () => {
+        const { repo } = await make();
+        const made = await repo.create(draftOf(poem('x', { title: 'First' })));
+        expect((await repo.listSummaries()).items.map(s => [s.id, s.title, s.revision])).toEqual([[made.id, 'First', 1]]);
+        await repo.update(made.id, draftOf(poem('x', { title: 'Second', retainedTokenIds: ['t-1'], lineBreaks: [] })), 1);
+        const [after] = (await repo.listSummaries()).items;
+        expect([after.title, after.revision, after.wordCount]).toEqual(['Second', 2, 1]);
+        await repo.delete(made.id);
+        expect((await repo.listSummaries()).items).toEqual([]);
+      });
+    });
+
+    describe('listing in pages', () => {
+      const stamp = (i: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString();
+      /** Poems changed one second apart: p000 the oldest. */
+      const spread = (n: number) => Array.from({ length: n }, (_, i) => poem(`p${String(i).padStart(3, '0')}`, { updatedAt: stamp(i), createdAt: stamp(0) }));
+
+      async function walkSummaries(repo: PoemRepository, limit?: number) {
+        const items: string[] = [];
+        let after: string | undefined;
+        let pages = 0;
+        do {
+          const page = await repo.listSummaries({ after, limit });
+          items.push(...page.items.map(s => s.id));
+          after = page.next ?? undefined;
+          if (++pages > 1000) throw new Error('The pages never end.');
+        } while (after !== undefined);
+        return { items, pages };
+      }
+
+      it('puts the most recently changed first, and orders those changed at the same moment by id', async () => {
+        const { repo } = await make();
+        const same = stamp(5);
+        await repo.importMany([poem('b', { updatedAt: same }), poem('old', { updatedAt: stamp(1) }), poem('a', { updatedAt: same }), poem('new', { updatedAt: stamp(9) })]);
+        expect((await repo.listSummaries()).items.map(s => s.id)).toEqual(['new', 'a', 'b', 'old']);
+        expect((await repo.list()).items.map(p => p.id)).toEqual(['new', 'a', 'b', 'old']);
+      });
+
+      it('gives a page of the default size, with a way to ask for the next', async () => {
+        const { repo } = await make();
+        await repo.importMany(spread(LIMITS.pageDefault + 20));
+        const first = await repo.listSummaries();
+        expect(first.items).toHaveLength(LIMITS.pageDefault);
+        expect(first.next).not.toBeNull();
+        const second = await repo.listSummaries({ after: first.next! });
+        expect(second.items).toHaveLength(20);
+        expect(second.next).toBeNull();
+      });
+
+      it('walks the whole list in order, none missed and none twice, whatever the page size', async () => {
+        const { repo } = await make();
+        const poems = spread(23);
+        await repo.importMany(poems);
+        const newestFirst = poems.map(p => p.id).reverse();
+        for (const limit of [1, 2, 5, 7, 22, 23, 24, 500]) expect((await walkSummaries(repo, limit)).items).toEqual(newestFirst);
+      });
+
+      it('ends exactly on the last item: a list that fills a page has no empty page after it', async () => {
+        const { repo } = await make();
+        await repo.importMany(spread(10));
+        expect((await walkSummaries(repo, 5)).pages).toBe(2);
+        expect((await repo.listSummaries({ limit: 10 })).next).toBeNull();
+        expect((await repo.list({ limit: 10 })).next).toBeNull();
+      });
+
+      it('pages whole poems the same way', async () => {
+        const { repo } = await make();
+        const poems = spread(12);
+        await repo.importMany(poems);
+        const got: Poem[] = [];
+        let after: string | undefined;
+        do {
+          const page = await repo.list({ after, limit: 5 });
+          got.push(...page.items);
+          after = page.next ?? undefined;
+        } while (after !== undefined);
+        expect(got).toEqual([...poems].reverse());
+      });
+
+      it('keeps a page size within bounds: too small, too large, or not a whole number', async () => {
+        const { repo } = await make();
+        await repo.importMany(spread(LIMITS.pageMax + 10));
+        expect((await repo.listSummaries({ limit: 0 })).items).toHaveLength(1);
+        expect((await repo.listSummaries({ limit: -5 })).items).toHaveLength(1);
+        expect((await repo.listSummaries({ limit: 100_000 })).items).toHaveLength(LIMITS.pageMax);
+        expect((await repo.listSummaries({ limit: 2.5 })).items).toHaveLength(LIMITS.pageDefault);
+        expect((await repo.listSummaries({ limit: Number.NaN })).items).toHaveLength(LIMITS.pageDefault);
+      });
+
+      it('goes on from where a page ended, even if that poem has been deleted since', async () => {
+        const { repo } = await make();
+        await repo.importMany(spread(6));
+        const first = await repo.listSummaries({ limit: 2 }); // p005, p004
+        await repo.delete(first.items[1].id);
+        const rest = await repo.listSummaries({ after: first.next!, limit: 10 });
+        expect(rest.items.map(s => s.id)).toEqual(['p003', 'p002', 'p001', 'p000']);
+      });
+
+      it('loses and repeats nothing when poems are changed or added between pages', async () => {
+        const { repo } = await make();
+        await repo.importMany(spread(6));
+        const first = await repo.listSummaries({ limit: 3 }); // p005, p004, p003
+        // A poem further down is changed (it would now come first), and a brand new one is added.
+        await repo.update('p001', draftOf(poem('p001', { title: 'Moved to the top' })), 1);
+        await repo.importMany([poem('fresh', { updatedAt: stamp(100) })]);
+        const rest = await repo.listSummaries({ after: first.next!, limit: 10 });
+        expect(rest.items.map(s => s.id)).toEqual(['p002', 'p000']); // p001 moved above the cursor: not repeated
+        expect(rest.items.some(s => first.items.some(f => f.id === s.id))).toBe(false);
+      });
+
+      it('ends a walk, not restarts it, when the cursor is not a position', async () => {
+        const { repo } = await make();
+        await repo.importMany(spread(3));
+        for (const after of ['', 'nonsense', '|', 'x|y', '2026-01-01T00:00:00.000Z|', '__proto__']) {
+          expect(await repo.listSummaries({ after })).toEqual({ items: [], next: null });
+          expect(await repo.list({ after })).toEqual({ items: [], next: null });
+        }
       });
     });
   });

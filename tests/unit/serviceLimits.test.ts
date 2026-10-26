@@ -70,7 +70,7 @@ describe('saving a poem over a limit', () => {
     const attempt = service.savePoem({ ...base, title: 'Long notes', notes: 'n'.repeat(LIMITS.notesMax + 1) });
     await expect(attempt).rejects.toBeInstanceOf(PoemLimitError);
     await expect(attempt).rejects.toThrow('Notes can be at most 10,000 characters.');
-    expect(await repo.list()).toEqual([]);
+    expect((await repo.list()).items).toEqual([]);
   });
 
   it('does not cut the notes of a poem that is already saved either: it refuses, and the poem stays as it was', async () => {

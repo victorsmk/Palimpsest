@@ -1,7 +1,8 @@
 import type { PoemRepository } from '@/lib/repositories';
-import { PoemConflictError, PoemGoneError, StorageError, storageFailureOf, type Poem, type PoemDraft } from '@/lib/models';
+import { PoemConflictError, PoemGoneError, StorageError, storageFailureOf, summarizePoem, type Page, type PageRequest, type Poem, type PoemDraft, type PoemSummary } from '@/lib/models';
 import { parseStoredPoem } from '@/lib/models/poemValidation';
 import { stampNew, stampUpdate } from '@/lib/models/stamp';
+import { pageOfPoems } from '../paging';
 
 export interface StorageAdapter {
   getItem(key: string): string | null;
@@ -134,14 +135,37 @@ export class BrowserPoemRepository implements PoemRepository {
     return id in data ? this.readPoem(id, data[id]) : null;
   }
 
-  async list(): Promise<Poem[]> {
-    const data = this.loadRaw();
+  /** Every readable poem. (Local storage is read whole whatever is asked of it; paging is for what is returned.) */
+  private readAll(): Poem[] {
     const poems: Poem[] = [];
-    for (const [key, entry] of Object.entries(data)) {
+    for (const [key, entry] of Object.entries(this.loadRaw())) {
       const poem = this.readPoem(key, entry);
       if (poem) poems.push(poem);
     }
     return poems;
+  }
+
+  async getMany(ids: string[]): Promise<Poem[]> {
+    const data = this.loadRaw();
+    const found: Poem[] = [];
+    for (const id of new Set(ids)) {
+      const poem = Object.hasOwn(data, id) ? this.readPoem(id, data[id]) : null;
+      if (poem) found.push(poem);
+    }
+    return found;
+  }
+
+  async count(): Promise<number> {
+    return this.readAll().length;
+  }
+
+  async listSummaries(page?: PageRequest): Promise<Page<PoemSummary>> {
+    const { items, next } = pageOfPoems(this.readAll(), page);
+    return { items: items.map(summarizePoem), next };
+  }
+
+  async list(page?: PageRequest): Promise<Page<Poem>> {
+    return pageOfPoems(this.readAll(), page);
   }
 
   async delete(id: string): Promise<void> {

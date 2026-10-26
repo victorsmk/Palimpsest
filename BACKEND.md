@@ -40,7 +40,7 @@ poem model to change (step 3), which is where the real backend work starts.
 | 4 | Validation lived in the browser-only folder and the backup code reached into it | **Done**: `lib/models/poemValidation.ts` |
 | 5 | No single place chose the implementation; the poem service silently defaulted to the browser one | **Done**: `lib/services/container.ts`, setting `NEXT_PUBLIC_DATA_BACKEND` |
 | 6 | Limits were uneven (titles capped only on rename and copy) | **Done**: `lib/models/limits.ts`, one set, enforced when writing |
-| 7 | Listing returns everything; passages come with their whole text | **Half done** (step 5): library lists are paged summaries and a passage is fetched when it is wanted. The poem list still returns whole poems, all at once (step 5b) |
+| 7 | Listing returns everything; passages come with their whole text | **Done** (step 5): library lists and poem lists are paged summaries; a passage and a poem are fetched whole only when wanted |
 | 8 | Errors are generic ("browser storage full") | **Done** (step 4): every repository failure is a typed `RepositoryError`, and `describeError` is the one place that decides what the writer is told |
 | 9 | Named collections are defined as types only | **Open**: build once, before or with the backend |
 | 10 | No sign-in, no "not signed in" or offline state | **Open** (the backend work itself) |
@@ -107,10 +107,18 @@ poem model to change (step 3), which is where the real backend work starts.
      loads just the passages its poems were made from, before showing the list. A passage that cannot be loaded
      says so ("That passage could not be opened. Please try again.") and the screen keeps what it had. A
      `BookRepository` contract suite (paging rules included) is run against the browser implementation.
-   - **5b, next:** the same for poems. The list returns whole poems (each up to 10,000 kept words) and the
-     collection panel shows all of them; a server needs a summary list (id, title, passage, revision, times,
-     word count, a preview of the first lines) a page at a time, and the full poem fetched when opened. The
-     preview needs the passage's text, so either the summary carries the preview text or the screen loads it.
+   - **5b, done:** the same for poems. `PoemRepository` gained `listSummaries(page)` (a `PoemSummary`: id,
+     passage, revision, title, style, word count, times, and a *preview head*: the ids of the first three lines'
+     words, each cut to the 31 words that could be shown in 60 characters, so a server can make it without
+     knowing the passage), `list(page)` (whole poems, for a backup), `count()` and `getMany(ids)`; `list()`
+     returning everything is gone. Order is the most recently changed first, then by id; the cursor is a
+     *position* (`updatedAt|id`), not an item, so a page continues correctly even if the poem it came from was
+     deleted or changed, and nothing is lost or repeated by changes between pages. The service takes the
+     collection size from `count()` (the 2,000-poem limit), plans a restore from `getMany` of the ids in the
+     backup, and walks `list` pages for a backup. My Collection shows 100 at a time with a "Show more poems"
+     button, keeps as many as were showing after a rename, copy, delete or restore, and fetches the whole poem
+     when one is chosen (a poem deleted elsewhere is reported, and the list made again). The poem contract suite
+     grew to 58 rules, run against all three implementations.
    - **Not done, and not needed yet:** a book picker (the selector buttons list every summary; fine for a
      handful of books, not for hundreds) and search over a long text on the server or in a worker (a ROADMAP
      item; the search still runs in the page, on the one passage on screen).

@@ -77,6 +77,9 @@ where Firefox starts there.
 - `storage-errors.spec.ts`: what is said when the browser's storage is full, blocked, or fails for another reason (saving
   keeps the form open and the words; renaming keeps what was typed; duplicating). The same error is also checked where each
   action is tested.
+- `collection-paging.spec.ts`: a collection of more poems than fit on a page (100 at a time, "Show more poems", cards with their
+  book and first lines on every page, a poem from a later page opens whole with its notes, a change keeps what was shown,
+  a poem deleted elsewhere is reported when chosen).
 - `conflicts.spec.ts`: two tabs of one browser on one collection. A save from an out-of-date revision is refused with the
   conflict message and changes nothing (the other tab's version stays, the words stay on the page); opening the poem again
   and saving works; a poem deleted in the other tab is reported, not brought back, and saving again makes a new poem;

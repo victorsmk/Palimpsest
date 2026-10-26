@@ -110,7 +110,7 @@ describe('BrowserPoemRepository', () => {
     const storage = new MemoryStorageAdapter();
     const repo = new BrowserPoemRepository(storage);
 
-    expect(await repo.list()).toHaveLength(0);
+    expect((await repo.list()).items).toHaveLength(0);
     expect(await repo.get('poem-1')).toBeNull();
 
     await repo.importMany([dummyPoem]);
@@ -118,13 +118,13 @@ describe('BrowserPoemRepository', () => {
     const retrieved = await repo.get('poem-1');
     expect(retrieved).toEqual(dummyPoem);
 
-    const list = await repo.list();
+    const list = (await repo.list()).items;
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe('poem-1');
 
     await repo.delete('poem-1');
     expect(await repo.get('poem-1')).toBeNull();
-    expect(await repo.list()).toHaveLength(0);
+    expect((await repo.list()).items).toHaveLength(0);
   });
 
   it('handles invalid or corrupted JSON gracefully', async () => {
@@ -132,7 +132,7 @@ describe('BrowserPoemRepository', () => {
     storage.setItem('palimpsest:poems:v1', 'NOT_VALID_JSON{[');
     const repo = new BrowserPoemRepository(storage);
 
-    const list = await repo.list();
+    const list = (await repo.list()).items;
     expect(list).toEqual([]);
     expect(await repo.get('poem-1')).toBeNull();
   });
@@ -150,7 +150,7 @@ describe('BrowserPoemRepository', () => {
       for (const payload of ['[]', '"text"', '42', 'null']) {
         const storage = new MemoryStorageAdapter();
         storage.setItem(KEY, payload);
-        expect(await new BrowserPoemRepository(storage).list()).toEqual([]);
+        expect((await new BrowserPoemRepository(storage).list()).items).toEqual([]);
       }
     });
 
@@ -165,7 +165,7 @@ describe('BrowserPoemRepository', () => {
         'not-an-object': 'poem',
       });
 
-      const list = await repo.list();
+      const list = (await repo.list()).items;
       expect(list.map(p => p.id)).toEqual(['poem-1']);
       expect(await repo.get('bad-style')).toBeNull();
       expect(await repo.get('not-an-object')).toBeNull();
@@ -174,7 +174,7 @@ describe('BrowserPoemRepository', () => {
     it('rejects entries whose key does not match their id', async () => {
       const { repo } = seed({ 'poem-1': { ...dummyPoem, id: 'someone-else' } });
       expect(await repo.get('poem-1')).toBeNull();
-      expect(await repo.list()).toEqual([]);
+      expect((await repo.list()).items).toEqual([]);
     });
 
     it('rejects line breaks that are not on retained tokens', async () => {
@@ -190,7 +190,7 @@ describe('BrowserPoemRepository', () => {
         stringy: { ...dummyPoem, id: 'stringy', schemaVersion: '1' },
         future: { ...dummyPoem, id: 'future', schemaVersion: 3 },
       });
-      expect(await repo.list()).toEqual([]);
+      expect((await repo.list()).items).toEqual([]);
     });
 
     it('does not destroy unreadable entries when saving or deleting other poems', async () => {
@@ -198,7 +198,7 @@ describe('BrowserPoemRepository', () => {
       const { storage, repo } = seed({ future });
 
       await repo.importMany([dummyPoem]);
-      expect((await repo.list()).map(p => p.id)).toEqual(['poem-1']);
+      expect(((await repo.list()).items).map(p => p.id)).toEqual(['poem-1']);
 
       await repo.delete('poem-1');
       const stored = JSON.parse(storage.getItem(KEY)!);
