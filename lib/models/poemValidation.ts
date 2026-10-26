@@ -1,4 +1,5 @@
-import { POEM_SCHEMA_VERSION, type ErasureStyle, type Poem } from '@/lib/models';
+import { POEM_SCHEMA_VERSION, type ErasureStyle, type Poem } from './index';
+import { LIMITS } from './limits';
 
 const ERASURE_STYLES: readonly ErasureStyle[] = ['blackout', 'faded', 'whiteout'];
 
@@ -55,4 +56,19 @@ export function parsePoem(raw: unknown): Poem | null {
   if (r.title !== undefined) poem.title = r.title as string;
   if (r.notes !== undefined) poem.notes = r.notes as string;
   return poem;
+}
+
+/**
+ * Whether a poem may be WRITTEN: null when it is within the limits, otherwise a plain message saying
+ * which one it is over. (Reading is lenient; see LIMITS.) The title is not checked here, because a
+ * title that is too long is cut to size rather than refused.
+ */
+export function poemLimitProblem(poem: Pick<Poem, 'notes' | 'retainedTokenIds'>): string | null {
+  if ((poem.notes ?? '').length > LIMITS.notesMax) {
+    return `Notes can be at most ${LIMITS.notesMax.toLocaleString('en-US')} characters.`;
+  }
+  if (poem.retainedTokenIds.length > LIMITS.retainedMax) {
+    return `A poem can keep at most ${LIMITS.retainedMax.toLocaleString('en-US')} words.`;
+  }
+  return null;
 }

@@ -1,7 +1,5 @@
 import type { BookRepository } from '@/lib/repositories';
-import { BrowserBookRepository } from '@/lib/repositories';
 import type { Book, Passage } from '@/lib/models';
-import { bundledPassages } from '@/lib/library/bundled';
 
 export class BookService {
   private repo: BookRepository;
@@ -25,6 +23,3 @@ export class BookService {
     return perBook.flat();
   }
 }
-
-// Default singleton instance for UI usage, backed by the bundled library
-export const bookService = new BookService(new BrowserBookRepository(bundledPassages));

@@ -1,6 +1,5 @@
 import type { PoemRepository } from '@/lib/repositories';
-import { BrowserPoemRepository } from '@/lib/repositories';
-import { POEM_SCHEMA_VERSION, type ErasureStyle, type Poem } from '@/lib/models';
+import { LIMITS, POEM_SCHEMA_VERSION, PoemLimitError, poemLimitProblem, type ErasureStyle, type Poem } from '@/lib/models';
 import { backupFilename, createBackup, planRestore, serializeBackup, type RestorePlan } from '@/lib/backup';
 
 export interface SavePoemInput {
@@ -13,8 +12,10 @@ export interface SavePoemInput {
   erasureStyle: ErasureStyle;
 }
 
-/** The longest title a poem can be given when it is renamed or copied. */
-export const MAX_TITLE_LENGTH = 120;
+/** The longest title a poem can be given. A longer one is cut to this. */
+export const MAX_TITLE_LENGTH = LIMITS.titleMax;
+
+const COLLECTION_FULL = `Your collection is full: it can hold up to ${LIMITS.poemsMax.toLocaleString('en-US')} poems. Delete some to save more.`;
 
 const UNTITLED = 'Untitled Poem';
 const COPY_SUFFIX = ' (copy)';
@@ -33,23 +34,31 @@ export function copyTitle(title: string | undefined): string {
 export class PoemService {
   private repo: PoemRepository;
 
-  constructor(repo?: PoemRepository) {
-    this.repo = repo ?? new BrowserPoemRepository();
+  /** The repository is given, not chosen here: see `lib/services/container.ts` for where it is. */
+  constructor(repo: PoemRepository) {
+    this.repo = repo;
   }
 
   /**
-   * Saves a new poem or updates an existing one.
+   * Saves a new poem or updates an existing one. A title that is too long is cut to the limit; notes
+   * or a poem over their limits, and a new poem in a full collection, are refused with a
+   * PoemLimitError whose message can be shown to the writer.
    */
   async savePoem(input: SavePoemInput): Promise<Poem> {
     const now = new Date().toISOString();
     const existing = input.id ? await this.repo.get(input.id) : null;
 
+    const notes = input.notes?.trim() || '';
+    const problem = poemLimitProblem({ notes, retainedTokenIds: input.retainedTokenIds });
+    if (problem) throw new PoemLimitError(problem);
+    if (!existing && (await this.repo.list()).length >= LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
+
     const poem: Poem = {
       id: input.id || `poem-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       schemaVersion: POEM_SCHEMA_VERSION,
       passageId: input.passageId,
-      title: input.title?.trim() || 'Untitled Poem',
-      notes: input.notes?.trim() || '',
+      title: cleanTitle(input.title ?? ''),
+      notes,
       retainedTokenIds: [...input.retainedTokenIds],
       lineBreaks: [...input.lineBreaks],
       erasureStyle: input.erasureStyle,
@@ -113,7 +122,9 @@ export class PoemService {
    * asked is not overwritten.
    */
   async restoreBackup(incoming: Poem[]): Promise<RestorePlan> {
-    const plan = planRestore(await this.repo.list(), incoming);
+    const existing = await this.repo.list();
+    const plan = planRestore(existing, incoming);
+    if (existing.length + plan.toAdd.length > LIMITS.poemsMax) throw new PoemLimitError(COLLECTION_FULL);
     if (plan.toAdd.length > 0) await this.repo.saveMany(plan.toAdd);
     return plan;
   }
@@ -122,6 +133,3 @@ export class PoemService {
     return this.repo.delete(id);
   }
 }
-
-// Default singleton instance for UI usage
-export const poemService = new PoemService();

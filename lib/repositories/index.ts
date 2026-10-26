@@ -26,3 +26,4 @@ export interface CollectionRepository {
 export { BrowserBookRepository } from './browser/BrowserBookRepository';
 export { BrowserPoemRepository, MemoryStorageAdapter } from './browser/BrowserPoemRepository';
 
+export { MemoryPoemRepository } from './memory/MemoryPoemRepository';

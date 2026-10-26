@@ -19,6 +19,10 @@ server-backed repository can replace the browser one without the UI changing. De
 make: which database and host, how users sign in, how existing local drafts move across, and what
 is private versus shareable.
 
+**Decided 2026-10-26:** server-first (signed-in users work against the server, not a synced local copy),
+and free hosting and database tiers first. The full review, what has been done, the plan and the free
+options are in [BACKEND.md](BACKEND.md).
+
 ## Move the Assisted search to a Web Worker, if it proves necessary (decided 2026-10-25)
 
 The Assisted search runs on the page's own thread. Measured in Chromium on the production build: the

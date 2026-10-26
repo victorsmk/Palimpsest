@@ -1,6 +1,6 @@
 import type { PoemRepository } from '@/lib/repositories';
 import type { Poem } from '@/lib/models';
-import { parsePoem } from './poemValidation';
+import { parsePoem } from '@/lib/models/poemValidation';
 
 export interface StorageAdapter {
   getItem(key: string): string | null;

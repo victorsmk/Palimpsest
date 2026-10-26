@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useId, useState } from 'react';
+import { LIMITS } from '@/lib/models';
 import { useDialog } from './useDialog';
 
 interface SaveDraftModalProps {
@@ -82,6 +83,7 @@ function SaveDraftForm({
               id="poem-title"
               type="text"
               value={title}
+              maxLength={LIMITS.titleMax}
               onChange={e => setTitle(e.target.value)}
               placeholder="e.g. Winter Twilight"
               required
@@ -100,6 +102,7 @@ function SaveDraftForm({
             <textarea
               id="poem-notes"
               value={notes}
+              maxLength={LIMITS.notesMax}
               onChange={e => setNotes(e.target.value)}
               rows={3}
               placeholder="Anything to remember about this poem"

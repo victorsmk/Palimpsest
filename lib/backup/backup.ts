@@ -1,14 +1,14 @@
-import type { Poem } from '@/lib/models';
-import { parsePoem } from '@/lib/repositories/browser/poemValidation';
+import { LIMITS, type Poem } from '@/lib/models';
+import { parsePoem } from '@/lib/models/poemValidation';
 
 /** What a backup file says it is, so that another file is not mistaken for one. */
 export const BACKUP_FORMAT = 'palimpsest-backup';
 /** The version of the backup layout this build writes and understands. */
 export const BACKUP_VERSION = 1;
 /** The largest backup that is read: a collection of thousands of poems is far smaller than this. */
-export const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+export const MAX_BACKUP_BYTES = LIMITS.backupBytesMax;
 /** The most poems one backup may hold. */
-export const MAX_BACKUP_POEMS = 2000;
+export const MAX_BACKUP_POEMS = LIMITS.poemsMax;
 
 export interface BackupFile {
   format: typeof BACKUP_FORMAT;

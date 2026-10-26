@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { Passage, Poem } from '@/lib/models';
+import { PoemLimitError, type Passage, type Poem } from '@/lib/models';
 import { MAX_BACKUP_BYTES, describeRestore, readBackup, type RestorePlan } from '@/lib/backup';
 import { downloadTextFile } from '@/lib/export/text';
 import { poemPreview } from '@/lib/poems/preview';
@@ -155,8 +155,11 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
       setTimeout(() => {
         if (listRef.current) listRef.current.scrollTop = 0;
       }, 0);
-    } catch {
-      setNotice({ text: 'Could not duplicate this poem. Please try again.', tone: 'error' });
+    } catch (err) {
+      setNotice({
+        text: err instanceof PoemLimitError ? err.message : 'Could not duplicate this poem. Please try again.',
+        tone: 'error',
+      });
     } finally {
       // Not released at once: the new copy takes the top of the list and moves every card down, so a
       // second click of a double click would land on a different poem's Duplicate button.
@@ -232,8 +235,12 @@ function DraftsPanel({ onClose, onLoadPoem, passages, onRenamed }: Omit<DraftsDr
       const added = done.toAdd.length;
       setNotice({ text: `Added ${added} ${added === 1 ? 'poem' : 'poems'} from the backup.`, tone: 'ok' });
       focusLater(() => restoreButton.current);
-    } catch {
-      setRestoreError('The poems could not be added, and your collection has not been changed. Please try again.');
+    } catch (err) {
+      setRestoreError(
+        err instanceof PoemLimitError
+          ? `${err.message} Your collection has not been changed.`
+          : 'The poems could not be added, and your collection has not been changed. Please try again.'
+      );
     } finally {
       setRestoring(false);
     }
