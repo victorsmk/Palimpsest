@@ -223,6 +223,11 @@ poem model to change (step 3), which is where the real backend work starts.
      (`serverExternalPackages`), and the sign-in dialog says what to type. Tested: the real script started and
      asked over HTTP, and `e2e-demo/` (`npm run test:e2e:demo`, 5 browser tests with nothing standing in for
      the server: saving, a fresh browser seeing the same poem, separate accounts, a conflict, deleting an account).
+   - **Library tables and import, done** (step 1 of the book library, 2026-10-28; see LIBRARY.md): `books` and
+     `passages` (source text only; the words are made by the tokenizer, as for the bundled excerpts), the cutting
+     rules in `scripts/library/cut.mjs` (frozen per CUTTER_VERSION; excerpts are never re-cut), and
+     `npm run import:library` reading Gutenberg files saved by hand (no automated download, by Gutenberg's
+     policy). Nothing on the site reads them yet.
    - **Rate limiting, done** (decided 2026-10-28): per signed-in user, counted in Postgres (`rate_limits`: one row per
      kind of request and user, a fixed window; one statement so concurrent requests are all counted; Vercel's
      functions share no memory, so counting in memory would not work). 300 reads and 60 writes a minute, 5

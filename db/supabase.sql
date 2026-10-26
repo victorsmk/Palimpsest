@@ -17,3 +17,5 @@ $$;
 
 alter table poems enable row level security;
 alter table rate_limits enable row level security;
+alter table books enable row level security;
+alter table passages enable row level security;

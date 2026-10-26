@@ -42,3 +42,32 @@ create table if not exists rate_limits (
 );
 
 create index if not exists rate_limits_by_window on rate_limits (window_start);
+
+-- The library of books to make poems from (see LIBRARY.md). Public texts, the same for everyone. A book
+-- is cut into excerpts once, when it is imported, and an excerpt is never changed or re-cut afterwards:
+-- a saved poem points at the words of an excerpt by their position, so changing one would break it.
+create table if not exists books (
+  id            text    collate "C" primary key,   -- "pg1342": Project Gutenberg's number
+  gutenberg_id  integer not null unique,
+  title         text    not null,
+  author        text    not null,
+  year          integer not null,                  -- when the book was first published
+  language      text    not null default 'en',
+  source        text    not null,
+  url           text    not null,
+  license_note  text    not null,
+  passage_count integer not null check (passage_count >= 1),
+  word_count    integer not null check (word_count >= 1),
+  cutter_version integer not null                  -- which version of the cutting rules made its excerpts
+);
+
+create table if not exists passages (
+  id          text    collate "C" primary key,     -- "pg1342-0042"
+  book_id     text    collate "C" not null references books (id) on delete cascade,
+  ordinal     integer not null check (ordinal >= 1),
+  title       text    not null,
+  description text    not null,                    -- the first words, for a list
+  source_text text    not null,
+  word_count  integer not null check (word_count >= 1),
+  unique (book_id, ordinal)
+);

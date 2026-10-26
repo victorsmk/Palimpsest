@@ -44,3 +44,6 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# Project Gutenberg files saved by hand for the library import (large; see LIBRARY.md)
+/data/library/raw/

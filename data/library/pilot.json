@@ -1,0 +1,12 @@
+[
+  { "gutenbergId": 1342, "title": "Pride and Prejudice", "author": "Jane Austen", "year": 1813 },
+  { "gutenbergId": 84, "title": "Frankenstein", "author": "Mary Shelley", "year": 1818 },
+  { "gutenbergId": 2701, "title": "Moby Dick", "author": "Herman Melville", "year": 1851 },
+  { "gutenbergId": 11, "title": "Alice's Adventures in Wonderland", "author": "Lewis Carroll", "year": 1865 },
+  { "gutenbergId": 345, "title": "Dracula", "author": "Bram Stoker", "year": 1897 },
+  { "gutenbergId": 98, "title": "A Tale of Two Cities", "author": "Charles Dickens", "year": 1859 },
+  { "gutenbergId": 1661, "title": "The Adventures of Sherlock Holmes", "author": "Arthur Conan Doyle", "year": 1892 },
+  { "gutenbergId": 76, "title": "Adventures of Huckleberry Finn", "author": "Mark Twain", "year": 1884 },
+  { "gutenbergId": 1400, "title": "Great Expectations", "author": "Charles Dickens", "year": 1861 },
+  { "gutenbergId": 205, "title": "Walden", "author": "Henry David Thoreau", "year": 1854 }
+]

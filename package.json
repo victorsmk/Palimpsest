@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:demo": "node scripts/dev-demo.mjs",
+    "import:library": "node scripts/import-library.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
