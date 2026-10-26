@@ -381,6 +381,14 @@ describe('the sign-in dialog', () => {
     expect(html.indexOf('Google button')).toBeLessThan(html.indexOf('Email address'));
   });
 
+  it('links to the privacy page in a new tab, so that an unsaved poem on this page is not lost', async () => {
+    render(createElement(SignInDialog, { manager: manager(null), onClose: vi.fn() }));
+    await settled();
+    const link = [...document.querySelectorAll('a')].find(a => a.getAttribute('href') === '/privacy')!;
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
   it('shows nothing about Google when it is not set up', async () => {
     render(createElement(SignInDialog, { manager: manager(null), onClose: vi.fn() }));
     await settled();

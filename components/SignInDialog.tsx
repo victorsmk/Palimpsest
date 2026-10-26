@@ -156,6 +156,14 @@ export function SignInDialog({ manager, reason, onClose, onSignedIn, emailSignIn
           <p className="mb-3 rounded border border-[#E0D4BE] bg-[#E4D8C2]/40 px-3 py-2 text-xs text-[#57544E]">{demoSignInHint()}</p>
         )}
 
+        <p className="mb-3 text-xs text-[#605C53]">
+          What is kept about you:{' '}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[#24231F]">
+            privacy<span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          .
+        </p>
+
         {step === 'email' && google && (
           <div className={emailSignIn ? 'mb-4' : ''}>
             <div ref={googleBox} className="flex min-h-[44px] items-center justify-center" />

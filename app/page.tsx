@@ -91,7 +91,12 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="max-w-4xl mx-auto w-full text-center text-xs text-[#605C53] border-t border-[#E4D8C2] pt-6">
-        Local-first browser workshop powered by Project Gutenberg texts & CMU Pronouncing Dictionary.
+        <p>Local-first browser workshop powered by Project Gutenberg texts & CMU Pronouncing Dictionary.</p>
+        <p className="mt-2">
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-[#24231F]">
+            Privacy
+          </Link>
+        </p>
       </footer>
     </div>
   );

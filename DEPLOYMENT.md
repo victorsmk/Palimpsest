@@ -169,7 +169,10 @@ against real Google or Supabase**, so the checklist in part 7 is how you find ou
    basics (the person's name and email address); those need no review by Google.
    - While the screen's **publishing status is "Testing"**, only the **test users you list** (up to 100) can
      sign in. To let anyone in, **publish** it ("In production"). Google may ask for things such as a link to
-     a privacy policy or the site's address; follow what the console says.
+     a privacy policy or the site's address; follow what the console says. The site has a privacy page at
+     `/privacy` (for example `https://YOUR-SITE.vercel.app/privacy`): use that address for the privacy policy link,
+     and the site's address for the home page. If you change what the app keeps about people, update
+     `app/privacy/page.tsx` as well.
 3. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**:
    - **Authorized JavaScript origins**: your site's address, such as `https://YOUR-SITE.vercel.app` (no path, no
      trailing slash). Add `http://localhost:3000` too if you want to try it from `npm run dev` with a real
