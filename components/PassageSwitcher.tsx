@@ -28,7 +28,7 @@ export function PassageSwitcher({ passage, onChoose }: PassageSwitcherProps) {
   const [choosing, setChoosing] = useState(false);
   const position = passage.position;
   return (
-    <div role="group" aria-label="Passage" className="flex flex-wrap items-center gap-2 rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] px-3 py-2.5">
+    <div role="group" aria-label="Passage" className="card-gilt flex flex-wrap items-center gap-2 rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] px-3 py-2.5">
       <div className="mr-auto min-w-0 max-w-full">
         <p className="text-xs text-[#57544E]">
           {passage.attribution.title}, {passage.attribution.author}

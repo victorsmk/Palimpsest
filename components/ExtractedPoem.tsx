@@ -28,7 +28,7 @@ export function ExtractedPoem({
   frameRef,
 }: ExtractedPoemProps) {
   return (
-    <div ref={frameRef} className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 min-h-[500px] flex flex-col">
+    <div ref={frameRef} className="page-frame p-8 sm:p-12 min-h-[500px] flex flex-col">
       <div className="text-center mb-8 border-b border-[#ECE3D0] pb-4">
         <h2 className="text-lg font-serif font-semibold text-[#24231F]">
           {title || 'Untitled poem'}

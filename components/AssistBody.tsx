@@ -48,7 +48,7 @@ export function AssistBody({ passage, state, otherPassages, onChoosePassage, use
 
   if (candidates.length === 0) {
     return (
-      <section className="rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] px-6 py-10 text-center">
+      <section className="card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] px-6 py-10 text-center">
         <h2 className="font-serif text-xl font-bold">No poems to make here</h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-[#57544E]">
           We could not put together three lines of 5, 7 and 5 syllables from words of this passage kept in order.
@@ -77,7 +77,7 @@ export function AssistBody({ passage, state, otherPassages, onChoosePassage, use
 
   return (
     <div className="space-y-4">
-      <section aria-labelledby="assist-count-heading" className="rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-4">
+      <section aria-labelledby="assist-count-heading" className="card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-4">
         <h2 id="assist-count-heading" className="leading-none">
           <span className="font-serif text-3xl font-bold text-[#6C3438]">{candidates.length}</span>
           {/* A real space, so assistive technology reads "10 poems", not "10poems". */}{' '}

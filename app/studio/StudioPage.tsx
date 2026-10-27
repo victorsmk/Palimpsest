@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PoemGoneError, passageVersionOf } from '@/lib/models';
 import { describeError } from '@/lib/errors/describe';
@@ -12,6 +11,7 @@ import { ViewToggle, type StudioView } from '@/components/ViewToggle';
 import { ExtractedPoem } from '@/components/ExtractedPoem';
 import { SaveDraftModal } from '@/components/SaveDraftModal';
 import { AccountControl } from '@/components/AccountControl';
+import { PassageTabs, SiteHeader } from '@/components/SiteHeader';
 import { MyCollectionButton } from '@/components/MyCollectionButton';
 import { SignInDialog } from '@/components/SignInDialog';
 import { useAuth } from '@/components/useAuth';
@@ -533,75 +533,28 @@ function Studio({ library, opened, startPassageId }: { library: PassageLibrary; 
   }, [visibleShareLink]);
 
   return (
-    <div className="min-h-screen bg-[#F3EBDD] text-[#24231F] flex flex-col justify-between py-8 px-4 sm:px-8">
+    <div className="min-h-screen text-[#24231F] flex flex-col justify-between pb-8 px-4 sm:px-8">
       {/* Top Header */}
-      <header className="print:hidden max-w-4xl mx-auto w-full mb-8 flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E4D8C2] pb-6 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs uppercase tracking-widest text-[#6C3438] font-bold">
-              Studio
-            </span>
-            <span className="text-xs text-[#57544E]" aria-hidden="true">|</span>
-            <Link
-              href="/"
-              onClick={guardLink('/')}
-              className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors"
-            >
-              Home
-            </Link>
-            <Link
-              href="/discover"
-              onClick={guardLink('/discover')}
-              className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors"
-            >
-              Discover
-            </Link>
-            <Link
-              href="/assist"
-              onClick={guardLink('/assist')}
-              className="text-xs text-[#57544E] hover:text-[#24231F] underline transition-colors"
-            >
-              Assisted
-            </Link>
-          </div>
-          <h1 className="text-3xl font-serif font-bold tracking-tight text-[#24231F] mt-1">
-            Palimpsest Studio
-          </h1>
-          <p className="text-sm text-[#57544E] mt-0.5">
-            {poemTitle ? `Editing: "${poemTitle}"` : 'Interactive Found Poetry & Erasure Workshop'}
-          </p>
-        </div>
-
-        {/* Right Header Navigation & Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <MyCollectionButton library={library} onOpenPoem={handleLoadPoem} onRenamed={handleRenamedElsewhere} />
-          <AccountControl />
-
-          {/* Passage Selector: tabs for the bundled passages, or the book picker when there is a library of books */}
-          {!remote && (
-            <div className="flex flex-wrap gap-2">
-              {summaries.map(p => {
-                const isSelected = p.id === activePassage.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => void changePassage(p.id)}
-                    className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
-                      isSelected
-                        ? 'bg-[#24231F] text-[#F3EBDD] shadow-sm'
-                        : 'bg-[#E4D8C2]/60 hover:bg-[#E4D8C2] text-[#24231F]'
-                    }`}
-                  >
-                    {p.attribution.title}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </header>
+      <SiteHeader
+        current="studio"
+        title="Palimpsest Studio"
+        subtitle={poemTitle ? `Editing: "${poemTitle}"` : 'Interactive Found Poetry & Erasure Workshop'}
+        guardLink={guardLink}
+        actions={
+          <>
+            <MyCollectionButton library={library} onOpenPoem={handleLoadPoem} onRenamed={handleRenamedElsewhere} />
+            <AccountControl />
+            {/* Passage Selector: tabs for the bundled passages, or the book picker when there is a library of books */}
+            {!remote && (
+              <PassageTabs
+                passages={summaries.map(p => ({ id: p.id, title: p.attribution.title }))}
+                activeId={activePassage.id}
+                onChoose={id => void changePassage(id)}
+              />
+            )}
+          </>
+        }
+      />
 
       {remote && (
         <div className="print:hidden max-w-4xl mx-auto w-full mb-6 -mt-2">
@@ -649,7 +602,7 @@ function Studio({ library, opened, startPassageId }: { library: PassageLibrary; 
           ) : (
             <div
               ref={exportFrameRef}
-              className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-md p-8 sm:p-12 relative min-h-[500px]"
+              className="page-frame p-8 sm:p-12 relative min-h-[500px]"
             >
               {/* Page Header */}
               <div className="text-center mb-8 border-b border-[#ECE3D0] pb-4">
@@ -692,7 +645,7 @@ function Studio({ library, opened, startPassageId }: { library: PassageLibrary; 
             {retainedCount} {retainedCount === 1 ? 'word' : 'words'} kept, {erasedCount} erased.
           </p>
           {/* History & Studio Controls Card */}
-          <div className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg p-5 shadow-sm space-y-4">
+          <div className="card-gilt bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs uppercase tracking-wider text-[#6C3438] font-bold">
                 Studio Controls

@@ -125,7 +125,7 @@ function AccountDialog({ manager, user, onClose }: { manager: AuthManager; user:
           aria-modal="true"
           aria-labelledby={headingId}
           tabIndex={-1}
-          className="w-full max-w-sm rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-6 text-[#24231F] shadow-xl"
+          className="w-full max-w-sm card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-6 text-[#24231F] shadow-xl"
         >
           <div className="mb-3 flex items-center justify-between border-b border-[#E0D4BE] pb-3">
             <h2 id={headingId} className="font-serif text-lg font-bold">

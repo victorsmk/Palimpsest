@@ -66,7 +66,7 @@ export function BringAcrossDialog({ userId, count, onClose }: BringAcrossDialogP
         aria-labelledby={headingId}
         aria-describedby={descriptionId}
         tabIndex={-1}
-        className="w-full max-w-sm rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-6 text-[#24231F] shadow-2xl"
+        className="w-full max-w-sm card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-6 text-[#24231F] shadow-2xl"
       >
         <h2 id={headingId} className="font-serif text-lg font-bold">
           Add your poems to your account?

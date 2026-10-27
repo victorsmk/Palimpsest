@@ -87,7 +87,7 @@ export function FoundPoemCard({
       onFocus={() => onActiveChange(family.id)}
       onBlur={() => onActiveChange(null)}
       data-active={active}
-      className={`scroll-mt-4 rounded-lg border bg-[#FAF6EE] p-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#6C3438] ${
+      className={`lift card-gilt scroll-mt-4 rounded-lg border bg-[#FAF6EE] p-5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#6C3438] ${
         active ? 'border-[#24231F] ring-1 ring-[#24231F]' : 'border-[#E0D4BE]'
       }`}
     >

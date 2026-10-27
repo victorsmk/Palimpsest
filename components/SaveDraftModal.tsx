@@ -63,7 +63,7 @@ function SaveDraftForm({
         aria-modal="true"
         aria-labelledby={headingId}
         tabIndex={-1}
-        className="bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-xl max-w-md w-full p-6 text-[#24231F] animate-in fade-in zoom-in-95 duration-150">
+        className="card-gilt bg-[#FAF6EE] border border-[#E0D4BE] rounded-lg shadow-xl max-w-md w-full p-6 text-[#24231F] animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between border-b border-[#E0D4BE] pb-3 mb-4">
           <h3 id={headingId} className="font-serif font-bold text-lg text-[#24231F]">
             Save Poem Draft

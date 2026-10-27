@@ -30,7 +30,7 @@ export function ViewToggle({ view, onChange }: ViewToggleProps) {
             onClick={() => onChange(option.id)}
             className={`px-3.5 py-1.5 rounded-[3px] text-xs font-medium transition-colors ${
               isActive
-                ? 'bg-[#24231F] text-[#F3EBDD]'
+                ? 'bg-[#6C3438] text-[#F3EBDD]'
                 : 'text-[#24231F] hover:bg-[#E4D8C2]/60'
             }`}
           >

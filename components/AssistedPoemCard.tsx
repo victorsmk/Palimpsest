@@ -48,7 +48,7 @@ export function AssistedPoemCard({ number, poem, passage, wordCount, uncertain =
   return (
     <article
       aria-labelledby={headingId}
-      className="rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-5"
+      className="lift card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-5"
     >
       <div className="mb-2 flex items-center gap-2.5">
         <span

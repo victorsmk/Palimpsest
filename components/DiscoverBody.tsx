@@ -47,7 +47,7 @@ export function DiscoverBody({ passage, state, otherPassages, onChoosePassage }:
   if (families.length === 0) {
     return (
       <>
-        <section className="rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] px-6 py-10 text-center">
+        <section className="card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] px-6 py-10 text-center">
           <h2 className="font-serif text-xl font-bold">No poems to find here</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-[#57544E]">
             {analysis.hiddenByWeakEnding > 0
@@ -91,7 +91,7 @@ export function DiscoverBody({ passage, state, otherPassages, onChoosePassage }:
     <div className="space-y-4">
       <section
         aria-labelledby="discover-dna-heading"
-        className="rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-4 sm:flex sm:items-center sm:gap-6"
+        className="card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-4 sm:flex sm:items-center sm:gap-6"
       >
         <div className="mb-3 shrink-0 sm:mb-0">
           <h2 id="discover-dna-heading" className="leading-none">
