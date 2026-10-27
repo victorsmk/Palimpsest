@@ -83,13 +83,23 @@ body {
   border-color: var(--gold);
 }
 
-/* The poem found in a passage: every word but the kept ones is covered by an ink bar that sweeps across it. */
+/* The poem found in a passage: every word but the kept ones is covered by an ink bar that sweeps across it.
+   The transitions belong to the erased state only, so going back to the plain sentence is instant: a staggered
+   reverse would still be running (the later words, with the longest delays, had not started) when a replay began. */
 .era-word {
   border-radius: 2px;
   background-image: linear-gradient(var(--ink), var(--ink));
   background-repeat: no-repeat;
   background-position: left center;
   background-size: 0% 100%;
+}
+.era-kept {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+  text-decoration-color: transparent;
+}
+[data-erased='true'] .era-word {
   transition:
     background-size 0.4s ease-out var(--d, 0ms),
     color 0.3s ease calc(var(--d, 0ms) + 0.12s);
@@ -98,14 +108,8 @@ body {
   background-size: 100% 100%;
   color: var(--ink);
 }
-.era-kept {
-  transition: color 0.6s ease 0.2s, text-decoration-color 0.6s ease 0.4s;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 5px;
-  text-decoration-color: transparent;
-}
 [data-erased='true'] .era-kept {
+  transition: color 0.6s ease 0.2s, text-decoration-color 0.6s ease 0.4s;
   color: var(--burgundy);
   text-decoration-color: var(--gold);
 }
@@ -123,5 +127,5 @@ body {
   .hero-image, .hero-title, .hero-rise, .reveal { animation: none !important; }
   .hero-title { filter: none; }
   .lift, .lift:hover, .lift:focus-visible { transition: none; transform: none; }
-  .era-word, .era-kept { transition: none; }
+  [data-erased='true'] .era-word, [data-erased='true'] .era-kept { transition: none; }
 }

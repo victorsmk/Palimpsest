@@ -4,9 +4,19 @@ const POEM = 'to front only the essential facts of life, and see if I could not'
 
 const demo = (page: import('@playwright/test').Page) => page.locator('[data-erased]');
 
+/** The demonstration starts when it is scrolled into view, so a test that wants it to play looks at it first. */
+const watch = async (page: import('@playwright/test').Page) => {
+  await page.goto('/');
+  await demo(page).scrollIntoViewIfNeeded();
+};
+
+/** How many of the covered words have their ink bar completely drawn, and how many there are. */
+const barsDrawn = (page: import('@playwright/test').Page) =>
+  page.locator('.era-gone').evaluateAll(els => [els.filter(el => getComputedStyle(el).backgroundSize.startsWith('100%')).length, els.length]);
+
 test.describe('the home page demonstration', () => {
   test('covers every word of the sentence but the poem, which stays readable', async ({ page }) => {
-    await page.goto('/');
+    await watch(page);
     await expect(demo(page)).toHaveAttribute('data-erased', 'true', { timeout: 10_000 });
 
     const kept = await page.locator('.era-kept').allTextContents();
@@ -19,12 +29,23 @@ test.describe('the home page demonstration', () => {
     expect(await page.locator('.era-gone').count()).toBeGreaterThan(20);
   });
 
-  test('can be watched again', async ({ page }) => {
+  test('waits until it is in view: the top of the page does not start it', async ({ page }) => {
     await page.goto('/');
-    await expect(demo(page)).toHaveAttribute('data-erased', 'true', { timeout: 10_000 });
-    await page.getByRole('button', { name: 'Watch it again' }).click();
+    await page.waitForTimeout(2500);
     await expect(demo(page)).toHaveAttribute('data-erased', 'false');
+    await demo(page).scrollIntoViewIfNeeded();
     await expect(demo(page)).toHaveAttribute('data-erased', 'true', { timeout: 10_000 });
+  });
+
+  test('can be watched again, from the plain sentence: no bar is left over from the first time, and every word is covered again', async ({ page }) => {
+    await watch(page);
+    await expect.poll(() => barsDrawn(page).then(([drawn, all]) => drawn === all), { timeout: 10_000 }).toBe(true);
+    await page.getByRole('button', { name: 'Watch it again' }).click();
+    // Straight after the click no word is covered, the last ones included (they used to wait out their delay).
+    await expect(demo(page)).toHaveAttribute('data-erased', 'false');
+    expect((await barsDrawn(page))[0]).toBe(0);
+    await expect(demo(page)).toHaveAttribute('data-erased', 'true', { timeout: 10_000 });
+    await expect.poll(() => barsDrawn(page).then(([drawn, all]) => drawn === all), { timeout: 10_000 }).toBe(true);
   });
 
   test('starts from the finished poem for someone who asks for less motion', async ({ page }) => {

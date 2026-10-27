@@ -23,21 +23,40 @@ const STEP_MS = 32;
 export function ErasureDemo() {
   const [erased, setErased] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const figure = useRef<HTMLElement>(null);
 
+  // Start when the page card comes into view, not when the page loads: by the time someone has scrolled down to
+  // it, a start at load would be over. Someone who asks for less motion, or a browser that cannot say when
+  // something is in view, gets the finished poem at once.
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    timer.current = setTimeout(() => setErased(true), reduced ? 0 : 1800);
-    return () => clearTimeout(timer.current);
+    if (reduced || !('IntersectionObserver' in window)) {
+      timer.current = setTimeout(() => setErased(true), 0);
+      return () => clearTimeout(timer.current);
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        observer.disconnect();
+        timer.current = setTimeout(() => setErased(true), 900);
+      },
+      { threshold: 0.6 },
+    );
+    if (figure.current) observer.observe(figure.current);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer.current);
+    };
   }, []);
 
   const replay = () => {
     clearTimeout(timer.current);
     setErased(false);
-    timer.current = setTimeout(() => setErased(true), 900);
+    timer.current = setTimeout(() => setErased(true), 500);
   };
 
   return (
-    <figure className="m-0">
+    <figure ref={figure} className="m-0">
       <p className="sr-only">
         A sentence from Walden, with every word covered except these, which make a poem: {POEM}.
       </p>
