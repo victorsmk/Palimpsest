@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect, completeSignIn, openStudio, signIn, testUserId, TEST_CODE } from './fixture';
-import { STORAGE_KEY, draft, keepFirstWords, keptWords, openCollection, seedDrafts } from '../e2e/helpers';
+import { keepFirstWords, keptWords, openCollection } from '../e2e/helpers';
 import { tokenize } from '@/lib/tokenizer';
 import { excerptsOf } from '../tests/helpers/library';
 
@@ -23,7 +23,6 @@ async function saveOne(page: Page, title: string) {
 }
 
 const ids = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => `walden-woods-token-${String(from + i).padStart(4, '0')}`);
-const localPoem = (id: string, title: string) => draft({ id, passageId: 'walden-woods', title, notes: `notes of ${title}`, retainedTokenIds: ids(14, 20), lineBreaks: [] });
 
 test.describe('a visitor', () => {
   test('is offered "Sign in" on every page, and nothing about an account', async ({ page }) => {
@@ -387,87 +386,6 @@ test.describe('when the server or the sign-in lets the writer down', () => {
     await second.getByRole('dialog', { name: 'Save Poem Draft' }).getByRole('button', { name: 'Save Draft', exact: true }).click();
     await expect(second.getByRole('alertdialog', { name: 'This poem was changed somewhere else' })).toContainText('nothing there was overwritten');
     expect((await server.poemsOf(ME).list()).items[0]).toMatchObject({ title: 'Changed in the first', revision: 2 });
-  });
-});
-
-test.describe('the poems kept in this browser', () => {
-  const seed = (page: Page) => seedDrafts(page, { a: localPoem('a', 'Old Pond'), b: localPoem('b', 'Quiet Woods') });
-  const offer = (page: Page) => page.getByRole('dialog', { name: 'Add your poems to your account?' });
-  const localCount = (page: Page) => page.evaluate(key => Object.keys(JSON.parse(window.localStorage.getItem(key) ?? '{}')).length, STORAGE_KEY);
-
-  test('are offered to a new sign-in, and added when the writer says so, leaving the copies here', async ({ page, server }) => {
-    await seed(page);
-    await openStudio(page);
-    await signIn(page, ME);
-    await expect(offer(page)).toBeVisible();
-    await expect(offer(page)).toContainText('There are 2 poems saved in this browser.');
-    await offer(page).getByRole('button', { name: 'Add 2 poems' }).click();
-    await expect(offer(page).getByRole('status')).toContainText('Added 2 poems to your account.');
-    await expect(offer(page).getByRole('status')).toContainText('The poems in this browser have not been changed.');
-    await offer(page).getByRole('button', { name: 'Close' }).click();
-
-    expect(await server.poemsOf(ME).count()).toBe(2);
-    expect((await server.poemsOf(ME).get('a'))?.notes).toBe('notes of Old Pond');
-    expect(await localCount(page)).toBe(2);
-    await openCollection(page);
-    await expect(panel(page).getByRole('listitem')).toHaveCount(2);
-
-    await page.reload();
-    await expect(headerButton(page, 'Account')).toBeVisible();
-    await expect(offer(page)).toHaveCount(0); // answered: not asked again
-  });
-
-  test('"Not now" is an answer: nothing is added, it is not asked again, and the account dialog still offers it', async ({ page, server }) => {
-    await seed(page);
-    await openStudio(page);
-    await signIn(page, ME);
-    await offer(page).getByRole('button', { name: 'Not now' }).click();
-    expect(await server.poemsOf(ME).count()).toBe(0);
-
-    await page.reload();
-    await expect(headerButton(page, 'Account')).toBeVisible();
-    await expect(offer(page)).toHaveCount(0);
-
-    await headerButton(page, 'Account').click();
-    await page.getByRole('button', { name: 'Add the 2 poems saved in this browser…' }).click();
-    await offer(page).getByRole('button', { name: 'Add 2 poems' }).click();
-    await expect(offer(page).getByRole('status')).toContainText('Added 2 poems to your account.');
-    expect(await server.poemsOf(ME).count()).toBe(2);
-  });
-
-  test('adding them a second time adds nothing twice', async ({ page, server }) => {
-    await seed(page);
-    await openStudio(page);
-    await signIn(page, ME);
-    await offer(page).getByRole('button', { name: 'Add 2 poems' }).click();
-    await expect(offer(page).getByRole('status')).toContainText('Added 2 poems');
-    await offer(page).getByRole('button', { name: 'Close' }).click();
-
-    await headerButton(page, 'Account').click();
-    await page.getByRole('button', { name: 'Add the 2 poems saved in this browser…' }).click();
-    await offer(page).getByRole('button', { name: 'Add 2 poems' }).click();
-    await expect(offer(page).getByRole('status')).toContainText('Added 0 poems to your account. 2 poems were already there.');
-    expect(await server.poemsOf(ME).count()).toBe(2);
-  });
-
-  test('a failure leaves the offer open to try again, and adds nothing', async ({ page, server }) => {
-    await seed(page);
-    await openStudio(page);
-    await signIn(page, ME);
-    server.answerWith = 503;
-    await offer(page).getByRole('button', { name: 'Add 2 poems' }).click();
-    await expect(offer(page).getByRole('alert')).toHaveText('The server could not be reached. Please try again.');
-    server.answerWith = null;
-    await offer(page).getByRole('button', { name: 'Add 2 poems' }).click();
-    await expect(offer(page).getByRole('status')).toContainText('Added 2 poems');
-  });
-
-  test('are not mentioned to someone who has none', async ({ page }) => {
-    await openStudio(page);
-    await signIn(page, ME);
-    await expect(offer(page)).toHaveCount(0);
-    await headerButton(page, 'Account').click();
-    await expect(page.getByRole('button', { name: /saved in this browser/ })).toHaveCount(0);
   });
 });
 

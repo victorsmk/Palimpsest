@@ -342,11 +342,6 @@ Supabase organization, unless you set up SMTP). Tell me which lines fail and wha
       notes if you wrote some) and a line between poems. There is no "Back up" or "Restore" button with an account.
 - [ ] Signed out, My Collection says "Sign in to see your collection".
 
-**Bringing poems across** (needs a browser with poems saved in its own storage, as the browser-only version of the
-app kept them; if you have none, skip)
-- [ ] After signing in, a dialog offers to add them. **Add** them; they appear in My Collection. Doing it again
-      from the Account dialog adds nothing twice.
-
 **Deleting an account** (use a spare address)
 - [ ] **Account → Delete my account…** asks first. After you confirm, you are signed out.
 - [ ] In Supabase: **Authentication → Users** no longer lists the address, and the `poems` table has no rows for it.

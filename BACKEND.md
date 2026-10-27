@@ -201,11 +201,7 @@ poem model to change (step 3), which is where the real backend work starts.
        My Collection says "Sign in to see your collection" instead of showing an empty list, and a list that
        cannot be read says so; a `#open=` link says "Sign in to open your saved poems."; the save form says
        "Drafts are saved to your account." Account dialog: who is signed in, sign out, delete the account.
-     - *Bringing poems across:* on a sign-in, if this browser holds poems and the person has not answered
-       before, one dialog offers to add them (it is a restore: it only adds, repeats add nothing, the copies
-       here are never touched; closing it counts as "not now" and it is not asked again; the account dialog
-       keeps the offer). Many poems go in several requests (about 3 MB or 400 poems each); a failure leaves the
-       earlier requests' poems added, and doing it again finishes the job.
+     - *Bringing poems across:* **removed 2026-10-27**, at the user's wish (they saw no point in it). It offered, on a sign-in, to add the poems kept in this browser to the account. `PoemService.restoreBackup` and the restore code stay (the browser-only version's "Add poems from a downloaded copy…" uses them).
      - *Account deletion:* `DELETE /api/account` removes the user's poems first, then the Supabase user with
        the secret key (`SUPABASE_SECRET_KEY`, or the older `SUPABASE_SERVICE_ROLE_KEY`; server only; sent in the `apikey` header only, as Supabase says for its new secret keys, and also as a bearer for a legacy JWT key). If the key is missing,
        or the user cannot be removed, nothing is deleted at all in the first case, and in the second the poems
@@ -280,9 +276,7 @@ poem model to change (step 3), which is where the real backend work starts.
 
 - **Anonymous use stays.** Reading, Discover, Assisted and editing in the Studio need no account. Saving,
   My Collection, and anything stored need one. Signed out, "Save Draft" asks you to sign in.
-- **Bringing existing local poems across.** After the first sign-in, offer to add the poems in this
-  browser to the account, using the existing backup and restore (it only ever adds, and it is safe to
-  repeat). The `#open=<id>` link uses the poem's id, so links made before the move stop working.
+- **Bringing existing local poems across.** Was built, then removed on 2026-10-27 (see step 6d). Poems saved in the browser-only version stay in that browser's storage.
 - **Saving** is a request, so it can fail or be slow: the screens must keep what the writer typed and
   say what happened. (They already do for local failures.)
 - **Conflicts.** The server sends a `revision` with each poem; a save says which revision it started

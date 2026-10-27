@@ -1,12 +1,10 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { bringAcrossAnswered, localPoemCount } from '@/lib/account/bringAcross';
+import { useId, useRef, useState } from 'react';
 import { describeError } from '@/lib/errors/describe';
 import { accountApi } from '@/lib/services';
 import type { AuthManager } from '@/lib/auth/AuthManager';
 import { AuthError, type AuthUser } from '@/lib/auth/types';
-import { BringAcrossDialog } from './BringAcrossDialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SignInDialog } from './SignInDialog';
 import { useAuth } from './useAuth';
@@ -19,31 +17,14 @@ const ROW =
 
 /**
  * Who is signed in, and the way to change that: "Sign in" for a visitor, "Account" for someone signed
- * in. It is not shown at all when the poems are kept in the browser (there is no account to have). When
- * someone signs in on a browser that holds poems, it offers to add them to the account.
+ * in. It is not shown at all when the poems are kept in the browser (there is no account to have).
  */
 export function AccountControl() {
   const { enabled, state, manager } = useAuth();
   const [dialog, setDialog] = useState<'sign-in' | 'account' | null>(null);
   // Who the account dialog is about, kept while it is open: it outlives the sign-in when the account is deleted, to say so.
   const [accountUser, setAccountUser] = useState<AuthUser | null>(null);
-  const [offer, setOffer] = useState<{ userId: string; count: number } | null>(null);
   const opener = useRef<HTMLButtonElement>(null);
-
-  const userId = state.status === 'signed-in' ? state.user.id : null;
-  // Someone is signed in and has not yet been asked about the poems in this browser: ask once.
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    (async () => {
-      if (bringAcrossAnswered(userId)) return;
-      const count = await localPoemCount();
-      if (!cancelled && count > 0) setOffer({ userId, count });
-    })().catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
 
   if (!enabled) return null;
   // On the server, and until the sign-in service has answered, only the space where the button will be.
@@ -70,7 +51,6 @@ export function AccountControl() {
       </button>
       {dialog === 'sign-in' && <SignInDialog manager={manager} onClose={closeDialog} />}
       {dialog === 'account' && accountUser && <AccountDialog manager={manager} user={accountUser} onClose={closeDialog} />}
-      {offer && <BringAcrossDialog userId={offer.userId} count={offer.count} onClose={() => setOffer(null)} />}
     </>
   );
 }
@@ -78,17 +58,11 @@ export function AccountControl() {
 function AccountDialog({ manager, user, onClose }: { manager: AuthManager; user: AuthUser; onClose: () => void }) {
   const headingId = useId();
   const dialogRef = useDialog<HTMLDivElement>(onClose);
-  const [localCount, setLocalCount] = useState(0);
-  const [bringing, setBringing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleted, setDeleted] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
-
-  useEffect(() => {
-    localPoemCount().then(setLocalCount, () => setLocalCount(0));
-  }, []);
 
   const signOut = async () => {
     setSignOutError(null);
@@ -151,11 +125,6 @@ function AccountDialog({ manager, user, onClose }: { manager: AuthManager; user:
                 Signed in as <span className="font-medium text-[#24231F]">{user.email}</span>
               </p>
               <div className="mt-4 space-y-2">
-                {localCount > 0 && (
-                  <button type="button" onClick={() => setBringing(true)} className={ROW}>
-                    Add the {localCount === 1 ? 'poem' : `${localCount} poems`} saved in this browser…
-                  </button>
-                )}
                 <button type="button" onClick={signOut} className={ROW} data-autofocus>
                   Sign out
                 </button>
@@ -173,7 +142,6 @@ function AccountDialog({ manager, user, onClose }: { manager: AuthManager; user:
         </div>
       </div>
 
-      {bringing && <BringAcrossDialog userId={user.id} count={localCount} onClose={() => setBringing(false)} />}
       {confirmDelete && (
         <ConfirmDialog
           title="Delete your account?"
