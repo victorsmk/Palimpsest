@@ -21,6 +21,7 @@ import { PageDnaStrip } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
 import { bookService, poemService } from '@/lib/services';
 import { PassageSwitcher } from '@/components/PassageSwitcher';
+import { isUserId } from '@/lib/userTexts/id';
 import { ChooseBookScreen } from '@/components/ChooseBookScreen';
 import { exportElementAsPng, exportFilename } from '@/lib/export/png';
 import { downloadTextFile, poemLines, poemToText } from '@/lib/export/text';
@@ -123,7 +124,8 @@ function StudioEntry({ library }: { library: PassageLibrary }) {
     (async () => {
       const opened = request.kind === 'poem' ? await openSavedPoem(request.id, library, poemService) : null;
       const handoffId = handoffPassageId(window.location.hash);
-      const hashId = bookService.hasRemoteLibrary ? passageIdFromHash(window.location.hash) : null;
+      const named = passageIdFromHash(window.location.hash);
+      const hashId = bookService.hasRemoteLibrary || (named && isUserId(named)) ? named : null;
       await library.ensure([...(bookService.hasRemoteLibrary ? [] : [library.summaries[0].id]), ...(handoffId ? [handoffId] : []), ...(hashId ? [hashId] : [])]);
       return opened;
     })().then(
@@ -144,7 +146,11 @@ function StudioEntry({ library }: { library: PassageLibrary }) {
     return <StudioMessage role="status">{request.kind === 'poem' ? 'Opening your poem…' : 'Opening the passage…'}</StudioMessage>;
   }
   const result: OpenedSavedPoem | null = request.kind === 'invalid' ? { ok: false, message: request.message } : start.opened;
-  if (!remote) return <Studio library={library} opened={result} />;
+  if (!remote) {
+    // Without a library of books the Studio opens on the first bundled passage, or on an excerpt of the reader's own text that a link names.
+    const own = passageIdFromHash(window.location.hash);
+    return <Studio library={library} opened={result} startPassageId={own && isUserId(own) && library.get(own) ? own : undefined} />;
+  }
 
   const handoff = readHandoff(window.location.hash, library.passages());
   const hashId = passageIdFromHash(window.location.hash);
@@ -556,7 +562,7 @@ function Studio({ library, opened, startPassageId }: { library: PassageLibrary; 
         }
       />
 
-      {remote && (
+      {(remote || isUserId(activePassage.id)) && (
         <div className="print:hidden max-w-4xl mx-auto w-full mb-6 -mt-2">
           <PassageSwitcher passage={activePassage} onChoose={id => void changePassage(id)} />
         </div>
@@ -625,15 +631,21 @@ function Studio({ library, opened, startPassageId }: { library: PassageLibrary; 
 
               {/* Page Footer */}
               <div className="text-center mt-10 pt-4 border-t border-[#ECE3D0] text-[11px] text-[#605C53]">
-                Public domain source via{' '}
-                <a
-                  href={activePassage.attribution.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline hover:text-[#24231F]"
-                >
-                  Project Gutenberg
-                </a>
+                {activePassage.attribution.url ? (
+                  <>
+                    Public domain source via{' '}
+                    <a
+                      href={activePassage.attribution.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline hover:text-[#24231F]"
+                    >
+                      Project Gutenberg
+                    </a>
+                  </>
+                ) : (
+                  'Your own text, kept in this browser'
+                )}
               </div>
             </div>
           )}

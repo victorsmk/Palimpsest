@@ -7,7 +7,8 @@ import { AccountControl } from '@/components/AccountControl';
 import { PassageTabs, SiteHeader } from '@/components/SiteHeader';
 import { CollectionForPage } from '@/components/CollectionLink';
 import { useFoundAnalysis } from '@/components/useFoundAnalysis';
-import { discoverHash, passageIdFromHash, readDiscoverPassage } from '@/lib/handoff';
+import { discoverHash, passageIdForHash, passageIdFromHash } from '@/lib/handoff';
+import { isUserId } from '@/lib/userTexts/id';
 import { plural } from '@/components/PageDnaStrip';
 import { useLibrary } from '@/components/useLibrary';
 import { usePassageChoice } from '@/components/usePassageChoice';
@@ -42,7 +43,7 @@ function Discover({ library }: { library: PassageLibrary }) {
   // reload, the back button) can choose the passage while the initial state is set.
   const remote = bookService.hasRemoteLibrary;
   const [initialId] = useState<string | null>(() =>
-    remote ? passageIdFromHash(window.location.hash) : (readDiscoverPassage(window.location.hash, library.summaries)?.id ?? library.summaries[0].id)
+    remote ? passageIdFromHash(window.location.hash) : (passageIdForHash(window.location.hash, library.summaries) ?? library.summaries[0].id)
   );
   const choice = usePassageChoice(library, initialId);
 
@@ -115,7 +116,7 @@ function DiscoverView({ library, passage, chosenId, error, onChoose }: ViewProps
         }
       />
 
-      {remote && (
+      {(remote || isUserId(passage.id)) && (
         <div className="max-w-4xl mx-auto w-full mb-6">
           <PassageSwitcher passage={passage} onChoose={choosePassage} />
         </div>

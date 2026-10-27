@@ -35,7 +35,7 @@ const sourceLine = ({ title, author, year }: Attribution) => `Found in ${title},
 
 /** Plain text: the title, the poem, and where it was found. */
 export function poemToText({ title, lines, attribution }: PoemDocument): string {
-  return [cleanTitle(title), '', ...lines, '', `${sourceLine(attribution)}`, `Source: ${attribution.source}, ${attribution.url}`, ''].join('\n');
+  return [cleanTitle(title), '', ...lines, '', `${sourceLine(attribution)}`, `Source: ${attribution.url ? `${attribution.source}, ${attribution.url}` : attribution.source}`, ''].join('\n');
 }
 
 /** Saves a string as a file the browser downloads. Browser-only. */

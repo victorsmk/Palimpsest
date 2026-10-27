@@ -1,19 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
 import type { PassageLibrary } from '@/lib/library/passageLibrary';
 import { AccountControl } from './AccountControl';
 import { BookBrowser } from './BookBrowser';
 import { CollectionForPage } from './CollectionLink';
+import { SiteHeader } from './SiteHeader';
 
 export type PageName = 'Discover' | 'Assisted' | 'Studio';
 
-const PAGES: { name: PageName; href: string; label: string }[] = [
-  { name: 'Discover', href: '/discover', label: 'Discover' },
-  { name: 'Assisted', href: '/assist', label: 'Assisted' },
-  { name: 'Studio', href: '/studio', label: 'Studio' },
-];
+const SITE_PAGE = { Discover: 'discover', Assisted: 'assist', Studio: 'studio' } as const;
 
 const INTRO: Record<PageName, string> = {
   Discover: 'Find the poems that are already hiding in a book, in lines of five, seven and five syllables.',
@@ -52,30 +48,17 @@ export function ChooseBookScreen({ page, library, message, onChoose }: ChooseBoo
   }, [page]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F3EBDD] px-4 py-8 text-[#24231F] sm:px-8">
-      <header className="mx-auto mb-6 flex w-full max-w-4xl flex-col justify-between gap-4 border-b border-[#E4D8C2] pb-6 sm:flex-row sm:items-end">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#6C3438]">{page}</span>
-            <span className="text-xs text-[#57544E]" aria-hidden="true">
-              |
-            </span>
-            <Link href="/" className="text-xs text-[#57544E] underline transition-colors hover:text-[#24231F]">
-              Home
-            </Link>
-            {PAGES.filter(other => other.name !== page).map(other => (
-              <Link key={other.name} href={other.href} className="text-xs text-[#57544E] underline transition-colors hover:text-[#24231F]">
-                {other.label}
-              </Link>
-            ))}
-          </div>
-          <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight">Choose a book to begin</h1>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <CollectionForPage library={library} />
-          <AccountControl />
-        </div>
-      </header>
+    <div className="flex min-h-screen flex-col px-4 pb-8 text-[#24231F] sm:px-8">
+      <SiteHeader
+        current={SITE_PAGE[page]}
+        title="Choose a book to begin"
+        actions={
+          <>
+            <CollectionForPage library={library} />
+            <AccountControl />
+          </>
+        }
+      />
 
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl flex-1 outline-none">
         <p className="mb-5 max-w-2xl font-literary text-[17px] leading-relaxed">{INTRO[page]}</p>

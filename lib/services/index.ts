@@ -19,6 +19,8 @@ const repositories = createRepositories(backendKind);
 // With the poems on the server, the data layer gets its token from whoever is signed in (browser only: nothing asks before then).
 if (backendKind === 'server') setSessionSource({ getToken: () => getAuth().getToken() });
 export const poemService = new PoemService(repositories.poems);
-export const bookService = new BookService(repositories.books, repositories.library);
+export const bookService = new BookService(repositories.books, repositories.library, repositories.texts);
+/** The texts the reader has added: to add, change and delete them (the library reads them through `bookService`). */
+export const userTexts = repositories.texts;
 /** Deleting the account. Only works with the poems on the server. */
 export const accountApi = new AccountApi({ session });

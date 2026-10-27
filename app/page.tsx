@@ -87,6 +87,9 @@ export default function Home() {
             <Link href="/studio" className={NAV_LINK}>
               Studio
             </Link>
+            <Link href="/texts" className={NAV_LINK}>
+              Your texts
+            </Link>
           </nav>
           <div className="flex flex-wrap items-center justify-end gap-3">
             <CollectionLink />

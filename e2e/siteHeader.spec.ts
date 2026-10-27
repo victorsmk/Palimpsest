@@ -8,12 +8,12 @@ const PAGES = [
 
 for (const [name, path] of PAGES) {
   test.describe(`the header of ${name}`, () => {
-    test('names the page you are on, without a link to it, and links to the other three', async ({ page }) => {
+    test('names the page you are on, without a link to it, and links to the other four', async ({ page }) => {
       await page.goto(path);
       const nav = page.getByRole('navigation', { name: 'Pages' });
       await expect(nav.locator('[aria-current="page"]')).toHaveText(name);
       await expect(nav.getByRole('link', { name, exact: true })).toHaveCount(0);
-      await expect(nav.getByRole('link')).toHaveCount(3);
+      await expect(nav.getByRole('link')).toHaveCount(4);
     });
 
     for (const width of [1280, 375]) {

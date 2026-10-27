@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import type { MouseEventHandler, ReactNode } from 'react';
 
-export type SitePage = 'discover' | 'assist' | 'studio';
+export type SitePage = 'discover' | 'assist' | 'studio' | 'texts';
 
 const PAGES: { page: SitePage | 'home'; href: string; label: string }[] = [
   { page: 'home', href: '/', label: 'Home' },
   { page: 'discover', href: '/discover', label: 'Discover' },
   { page: 'assist', href: '/assist', label: 'Assisted' },
   { page: 'studio', href: '/studio', label: 'Studio' },
+  { page: 'texts', href: '/texts', label: 'Your texts' },
 ];
 
 const LINK =

@@ -382,7 +382,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="bg-[#FAF6EE] border-l border-[#E0D4BE] w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between text-[#24231F] animate-in slide-in-from-right duration-200">
+        className="bg-[#FAF6EE] border-l-4 border-[#C29A45] w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between text-[#24231F] animate-in slide-in-from-right duration-200">
         {/* Header */}
         <div>
           <div className="flex items-center justify-between border-b border-[#E0D4BE] pb-4 mb-4">
@@ -390,7 +390,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
               <span className="text-xs uppercase tracking-widest text-[#6C3438] font-bold">
                 My Collection
               </span>
-              <h2 id={titleId} className="text-xl font-serif font-bold text-[#24231F] mt-0.5">
+              <h2 id={titleId} className="font-display text-2xl font-bold text-[#24231F] mt-0.5">
                 Saved Poems & Drafts
               </h2>
             </div>
@@ -457,7 +457,7 @@ function DraftsPanel({ onClose, onLoadPoem, library, onRenamed }: Omit<DraftsDra
                 return (
                   <li
                     key={poem.id}
-                    className="relative bg-[#F3EBDD] hover:bg-[#E4D8C2]/80 border border-[#E0D4BE] rounded-lg transition-all shadow-sm hover:shadow group"
+                    className="lift relative bg-[#F3EBDD] hover:bg-[#EFE4CC] border border-l-4 border-[#E0D4BE] border-l-[#C29A45] rounded-lg shadow-sm group"
                   >
                     {renamingId === poem.id ? (
                       <RenamePoemForm

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Book, PassageSummary } from '@/lib/models';
 import { bookService } from '@/lib/services';
@@ -11,7 +12,7 @@ const EXCERPTS_PER_PAGE = 50;
 const SEARCH_DELAY_MS = 250;
 
 const ROW =
-  'w-full rounded border border-[#E0D4BE] bg-[#FAF6EE] px-3 py-2.5 text-left transition-colors hover:bg-[#E4D8C2]/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
+  'lift w-full rounded border border-l-4 border-[#E0D4BE] border-l-[#C29A45] bg-[#FAF6EE] px-4 py-3 text-left hover:bg-[#F6EEDB] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438]';
 const SECONDARY =
   'rounded border border-[#E0D4BE] px-3 py-1.5 text-xs font-medium text-[#24231F] hover:bg-[#E4D8C2]/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C3438] disabled:opacity-60';
 
@@ -56,19 +57,25 @@ function BookList({ search, onSearch, onPick, autoFocus }: { search: string; onS
     if (autoFocus) field.current?.focus();
   }, [autoFocus]);
   const list = usePagedList<Book>(search.trim(), after => bookService.searchBooks({ search: search.trim(), after, limit: BOOKS_PER_PAGE }), SEARCH_DELAY_MS);
+  // The reader's own texts are found by the same search, and listed first: there are few of them.
+  const own = usePagedList<Book>(search.trim(), after => bookService.listOwnBooks({ search: search.trim(), after, limit: 30 }));
   const searching = search.trim() !== '';
+  const hasLibrary = bookService.hasRemoteLibrary;
+  const total = list.items.length + own.items.length;
 
   const status = list.failed
     ? ''
-    : list.loading
+    : list.loading || own.loading
       ? 'Searching…'
-      : list.items.length === 0
+      : total === 0
         ? searching
           ? `No book matches “${search.trim()}”.`
-          : 'The library has no books yet.'
+          : hasLibrary
+            ? 'The library has no books yet.'
+            : 'You have not added a text of your own yet.'
         : list.hasMore
-          ? `Showing the first ${plural(list.items.length, 'book', 'books')}. There are more.`
-          : plural(list.items.length, 'book', 'books');
+          ? `Showing the first ${plural(total, 'book', 'books')}. There are more.`
+          : plural(total, 'book', 'books');
 
   return (
     <div>
@@ -84,7 +91,7 @@ function BookList({ search, onSearch, onPick, autoFocus }: { search: string; onS
         autoComplete="off"
         spellCheck={false}
         placeholder="For example: Austen, or whale"
-        className="w-full rounded border border-[#DDD5C5] bg-[#F3EBDD] px-3 py-2 text-sm text-[#24231F] focus:outline-none focus:ring-1 focus:ring-[#24231F]"
+        className="font-literary w-full rounded border border-[#C9B98F] bg-[#FAF6EE] px-4 py-3 text-base text-[#24231F] shadow-inner placeholder:italic focus:border-[#C29A45] focus:outline-none focus:ring-2 focus:ring-[#C29A45]/60"
         {...(autoFocus ? { 'data-autofocus': true } : {})}
       />
       <p role="status" className="mt-2 min-h-[1.25rem] text-xs text-[#57544E]">
@@ -99,11 +106,31 @@ function BookList({ search, onSearch, onPick, autoFocus }: { search: string; onS
           </button>
         </div>
       ) : (
+        <>
+          {own.items.length > 0 && (
+            <section aria-label="Your own texts" className="mb-4">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#7A5C1A]">Your own texts</p>
+              <ul className="space-y-2">
+                {own.items.map(item => (
+                  <li key={item.id}>
+                    <button type="button" onClick={() => onPick(item)} className={ROW}>
+                      <span className="font-display block text-lg font-bold leading-snug text-[#24231F]">{item.title}</span>
+                      <span className="block text-xs text-[#57544E]">
+                        {item.author}
+                        {item.form === 'verse' && <span> · poetry</span>}
+                        <span> · your own</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         <ul aria-busy={list.loading} className="mt-1 space-y-2">
           {list.items.map(item => (
             <li key={item.id}>
               <button type="button" onClick={() => onPick(item)} className={ROW}>
-                <span className="block font-serif text-base font-bold leading-snug text-[#24231F]">{item.title}</span>
+                <span className="font-display block text-lg font-bold leading-snug text-[#24231F]">{item.title}</span>
                 <span className="block text-xs text-[#57544E]">
                   {item.author}, {item.year}
                   {item.form === 'verse' && <span> · poetry</span>}
@@ -112,7 +139,14 @@ function BookList({ search, onSearch, onPick, autoFocus }: { search: string; onS
             </li>
           ))}
         </ul>
+        </>
       )}
+
+      <p className="mt-4 text-xs text-[#57544E]">
+        <Link href="/texts" className="underline underline-offset-2 hover:text-[#24231F]">
+          Add or change your own texts
+        </Link>
+      </p>
 
       {list.hasMore && (
         <div className="py-4 text-center">
@@ -137,7 +171,7 @@ function ExcerptList({ book, onChoose, onBack }: { book: Book; onChoose: (passag
       <button type="button" onClick={onBack} className={SECONDARY} data-autofocus>
         <span aria-hidden="true">← </span>All books
       </button>
-      <h3 className="mt-3 font-serif text-xl font-bold leading-snug text-[#24231F]">{book.title}</h3>
+      <h3 className="font-display mt-3 text-2xl font-bold leading-snug text-[#24231F]">{book.title}</h3>
       <p className="text-xs text-[#57544E]">
         {book.author}, {book.year}
       </p>

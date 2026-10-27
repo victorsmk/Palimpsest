@@ -4,6 +4,17 @@ import { HttpPoemRepository } from '@/lib/repositories/http/HttpPoemRepository';
 import { HttpBookRepository } from '@/lib/repositories/http/HttpBookRepository';
 import { session } from '@/lib/auth/session';
 import { bundledPassages } from '@/lib/library/bundled';
+import { MemoryTextStorage, UserTexts } from '@/lib/userTexts/UserTexts';
+
+/** The texts of the reader live in this browser; where there is no browser storage (the server rendering a page) they are kept nowhere. */
+function userTexts(): UserTexts {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) return new UserTexts(window.localStorage);
+  } catch {
+    // Storage is blocked: texts last as long as the page does.
+  }
+  return new UserTexts(new MemoryTextStorage());
+}
 
 /**
  * Where this app keeps its data. This is the ONE place that decides, so that moving to a server is a
@@ -33,6 +44,8 @@ export interface Repositories {
   books: BookRepository;
   /** The server's library of books, when there is one. */
   library: BookRepository | null;
+  /** The texts the reader has added, kept in this browser (whichever backend the poems are in). */
+  texts: UserTexts;
 }
 
 /** The repositories for a backend. */
@@ -40,8 +53,8 @@ export function createRepositories(kind: BackendKind): Repositories {
   const books = new BrowserBookRepository(bundledPassages);
   switch (kind) {
     case 'browser':
-      return { poems: new BrowserPoemRepository(), books, library: null };
+      return { poems: new BrowserPoemRepository(), books, library: null, texts: userTexts() };
     case 'server':
-      return { poems: new HttpPoemRepository({ session }), books, library: new HttpBookRepository() };
+      return { poems: new HttpPoemRepository({ session }), books, library: new HttpBookRepository(), texts: userTexts() };
   }
 }

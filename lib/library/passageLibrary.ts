@@ -1,4 +1,5 @@
 import { summaryOf, type Passage, type PassageSummary } from '@/lib/models';
+import { isUserId } from '@/lib/userTexts/id';
 
 export const PASSAGE_UNAVAILABLE_MESSAGE = 'That passage could not be opened. Please try again.';
 
@@ -51,7 +52,8 @@ export class PassageLibrary {
    * library does not have is skipped (an open-ended library asks for it, and skips it if there is none). If a fetch fails, so does this, and nothing is remembered of it.
    */
   async ensure(ids: Iterable<string>): Promise<Passage[]> {
-    const wanted = [...new Set(ids)].filter(id => this.options.openEnded || this.has(id));
+    // A text the reader added is not in the list of summaries (they are too many to list), but it is asked for by its id.
+    const wanted = [...new Set(ids)].filter(id => this.options.openEnded || this.has(id) || isUserId(id));
     await Promise.all(wanted.map(id => this.load(id)));
     return wanted.flatMap(id => {
       const passage = this.loaded.get(id);

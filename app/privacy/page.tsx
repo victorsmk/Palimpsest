@@ -22,7 +22,7 @@ export default function PrivacyPage() {
 
       <main id="main" tabIndex={-1} className="max-w-3xl mx-auto w-full py-10 outline-none">
         <h1 className="text-3xl font-serif font-bold mb-2">Privacy</h1>
-        <p className="text-xs text-[#605C53] mb-8">Last updated 26 October 2026</p>
+        <p className="text-xs text-[#605C53] mb-8">Last updated 27 October 2026</p>
 
         <div className="space-y-8 text-[#3D3A33] leading-relaxed">
           <p>
@@ -71,6 +71,12 @@ export default function PrivacyPage() {
               Your browser&apos;s own storage holds the sign-in, so that you stay signed in when you reload the page, and
               a small note of whether you chose to bring across poems saved on this device. Signing out removes the
               sign-in from your browser. Words you are working on in the Studio are not sent to us until you save them.
+            </p>
+            <p className="mt-3">
+              Texts you add yourself, from a file or pasted in, are read in your browser and kept only in its storage:
+              they are never sent to us. A poem you save from one of them keeps which of its words you kept (as
+              numbers), its title and your notes, and not the text, so it can only be opened again in this browser.
+              Deleting the text, or clearing the site&apos;s data in your browser, removes it.
             </p>
           </section>
 

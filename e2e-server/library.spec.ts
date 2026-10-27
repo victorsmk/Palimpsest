@@ -34,7 +34,7 @@ test.describe('before a book is chosen', () => {
   test('lists the books by title, leaving off a leading The', async ({ page }) => {
     await page.goto('/discover');
     await expect(bookButton(page, 'Jane Eyre')).toBeVisible();
-    const titles = await page.locator('main ul li button .font-serif').allInnerTexts();
+    const titles = await page.locator('main ul li button .font-display').allInnerTexts();
     expect(titles).toEqual(['Jane Eyre', 'The Picture of Dorian Gray', 'Poems of Poe']);
   });
 });

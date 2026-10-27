@@ -1,6 +1,7 @@
 import type { BookRepository } from '@/lib/repositories';
 import type { Book, Page, PageRequest, Passage, PassageSummary } from '@/lib/models';
 import { PassageLibrary } from '@/lib/library/passageLibrary';
+import { isUserId } from '@/lib/userTexts/id';
 
 /** Every item of a paged list, by asking for page after page. */
 async function allPages<T>(fetch: (request: PageRequest) => Promise<Page<T>>): Promise<T[]> {
@@ -20,9 +21,18 @@ export class BookService {
   private remote: BookRepository | null;
   private library: Promise<PassageLibrary> | null = null;
 
-  constructor(repo: BookRepository, remote: BookRepository | null = null) {
+  /** The texts the reader added, kept in this browser. */
+  private own: BookRepository | null;
+
+  constructor(repo: BookRepository, remote: BookRepository | null = null, own: BookRepository | null = null) {
     this.repo = repo;
     this.remote = remote;
+    this.own = own;
+  }
+
+  /** The reader's own texts as books, the one changed last first; with `search`, only those with every word in the title or author. */
+  listOwnBooks(request?: PageRequest & { search?: string }): Promise<Page<Book>> {
+    return this.own ? this.own.listBooks(request) : Promise.resolve({ items: [], next: null });
   }
 
   /** Whether there is a library of books beyond the ones bundled with the app. */
@@ -35,12 +45,15 @@ export class BookService {
     return this.remote ? this.remote.listBooks(request) : Promise.resolve({ items: [], next: null });
   }
 
+  /** A book of the server's library, or one of the reader's own texts. */
   getRemoteBook(id: string): Promise<Book | null> {
+    if (isUserId(id)) return this.own ? this.own.getBook(id) : Promise.resolve(null);
     return this.remote ? this.remote.getBook(id) : Promise.resolve(null);
   }
 
   /** A page of one book's excerpts, without their text. */
   listBookPassages(bookId: string, request?: PageRequest): Promise<Page<PassageSummary>> {
+    if (isUserId(bookId)) return this.own ? this.own.listPassageSummaries({ ...request, bookId }) : Promise.resolve({ items: [], next: null });
     return this.remote ? this.remote.listPassageSummaries({ ...request, bookId }) : Promise.resolve({ items: [], next: null });
   }
 
@@ -50,6 +63,7 @@ export class BookService {
 
   /** One passage in full: one bundled with the app, or else one of the server's library. */
   async getPassage(id: string): Promise<Passage | null> {
+    if (isUserId(id)) return this.own ? this.own.getPassage(id) : null;
     return (await this.repo.getPassage(id)) ?? (this.remote ? this.remote.getPassage(id) : null);
   }
 
