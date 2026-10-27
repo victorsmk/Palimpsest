@@ -43,8 +43,9 @@ for (const [name, viewport] of [
     test('erasing words or changing the erasure style never moves a word', async ({ page }) => {
       await openStudio(page);
       await passageButton(page, 'Walden').click();
-      // Transitions only repaint; switch them off so every reading is of the settled layout.
-      await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; }' });
+      // Transitions only repaint, and the page rises into view when a book is chosen; switch them off so every
+      // reading is of the settled layout.
+      await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
 
       const baseline = await wordBoxes(page);
       const baselineHeight = await frameHeight(page);

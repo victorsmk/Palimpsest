@@ -113,7 +113,7 @@ export function FoundPoemCard({
 
       <p className="mt-3 rounded-md bg-[#F3EBDD] px-3 py-2 font-literary text-sm leading-relaxed">
         <span className="text-[#605C53]">{before && `${startsBeforeContext ? '… ' : ''}${before} `}</span>
-        <mark className="rounded-sm bg-[#6C3438]/20 px-0.5 text-[#24231F]">
+        <mark className="rounded-sm bg-[#C29A45]/35 px-0.5 text-[#24231F] shadow-[inset_0_-2px_0_#C29A45]">
           {textOf(foundCandidateTokens(poem))}
         </mark>
         <span className="text-[#605C53]">{after && ` ${after}${continuesAfterContext ? ' …' : ''}`}</span>

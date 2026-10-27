@@ -136,13 +136,14 @@ function DiscoverView({ library, passage, chosenId, error, onChoose }: ViewProps
           lines of 5, 7 and 5 syllables. Here are the ones in <i>{passage.attribution.title}</i>.
         </p>
 
-        <DiscoverBody
-          key={passage.id}
-          passage={passage}
-          state={state}
-          otherPassages={remote ? [] : summaries.filter(p => p.id !== passage.id)}
-          onChoosePassage={choosePassage}
-        />
+        <div key={passage.id} className="page-turn">
+          <DiscoverBody
+            passage={passage}
+            state={state}
+            otherPassages={remote ? [] : summaries.filter(p => p.id !== passage.id)}
+            onChoosePassage={choosePassage}
+          />
+        </div>
       </main>
     </div>
   );

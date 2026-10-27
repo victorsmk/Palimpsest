@@ -45,6 +45,47 @@ body {
   box-shadow: inset 0 0 0 7px #FAF6EE, inset 0 0 0 8px rgba(201, 185, 143, 0.8), 0 16px 32px -20px rgba(36, 25, 10, 0.55);
 }
 
+/* ---- Words on the page: ink that sweeps across a word when it is erased, and draws back when it is restored ---- */
+
+.ink-word {
+  background-repeat: no-repeat;
+}
+.ink-blackout {
+  background-image: linear-gradient(#24231F, #24231F);
+  background-position: left center;
+  background-size: 0% calc(100% - 6px);
+}
+.ink-blackout[data-erased='true'] {
+  background-size: 100% calc(100% - 6px);
+}
+.ink-whiteout {
+  background-image: linear-gradient(#FFFFFF, #FFFFFF), linear-gradient(#DDD5C5, #DDD5C5);
+  background-position: left 1px center, left center;
+  background-size: 0% calc(100% - 8px), 0% calc(100% - 6px);
+}
+.ink-whiteout[data-erased='true'] {
+  background-size: calc(100% - 2px) calc(100% - 8px), 100% calc(100% - 6px);
+}
+/* A page that is opened already has its words as they are, so there is nothing for these to run from: they run
+   when a word changes. The letters of an erased word go clear a moment after the bar has started over them. */
+.ink-word {
+  transition: background-size 0.35s ease-out, color 0.15s ease, opacity 0.15s ease;
+}
+.ink-word[data-erased='true'] {
+  transition: background-size 0.35s ease-out, color 0.15s ease 0.18s, opacity 0.15s ease;
+}
+
+/* A page coming into view when a book or an excerpt is chosen: it rises a little and is uncovered from the left, as
+   a page is as it is turned down. Nothing in it moves sideways, so it cannot make the page wider than the screen,
+   and only the start is given (backwards), so that the page's shadow is not left clipped once it has finished. */
+@keyframes page-turn {
+  from { opacity: 0; transform: translateY(14px); clip-path: inset(0 100% 0 0); }
+  to { opacity: 1; transform: none; clip-path: inset(0 0 0 0); }
+}
+.page-turn {
+  animation: page-turn 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
 /* ---- Home page: the archive comes alive ---- */
 
 @keyframes rise {
@@ -138,5 +179,7 @@ body {
   .hero-image, .hero-title, .hero-rise, .reveal { animation: none !important; }
   .hero-title { filter: none; }
   .lift, .lift:hover, .lift:focus-visible { transition: none; transform: none; }
+  .page-turn { animation: none; }
+  .ink-word, .ink-word[data-erased='true'] { transition: none; }
   [data-erased='true'] .era-word, [data-erased='true'] .era-kept { transition: none; }
 }

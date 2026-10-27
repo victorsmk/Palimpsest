@@ -601,8 +601,9 @@ function Studio({ library, opened, startPassageId }: { library: PassageLibrary; 
             />
           ) : (
             <div
+              key={activePassage.id}
               ref={exportFrameRef}
-              className="page-frame p-8 sm:p-12 relative min-h-[500px]"
+              className="page-frame page-turn p-8 sm:p-12 relative min-h-[500px]"
             >
               {/* Page Header */}
               <div className="text-center mb-8 border-b border-[#ECE3D0] pb-4">

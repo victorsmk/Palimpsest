@@ -138,13 +138,14 @@ function AssistView({ library, passage, chosenId, error, onChoose }: ViewProps) 
           syllables. These are 5–7–5 poems made that way.
         </p>
 
-        <AssistBody
-          key={passage.id}
-          passage={passage}
-          state={state}
-          otherPassages={remote ? [] : summaries.filter(p => p.id !== passage.id)}
-          onChoosePassage={choosePassage}
-        />
+        <div key={passage.id} className="page-turn">
+          <AssistBody
+            passage={passage}
+            state={state}
+            otherPassages={remote ? [] : summaries.filter(p => p.id !== passage.id)}
+            onChoosePassage={choosePassage}
+          />
+        </div>
       </main>
     </div>
   );
