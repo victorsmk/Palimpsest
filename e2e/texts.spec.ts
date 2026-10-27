@@ -237,3 +237,53 @@ test.describe('the page of your texts', () => {
     expect(scroll).toBeLessThanOrEqual(client);
   });
 });
+
+test.describe('keyboard and touch', () => {
+  for (const [name, viewport] of [['desktop', { width: 1280, height: 800 }], ['a phone', { width: 390, height: 844 }]] as const) {
+    test(`every control is at least 24 by 24 pixels, with the form open and a text listed, on ${name}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await openTexts(page);
+      await addPasted(page, 'Listed', 'Some words to list.');
+      await page.getByRole('button', { name: 'Add a text' }).click();
+      const small = await page.locator('main a, main button, main input:not([type="radio"]), main textarea').evaluateAll(els =>
+        els
+          .filter(el => (el as HTMLElement).offsetParent !== null)
+          .map(el => {
+            const box = el.getBoundingClientRect();
+            return { text: (el.textContent || el.getAttribute('aria-label') || el.tagName).trim().slice(0, 30), w: Math.round(box.width), h: Math.round(box.height) };
+          })
+          .filter(box => box.w < 24 || box.h < 24),
+      );
+      expect(small).toEqual([]);
+    });
+  }
+
+  test('a text can be added without a mouse: the form is reached in reading order and Enter in the title does not lose the text', async ({ page }) => {
+    await openTexts(page);
+    await page.getByRole('button', { name: 'Add a text' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(field(page, 'Title')).toBeVisible();
+    await field(page, 'Title').focus();
+    await page.keyboard.type('By Keyboard');
+    await page.keyboard.press('Tab'); // author
+    await page.keyboard.press('Tab'); // prose
+    await page.keyboard.press('Tab'); // the text (the radio pair is one stop)
+    await expect(field(page, 'The text')).toBeFocused();
+    await page.keyboard.type('Typed with no mouse at all.');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Keep this text' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(card(page, 'By Keyboard')).toContainText('Typed with no mouse at all.');
+  });
+
+  test('the dialog that asks before deleting starts on the safe choice and Escape cancels it', async ({ page }) => {
+    await openTexts(page);
+    await addPasted(page, 'Safe', 'Words.');
+    await card(page, 'Safe').getByRole('button', { name: 'Delete “Safe”' }).click();
+    await expect(page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(card(page, 'Safe')).toBeVisible();
+  });
+});
+

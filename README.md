@@ -33,6 +33,12 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Your own texts
+
+The **Your texts** page (`/texts`) takes a plain text (.txt) or Word (.docx) file, or pasted words, lets you correct them, and
+then reads them like any book in Discover, Assisted and the Studio. They stay in the browser. The code is in
+`lib/userTexts/`; the notes are in `ROADMAP.md`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
