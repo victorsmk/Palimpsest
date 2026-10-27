@@ -66,6 +66,16 @@ describe('the health check', () => {
     await old.close();
   });
 
+  it('says the books table is out of date when it was made before a column the library reads, and is not ok then', async () => {
+    const old = await createTestDb();
+    await old.exec('alter table books drop column form');
+    const { status, body } = await checkHealth({ config: config(), db: old, fetch: supabaseAnswers() });
+    expect(status).toBe(503);
+    expect(body.library).toBe('the books table is out of date (run db/schema.sql again)');
+    expect(body.ok).toBe(false);
+    await old.close();
+  });
+
   it('says the database could not be reached when it cannot', async () => {
     const down = await createTestDb();
     down.failWrites();

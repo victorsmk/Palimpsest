@@ -62,12 +62,15 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
   if (body.database === 'ok') {
     try {
       await input.db!.query('select 1 from passages limit 1');
-      await input.db!.query('select 1 from books limit 1');
+      // The columns the library's queries read, so a table made before one was added is noticed (as 'form' was, in step 4a).
+      await input.db!.query('select id, title, author, year, source, url, license_note, form from books limit 1');
       body.library = 'ok';
     } catch (error) {
-      const code = (error as { code?: unknown } | null)?.code;
-      const cause = (error as { cause?: unknown } | null)?.cause;
-      body.library = code === '42P01' || (cause as { code?: unknown } | null)?.code === '42P01' ? 'the books tables are missing (run db/schema.sql again)' : 'could not be reached';
+      const code = (error as { code?: unknown } | null)?.code ?? (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+      body.library =
+        code === '42P01' ? 'the books tables are missing (run db/schema.sql again)'
+        : code === '42703' ? 'the books table is out of date (run db/schema.sql again)'
+        : 'could not be reached';
     }
   }
 
