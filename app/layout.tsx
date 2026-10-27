@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Literata, DM_Sans } from "next/font/google";
+import { Literata, DM_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
 const literata = Literata({
@@ -10,6 +10,13 @@ const literata = Literata({
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
+});
+
+// Display lettering for titles: the home page's name and headings.
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -29,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${literata.variable} ${dmSans.variable} h-full antialiased`}
+      className={`${literata.variable} ${dmSans.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-[#F3EBDD] text-[#24231F]">
         {/* First thing a keyboard user reaches: jump past the header to the page's main content. */}

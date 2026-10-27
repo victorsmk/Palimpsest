@@ -7,10 +7,19 @@
   --burgundy: #6C3438;
   --olive: #5B5D45;
   --archive-gray: #57544E;
+  /* The antique library: gilt, oxblood leather and the dark of a reading room at night. */
+  --gold: #C29A45;
+  --gold-deep: #7A5C1A;
+  --night: #1B1712;
+  --oxblood: #4E2327;
 }
 
 body {
   background-color: var(--paper);
+  /* A little grain and a darker edge, so the paper is not a flat colour. Behind the text only, and faint. */
+  background-image:
+    radial-gradient(ellipse at 50% 35%, rgba(255, 252, 244, 0.55), rgba(255, 252, 244, 0) 62%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.28  0 0 0 0 0.18  0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   color: var(--ink);
   font-family: var(--font-dm-sans), system-ui, sans-serif;
   margin: 0;
@@ -19,4 +28,100 @@ body {
 
 .font-literary {
   font-family: var(--font-literata), Georgia, serif;
+}
+
+.font-display {
+  font-family: var(--font-playfair), Georgia, serif;
+}
+
+/* ---- Home page: the archive comes alive ---- */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes title-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(8px); letter-spacing: 0.18em; }
+  to { opacity: 1; transform: none; filter: none; letter-spacing: 0.02em; }
+}
+
+@keyframes drift {
+  from { transform: scale(1.04) translate3d(0, 0, 0); }
+  to { transform: scale(1.13) translate3d(-1.5%, -1%, 0); }
+}
+
+@keyframes gild {
+  from { background-position: 0% 50%; }
+  to { background-position: 200% 50%; }
+}
+
+.hero-image { animation: drift 38s ease-in-out infinite alternate; }
+
+.hero-title {
+  /* Gilt lettering: a slow band of light passes across it. The solid colour is the fallback. */
+  color: #E8CF92;
+  background-image: linear-gradient(100deg, #B98D36 0%, #F4E2AE 22%, #C9A24C 44%, #F4E2AE 66%, #B98D36 88%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: title-in 1.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s both, gild 9s linear 1.8s infinite;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 14px rgba(0, 0, 0, 0.45));
+}
+
+.hero-rise { animation: rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* A card that lifts when it is looked at. */
+.lift {
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+}
+.lift:hover, .lift:focus-visible {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 36px -14px rgba(36, 25, 10, 0.45);
+  border-color: var(--gold);
+}
+
+/* The poem found in a passage: every word but the kept ones is covered by an ink bar that sweeps across it. */
+.era-word {
+  border-radius: 2px;
+  background-image: linear-gradient(var(--ink), var(--ink));
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 0% 100%;
+  transition:
+    background-size 0.4s ease-out var(--d, 0ms),
+    color 0.3s ease calc(var(--d, 0ms) + 0.12s);
+}
+[data-erased='true'] .era-gone {
+  background-size: 100% 100%;
+  color: var(--ink);
+}
+.era-kept {
+  transition: color 0.6s ease 0.2s, text-decoration-color 0.6s ease 0.4s;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+  text-decoration-color: transparent;
+}
+[data-erased='true'] .era-kept {
+  color: var(--burgundy);
+  text-decoration-color: var(--gold);
+}
+
+/* Sections slide up as they come into view, where the browser can tell us when that is; elsewhere they are simply there. */
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: rise linear both;
+    animation-timeline: view();
+    animation-range: entry 4% entry 38%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-image, .hero-title, .hero-rise, .reveal { animation: none !important; }
+  .hero-title { filter: none; }
+  .lift, .lift:hover, .lift:focus-visible { transition: none; transform: none; }
+  .era-word, .era-kept { transition: none; }
 }

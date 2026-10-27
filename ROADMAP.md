@@ -83,7 +83,14 @@ is. Things that were to be settled:
 - The restore machinery must stay: "add the poems kept in this browser to my account" is built on it.
 - Whatever changes, the tests of backup and restore (unit and browser) would change with it.
 
-## Look and feel: specific changes the user asked for (raised 2026-10-28; noted, not started)
+## Look and feel: specific changes the user asked for (raised 2026-10-28)
+
+**Started 2026-10-27 (the home page only):** the user chose the "antique library" direction: a darkened engraving of
+a library as the hero, a gilt Playfair Display title, an erasure animation on a real Walden sentence, cards that lift,
+sections that slide up on scroll (CSS only, off with reduced motion), public-domain engravings from Wikimedia Commons
+with credits in the footer (`public/images/`). Items 1 and 2 below are done on the home page. **Not done:** the
+inside pages (Discover, Assisted, the Studio, the book picker, My Collection) still have the old plain look; ink
+animation when a word is erased there; the same palette and display font for headings there.
 
 To do together with the "Look and feel" pass above, or earlier if they are quick:
 
