@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
-import type { Book, PassageSummary } from '@/lib/models';
+import { summaryOf, type Book, type PassageSummary } from '@/lib/models';
 import { bookService } from '@/lib/services';
 import { usePagedList } from './usePagedList';
 
@@ -45,13 +45,14 @@ export function BookBrowser({ onChoose, initialBook = null, autoFocus = false }:
   return book ? (
     <ExcerptList book={book} onChoose={onChoose} onBack={() => setBook(null)} />
   ) : (
-    <BookList search={search} onSearch={setSearch} onPick={setBook} autoFocus={autoFocus} />
+    <BookList search={search} onSearch={setSearch} onPick={setBook} onSurprise={onChoose} autoFocus={autoFocus} />
   );
 }
 
-function BookList({ search, onSearch, onPick, autoFocus }: { search: string; onSearch: (text: string) => void; onPick: (book: Book) => void; autoFocus: boolean }) {
+function BookList({ search, onSearch, onPick, onSurprise, autoFocus }: { search: string; onSearch: (text: string) => void; onPick: (book: Book) => void; onSurprise: (passage: PassageSummary) => void; autoFocus: boolean }) {
   const searchId = useId();
   const field = useRef<HTMLInputElement>(null);
+  const [surprising, setSurprising] = useState<'idle' | 'busy' | 'failed'>('idle');
   // The search box is where a reader starts, on a page that asks for a book and on coming back from a book's excerpts.
   useEffect(() => {
     if (autoFocus) field.current?.focus();
@@ -94,6 +95,32 @@ function BookList({ search, onSearch, onPick, autoFocus }: { search: string; onS
         className="font-literary w-full rounded border border-[#C9B98F] bg-[#FAF6EE] px-4 py-3 text-base text-[#24231F] shadow-inner placeholder:italic focus:border-[#C29A45] focus:outline-none focus:ring-2 focus:ring-[#C29A45]/60"
         {...(autoFocus ? { 'data-autofocus': true } : {})}
       />
+      {bookService.hasRemoteLibrary && (
+        <div className="mt-3">
+          <button
+            type="button"
+            disabled={surprising === 'busy'}
+            onClick={() => {
+              setSurprising('busy');
+              bookService.surprise().then(
+                passage => {
+                  setSurprising(passage ? 'idle' : 'failed');
+                  if (passage) onSurprise(summaryOf(passage));
+                },
+                () => setSurprising('failed'),
+              );
+            }}
+            className={SECONDARY}
+          >
+            {surprising === 'busy' ? 'Finding something…' : 'Surprise me'}
+          </button>
+          {surprising === 'failed' && (
+            <p role="alert" className="mt-2 text-xs text-[#6C3438]">
+              Nothing could be chosen just now. Please try again.
+            </p>
+          )}
+        </div>
+      )}
       <p role="status" className="mt-2 min-h-[1.25rem] text-xs text-[#57544E]">
         {status}
       </p>

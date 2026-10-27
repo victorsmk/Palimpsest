@@ -64,6 +64,13 @@ export function createLibraryApi(deps: { db: Db }) {
         return passage ? json(passage, 200, { 'Cache-Control': CACHE_PASSAGE }) : notFound('passage');
       }),
 
+    /** GET /api/library/random — the id of an excerpt chosen at random. Never kept: the next ask is a different one. */
+    random: () =>
+      answer(async () => {
+        const id = await reader.randomPassageId();
+        return id ? json({ id }, 200, { 'Cache-Control': 'no-store' }) : notFound('passage');
+      }),
+
     /** For the health page. */
     check: () => reader.check(),
   };

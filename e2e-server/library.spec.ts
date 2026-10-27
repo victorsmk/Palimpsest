@@ -259,3 +259,36 @@ test('the picker fits a phone: no sideways scrolling, and the search and the boo
   const overflowExcerpts = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflowExcerpts).toBeLessThanOrEqual(0);
 });
+
+test.describe('surprise me', () => {
+  for (const [path, label] of [['/discover', 'Discover'], ['/studio', 'Studio']] as const) {
+    test(`opens an excerpt of some book in ${label}`, async ({ page }) => {
+      await page.goto(path);
+      await page.getByRole('button', { name: 'Surprise me' }).click();
+      await expect(switcher(page)).toBeVisible();
+      await expect(start(page)).toHaveCount(0);
+      // Discover keeps the excerpt in its address; the Studio keeps nothing there
+      if (path === '/discover') await expect(page).toHaveURL(/#passage=pg\d+-\d{4}$/);
+    });
+  }
+
+  test('is in the window for changing the book too, and changes what is on the page', async ({ page }) => {
+    await openStudio(page);
+    const before = new URL(page.url()).hash;
+    await page.getByRole('button', { name: 'Change book or excerpt' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /All books/ }).click().catch(() => {});
+    await page.getByRole('dialog').getByRole('button', { name: 'Surprise me' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(before).not.toBe('');
+  });
+
+  test('says so when nothing could be chosen, and can be tried again', async ({ page, server }) => {
+    await page.goto('/discover');
+    server.answerWith = 503;
+    await page.getByRole('button', { name: 'Surprise me' }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Nothing could be chosen' })).toBeVisible();
+    server.answerWith = null;
+    await page.getByRole('button', { name: 'Surprise me' }).click();
+    await expect(switcher(page)).toBeVisible();
+  });
+});

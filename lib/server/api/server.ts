@@ -98,6 +98,7 @@ export const libraryApi = {
   book: lazyLibrary<[string]>(api => api.book),
   bookPassages: lazyLibrary<[string]>(api => api.bookPassages),
   passage: lazyLibrary<[string]>(api => api.passage),
+  random: lazyLibrary(api => api.random),
 };
 
 export const poemsApi = {

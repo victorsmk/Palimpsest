@@ -12,6 +12,8 @@ export interface BookRepository {
   getPassage(id: string): Promise<Passage | null>;
   /** Passage summaries, optionally only those of one book. */
   listPassageSummaries(request?: PageRequest & { bookId?: string }): Promise<Page<PassageSummary>>;
+  /** The id of an excerpt chosen at random from the library, or null if it has none. Only a library that is big enough to want it has this. */
+  randomPassageId?(): Promise<string | null>;
 }
 
 export interface PoemRepository {

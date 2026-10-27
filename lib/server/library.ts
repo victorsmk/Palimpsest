@@ -116,6 +116,12 @@ export class LibraryReader {
     };
   }
 
+  /** The id of an excerpt chosen at random from the whole library, or null if it has none. */
+  async randomPassageId(): Promise<string | null> {
+    const { rows } = await this.db.query<{ id: string }>('select id from passages order by random() limit 1');
+    return rows[0]?.id ?? null;
+  }
+
   /** One excerpt with its text, and where it sits in its book, or null if there is none with that id. */
   async getPassage(id: string): Promise<PassageText | null> {
     const { rows } = await this.db.query<PassageRow>(

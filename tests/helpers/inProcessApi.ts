@@ -28,6 +28,7 @@ export function inProcessFetch(api: PoemsApi, library?: LibraryApi): typeof fetc
     if (pathname === '/api/collection/lookup' && method === 'POST') return api.lookup(request);
     if (pathname === '/api/collection/import' && method === 'POST') return api.importPoems(request);
     if (library && method === 'GET') {
+      if (pathname === '/api/library/random') return library.random();
       if (pathname === '/api/library/books') return library.books(request);
       const book = /^\/api\/library\/books\/([^/]+)$/.exec(pathname);
       if (book) return library.book(request, decodeURIComponent(book[1]));

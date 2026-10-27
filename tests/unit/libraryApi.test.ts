@@ -252,3 +252,30 @@ describe('when the database cannot be read', () => {
     await broken.close();
   });
 });
+
+describe('a random excerpt', () => {
+  const random = async () => api.random();
+
+  it('is the id of an excerpt that is in the library, and is never kept for the next ask', async () => {
+    const response = await random();
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    const { id } = (await response.json()) as { id: string };
+    expect(id).toMatch(/^pg\d+-\d{4}$/);
+    expect((await api.passage(get(`/api/library/passages/${id}`), id)).status).toBe(200);
+  });
+
+  it('is a different one now and then, and comes from more than one book', async () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 40; i++) seen.add(((await (await random()).json()) as { id: string }).id);
+    expect(seen.size).toBeGreaterThan(5);
+    expect(new Set([...seen].map(id => id.split('-')[0])).size).toBeGreaterThan(1);
+  });
+
+  it('says there is none when the library has no books', async () => {
+    const empty = await createTestDb();
+    const response = await createLibraryApi({ db: empty }).random();
+    expect(response.status).toBe(404);
+    await empty.close();
+  });
+});

@@ -57,6 +57,12 @@ export class BookService {
     return this.remote ? this.remote.listPassageSummaries({ ...request, bookId }) : Promise.resolve({ items: [], next: null });
   }
 
+  /** An excerpt chosen at random from the server's library, in full; null without a library, or if it has no books. */
+  async surprise(): Promise<Passage | null> {
+    const id = this.remote?.randomPassageId ? await this.remote.randomPassageId() : null;
+    return id ? this.getPassage(id) : null;
+  }
+
   listBooks(): Promise<Book[]> {
     return allPages(page => this.repo.listBooks(page));
   }

@@ -103,6 +103,13 @@ export class HttpBookRepository implements BookRepository {
     return body;
   }
 
+  async randomPassageId(): Promise<string | null> {
+    const body = await this.read('/api/library/random');
+    if (body === null) return null;
+    if (!isRecord(body) || !isText(body.id)) return this.wrong('an excerpt');
+    return body.id;
+  }
+
   async getPassage(id: string): Promise<Passage | null> {
     const body = await this.read(`/api/library/passages/${encodeURIComponent(id)}`);
     if (body === null) return null;
