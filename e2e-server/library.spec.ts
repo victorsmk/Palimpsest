@@ -106,10 +106,12 @@ test.describe('searching', () => {
     expect(asked).toBeLessThanOrEqual(2);
   });
 
-  test('works from the keyboard: type, Tab to a book, Enter to open it, and Back returns to the search as it was', async ({ page }) => {
+  test('works from the keyboard: type, Tab to a book (past Surprise me), Enter to open it, and Back returns to the search as it was', async ({ page }) => {
     await page.goto('/discover');
     await search(page).fill('jane');
     await expect(count(page)).toHaveText('1 book');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Surprise me' })).toBeFocused(); // the way to a random one is next to the search
     await page.keyboard.press('Tab');
     await expect(bookButton(page, 'Jane Eyre')).toBeFocused();
     await page.keyboard.press('Enter');
