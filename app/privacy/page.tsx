@@ -45,6 +45,12 @@ export default function PrivacyPage() {
                 it came from, and when it was saved or changed. They are kept in your account so you can open them on
                 another device.
               </li>
+              <li>
+                <strong>Texts you add yourself.</strong> While you are signed in, a text you add (a file, or words pasted
+                in) is kept in your account, in full, so that it is there in any browser you sign in on. Only you can read
+                it. If you added texts in this browser before you signed in, they are copied to your account the first time
+                you sign in, and the copies in this browser stay where they are.
+              </li>
             </ul>
             <p className="mt-3">
               There is no password. Nothing else from your Google account is asked for or kept: not your contacts, files,
@@ -58,7 +64,7 @@ export default function PrivacyPage() {
             </h2>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>No advertising, no tracking of you across other sites, and no analytics tools.</li>
-              <li>Your email address and poems are not sold or shared for marketing.</li>
+              <li>Your email address, poems and texts are not sold or shared for marketing.</li>
               <li>No cookies are set by Palimpsest itself.</li>
             </ul>
           </section>
@@ -69,14 +75,16 @@ export default function PrivacyPage() {
             </h2>
             <p>
               Your browser&apos;s own storage holds the sign-in, so that you stay signed in when you reload the page, and
-              a small note of whether you chose to bring across poems saved on this device. Signing out removes the
-              sign-in from your browser. Words you are working on in the Studio are not sent to us until you save them.
+              a small note of which of the texts kept in this browser have been copied to your account. Signing out
+              removes the sign-in from your browser. Words you are working on in the Studio are not sent to us until you
+              save them.
             </p>
             <p className="mt-3">
-              Texts you add yourself, from a file or pasted in, are read in your browser and kept only in its storage:
-              they are never sent to us. A poem you save from one of them keeps which of its words you kept (as
-              numbers), its title and your notes, and not the text, so it can only be opened again in this browser.
-              Deleting the text, or clearing the site&apos;s data in your browser, removes it.
+              Texts you add yourself, from a file or pasted in, are always read in your browser. When you are not signed
+              in they are kept only in its storage and are never sent to us; a poem you save from one of them can then
+              only be opened again in this browser. Deleting the text, or clearing the site&apos;s data in your browser,
+              removes it. A poem you save keeps which of its words you kept (as numbers), its title and your notes, and
+              not the text itself.
             </p>
           </section>
 
@@ -86,7 +94,7 @@ export default function PrivacyPage() {
             </h2>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>
-                <strong>Supabase</strong> keeps the accounts and the poems in its database, and does the sign-in checks.
+                <strong>Supabase</strong> keeps the accounts, the poems and the texts you added while signed in, in its database, and does the sign-in checks.
                 It keeps the records it needs to run sign-in.
               </li>
               <li>
@@ -107,9 +115,9 @@ export default function PrivacyPage() {
               Deleting your data
             </h2>
             <p>
-              When you are signed in, <strong>Account → Delete my account</strong> removes your poems and then your
-              account. After it you are signed out, and the same address can start again with an empty collection. You can
-              also delete single poems from My Collection. Copies already made, such as a poem you exported or shared
+              When you are signed in, <strong>Account → Delete my account</strong> removes your poems and your texts, and then
+              your account. After it you are signed out, and the same address can start again with an empty collection. You can
+              also delete single poems from My Collection, and single texts from Your texts. Copies already made, such as a poem you exported or shared
               yourself, are yours and are not touched.
             </p>
           </section>

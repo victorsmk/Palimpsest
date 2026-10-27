@@ -401,8 +401,8 @@ test.describe('deleting the account', () => {
     await openStudio(page);
     await signIn(page, ME);
     await openDeleteQuestion(page);
-    await expect(page.getByRole('alertdialog')).toContainText('permanently deletes your account and every poem saved in it');
-    await expect(page.getByRole('alertdialog')).toContainText("Poems saved in this browser's own storage are not touched.");
+    await expect(page.getByRole('alertdialog')).toContainText('permanently deletes your account and every poem and text saved in it');
+    await expect(page.getByRole('alertdialog')).toContainText("Poems and texts kept in this browser's own storage are not touched.");
     await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
     expect(await server.poemsOf(ME).count()).toBe(1);
     await expect(page.getByRole('dialog', { name: 'Your account' })).toBeVisible();
@@ -416,7 +416,7 @@ test.describe('deleting the account', () => {
     await signIn(page, ME);
     await openDeleteQuestion(page);
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete account' }).click();
-    await expect(page.getByRole('dialog', { name: 'Your account' }).getByRole('status')).toHaveText('Your account and every poem saved in it have been deleted. You are signed out.');
+    await expect(page.getByRole('dialog', { name: 'Your account' }).getByRole('status')).toHaveText('Your account, and every poem and text saved in it, have been deleted. You are signed out.');
     expect(await server.poemsOf(ME).count()).toBe(0);
     expect(await server.poemsOf(YOU).count()).toBe(1);
 

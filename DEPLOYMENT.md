@@ -41,11 +41,11 @@ in this mode in production.
    cannot be changed later, and Vercel's functions should be near it (part 4).
 2. Open **SQL Editor**. Paste the whole of [`db/schema.sql`](db/schema.sql) and run it. Then paste the whole of
    [`db/supabase.sql`](db/supabase.sql) and run that. Both are safe to run again.
-   - `schema.sql` makes the `poems` table, and the small `rate_limits` table that counts requests (part 6).
-   - `supabase.sql` deletes a user's poems when their account goes, and switches on **row level security with
+   - `schema.sql` makes the `poems` table, the `user_texts` table (the texts a signed-in reader adds), and the small `rate_limits` table that counts requests (part 6).
+   - `supabase.sql` deletes a user's poems and texts when their account goes, and switches on **row level security with
      no rules**, so that the public key every browser gets can read and write nothing in the table. All access
      goes through this app's own API.
-3. Check: **Table Editor** should show a `poems` and a `rate_limits` table, both marked as having row level
+3. Check: **Table Editor** should show `poems`, `user_texts` and `rate_limits` tables, all marked as having row level
    security enabled. **If you set the database up before rate limiting existed, run both files again now** (they
    are safe to run again): the site works without the new table, but nothing is limited, and the health page
    says so.
@@ -261,6 +261,7 @@ name. You want:
 | `signIn`: `Supabase could not be reached` | `SUPABASE_URL` is wrong, or the project is **paused** (below). |
 | `accountDeletion`: `not set up` | Add `SUPABASE_SECRET_KEY` and redeploy. |
 | `library`: `the books tables are missing` | Run `db/schema.sql` and then `db/supabase.sql` again (part 1), then import books (LIBRARY.md). |
+| `texts`: `the user_texts table is missing` | Run `db/schema.sql` and then `db/supabase.sql` again (part 1). Until then adding and listing your own texts fails for signed-in readers (the book picker still works), and the health page is not "ok". |
 | `rateLimiting`: `the rate_limits table is missing` | Run `db/schema.sql` and then `db/supabase.sql` again (part 1). The site works meanwhile, but requests are not limited. |
 
 The health page does not prove that the email code works or that the sign-in in the browser is configured;

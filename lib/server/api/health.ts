@@ -10,6 +10,7 @@ export interface Health {
   accountDeletion: string;
   rateLimiting: string;
   library: string;
+  texts: string;
 }
 
 export interface HealthInput {
@@ -29,7 +30,7 @@ const isConfig = (config: HealthInput['config']): config is ServerConfig => !('p
  * needs no sign-in itself, and so it tells only what is missing (by name) and what works, nothing more.
  */
 export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 503; body: Health }> {
-  const body: Health = { ok: false, settings: 'ok', database: 'not checked', signIn: 'not checked', accountDeletion: 'not checked', rateLimiting: 'not checked', library: 'not checked' };
+  const body: Health = { ok: false, settings: 'ok', database: 'not checked', signIn: 'not checked', accountDeletion: 'not checked', rateLimiting: 'not checked', library: 'not checked', texts: 'not checked' };
   const { config } = input;
   if (!isConfig(config)) {
     body.settings = config.problem;
@@ -55,6 +56,17 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
       const code = (error as { code?: unknown } | null)?.code;
       const cause = (error as { cause?: unknown } | null)?.cause;
       body.rateLimiting = code === '42P01' || (cause as { code?: unknown } | null)?.code === '42P01' ? 'the rate_limits table is missing (run db/schema.sql again)' : 'could not be reached';
+    }
+  }
+
+  // The readers' own texts (their table, from db/schema.sql). Without it adding a text to an account fails, and the page says so.
+  if (body.database === 'ok') {
+    try {
+      await input.db!.query('select id, title, author, form, text, created_at, updated_at, updated_ms from user_texts limit 1');
+      body.texts = 'ok';
+    } catch (error) {
+      const code = (error as { code?: unknown } | null)?.code ?? (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+      body.texts = code === '42P01' || code === '42703' ? 'the user_texts table is missing (run db/schema.sql again)' : 'could not be reached';
     }
   }
 
@@ -91,6 +103,6 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
   }
 
   body.accountDeletion = config.testAuth || config.serviceRoleKey ? 'ready' : 'not set up (needs SUPABASE_SECRET_KEY)';
-  body.ok = body.database === 'ok' && body.rateLimiting === 'ok' && body.library === 'ok' && (body.signIn === 'ok' || config.testAuth) && body.accountDeletion === 'ready';
+  body.ok = body.database === 'ok' && body.rateLimiting === 'ok' && body.library === 'ok' && body.texts === 'ok' && (body.signIn === 'ok' || config.testAuth) && body.accountDeletion === 'ready';
   return { status: body.ok ? 200 : 503, body };
 }

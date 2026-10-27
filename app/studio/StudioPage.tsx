@@ -644,7 +644,7 @@ function Studio({ library, opened, startPassageId }: { library: PassageLibrary; 
                     </a>
                   </>
                 ) : (
-                  'Your own text, kept in this browser'
+                  'Your own text'
                 )}
               </div>
             </div>

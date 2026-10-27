@@ -23,7 +23,7 @@ export interface ApiDeps {
 }
 
 /** The body of a request as JSON: it must say it is JSON, must not be larger than `max`, and must parse. */
-async function readJson(request: Request, max: number): Promise<unknown> {
+export async function readJson(request: Request, max: number): Promise<unknown> {
   if (!(request.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) {
     throw new RequestProblem(415, 'Send the request as JSON.');
   }
@@ -38,7 +38,7 @@ async function readJson(request: Request, max: number): Promise<unknown> {
   }
 }
 
-function accept<T>(checked: Checked<T>): T {
+export function accept<T>(checked: Checked<T>): T {
   if (!checked.ok) throw new RequestProblem(checked.status, checked.message);
   return checked.value;
 }

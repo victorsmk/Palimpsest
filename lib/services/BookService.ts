@@ -32,7 +32,12 @@ export class BookService {
 
   /** The reader's own texts as books, the one changed last first; with `search`, only those with every word in the title or author. */
   listOwnBooks(request?: PageRequest & { search?: string }): Promise<Page<Book>> {
-    return this.own ? this.own.listBooks(request) : Promise.resolve({ items: [], next: null });
+    if (!this.own) return Promise.resolve({ items: [], next: null });
+    // The texts are a bonus in a list of books: if the account cannot be reached for them, the library is still there to choose from.
+    return this.own.listBooks(request).catch(error => {
+      console.warn('The reader’s own texts could not be listed:', error);
+      return { items: [], next: null };
+    });
   }
 
   /** Whether there is a library of books beyond the ones bundled with the app. */

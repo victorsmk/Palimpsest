@@ -3,3 +3,6 @@ const USER_ID = /^my-[a-z0-9]{8}(-[a-z0-9]{1,7}(-\d+)?)?$/;
 
 /** Whether an id is that of a text the reader added, or of one of its excerpts. */
 export const isUserId = (id: string): boolean => USER_ID.test(id);
+
+/** Whether an id is that of a whole text (not of one of its excerpts). */
+export const isTextId = (id: string): boolean => /^my-[a-z0-9]{8}$/.test(id);

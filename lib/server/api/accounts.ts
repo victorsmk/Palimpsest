@@ -27,7 +27,7 @@ export interface AccountStoreOptions {
 }
 
 /**
- * Deletes an account: the user's poems first, so the data is gone even if the next step fails, and then
+ * Deletes an account: the user's poems and texts first, so the data is gone even if the next step fails, and then
  * the user at Supabase (its admin API, with the secret key that must only ever be on the server).
  * Doing it again after a failure is safe: deleting what is gone is not an error. A user Supabase no
  * longer has counts as deleted.
@@ -36,12 +36,22 @@ export function createAccountStore(options: AccountStoreOptions): AccountStore {
   const canDelete = () => Boolean(options.noAuthUser || options.supabase);
   /** Once the account is gone, so are its request counters. If they cannot be removed that is no reason to fail (they are cleaned up in time). */
   const forgetCounters = (userId: string) => options.db.query('delete from rate_limits where subject = $1', [userId]).then(() => undefined, () => undefined);
+  /** The texts the user added. A database made before they could be (no such table yet) has none to delete. */
+  const forgetTexts = async (userId: string) => {
+    try {
+      await options.db.query('delete from user_texts where user_id = $1', [userId]);
+    } catch (error) {
+      const code = (error as { code?: unknown } | null)?.code ?? (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+      if (code !== '42P01') throw error;
+    }
+  };
   return {
     canDelete,
     async deleteAccount(userId) {
       if (!canDelete()) throw new UnavailableError({ cause: new Error('Deleting accounts needs SUPABASE_SECRET_KEY') });
       try {
         await options.db.query('delete from poems where user_id = $1', [userId]);
+        await forgetTexts(userId);
       } catch (cause) {
         throw new UnavailableError({ cause });
       }

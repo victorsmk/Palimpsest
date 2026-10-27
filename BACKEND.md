@@ -319,3 +319,16 @@ Still open:
 `NEXT_PUBLIC_DATA_BACKEND` chooses where poems live: unset or `browser` is this browser's storage (no accounts,
 nothing to sign in to), `server` is the API and an account. Any other value stops the app at start-up with a
 message. It is read when the app is built. All the settings, with what each is for, are in `.env.example`.
+
+## The reader's own texts in the account (added 2026-10-27)
+
+Besides poems, a signed-in reader's own texts (a story, a letter, a poem added from a file or pasted) are kept on the
+server so that they follow the reader to any browser. One more table, `user_texts` (`db/schema.sql`, RLS in
+`db/supabase.sql`), one row per text per user, primary key `(user_id, id)`. `lib/server/PostgresTextRepository.ts` is
+the repository for one user (limits applied inside the write's own transaction under a per-user advisory lock: 30
+texts, and 3,000,000 bytes of text in all). `lib/server/api/texts.ts` is the API (list, add with a browser-made id,
+change, delete); it is built beside the poems API in `lib/server/api/server.ts` and shares its sign-in check and rate
+limits. Deleting the account deletes the texts (a database without the table is tolerated there). The health page has a
+`texts` line. In the browser, `lib/repositories/http/HttpTextRepository.ts` talks to the API and
+`lib/userTexts/TextLibrary.ts` chooses between it and the browser's own storage by who is signed in, and copies the
+browser's texts across on first sign-in (see ROADMAP.md, "Texts that follow the account").

@@ -4,16 +4,33 @@ import { HttpPoemRepository } from '@/lib/repositories/http/HttpPoemRepository';
 import { HttpBookRepository } from '@/lib/repositories/http/HttpBookRepository';
 import { session } from '@/lib/auth/session';
 import { bundledPassages } from '@/lib/library/bundled';
-import { MemoryTextStorage, UserTexts } from '@/lib/userTexts/UserTexts';
+import { HttpTextRepository } from '@/lib/repositories/http/HttpTextRepository';
+import { getAuth } from '@/lib/auth/runtime';
+import { MemoryTextStorage, UserTexts, type TextStorage } from '@/lib/userTexts/UserTexts';
+import { TextLibrary } from '@/lib/userTexts/TextLibrary';
 
-/** The texts of the reader live in this browser; where there is no browser storage (the server rendering a page) they are kept nowhere. */
-function userTexts(): UserTexts {
+/** This browser's storage for the reader's texts; where there is none (the server rendering a page) they are kept nowhere. */
+function textStorage(): TextStorage {
   try {
-    if (typeof window !== 'undefined' && window.localStorage) return new UserTexts(window.localStorage);
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
   } catch {
     // Storage is blocked: texts last as long as the page does.
   }
-  return new UserTexts(new MemoryTextStorage());
+  return new MemoryTextStorage();
+}
+
+/**
+ * The reader's texts: in this browser, and also (with the server backend) in their account when they are signed in,
+ * so that they follow the reader to any browser.
+ */
+function userTexts(remote: HttpTextRepository | null): TextLibrary {
+  const storage = textStorage();
+  return new TextLibrary({
+    local: new UserTexts(storage),
+    remote,
+    storage,
+    whoIsSignedIn: async () => (remote && typeof window !== 'undefined' ? ((await getAuth().currentUser())?.id ?? null) : null),
+  });
 }
 
 /**
@@ -44,8 +61,8 @@ export interface Repositories {
   books: BookRepository;
   /** The server's library of books, when there is one. */
   library: BookRepository | null;
-  /** The texts the reader has added, kept in this browser (whichever backend the poems are in). */
-  texts: UserTexts;
+  /** The texts the reader has added: in this browser, or in their account when they are signed in (server backend). */
+  texts: TextLibrary;
 }
 
 /** The repositories for a backend. */
@@ -53,8 +70,8 @@ export function createRepositories(kind: BackendKind): Repositories {
   const books = new BrowserBookRepository(bundledPassages);
   switch (kind) {
     case 'browser':
-      return { poems: new BrowserPoemRepository(), books, library: null, texts: userTexts() };
+      return { poems: new BrowserPoemRepository(), books, library: null, texts: userTexts(null) };
     case 'server':
-      return { poems: new HttpPoemRepository({ session }), books, library: new HttpBookRepository(), texts: userTexts() };
+      return { poems: new HttpPoemRepository({ session }), books, library: new HttpBookRepository(), texts: userTexts(new HttpTextRepository({ session })) };
   }
 }

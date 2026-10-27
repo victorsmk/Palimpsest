@@ -1,16 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AccountControl } from '@/components/AccountControl';
 import { CollectionForPage } from '@/components/CollectionLink';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SiteHeader } from '@/components/SiteHeader';
 import { TextEditor } from '@/components/TextEditor';
+import { useAuth } from '@/components/useAuth';
 import { useLibrary } from '@/components/useLibrary';
 import { userTexts } from '@/lib/services';
+import { describeTextError } from '@/lib/userTexts/describe';
+import type { TextsWhere } from '@/lib/userTexts/TextLibrary';
 import { discoverHref } from '@/lib/handoff';
-import { excerptsOf, UserTextError, type UserText, type UserTextInput } from '@/lib/userTexts/UserTexts';
+import { excerptsOf, type UserText, type UserTextInput } from '@/lib/userTexts/UserTexts';
 import { countWords } from '@/lib/userTexts/cut';
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString('en')} ${n === 1 ? one : many}`;
@@ -26,38 +29,77 @@ const PRIMARY =
  */
 export default function TextsPage() {
   const library = useLibrary();
-  // The texts live in this browser, so they are read after the page has come up in it, not while it is made on the server.
+  const auth = useAuth();
+  // Who is signed in decides where the texts are kept, so they are read again when that changes.
+  const who = auth.state.status === 'signed-in' ? auth.state.user.id : auth.state.status;
+  // The texts are read after the page has come up in the browser (they are in this browser or in the account), not while it is made on the server.
   const [texts, setTexts] = useState<UserText[] | null>(null);
+  const [where, setWhere] = useState<TextsWhere | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState<'new' | string | null>(null);
   const [deleting, setDeleting] = useState<UserText | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    const read = () => setTexts(userTexts.list());
-    read();
-    window.addEventListener('storage', read);
-    return () => window.removeEventListener('storage', read);
+  const load = useCallback(async (fresh: boolean) => {
+    try {
+      const kept = await userTexts.list(fresh);
+      const keptIn = await userTexts.where();
+      setLoadError(null);
+      setWhere(keptIn);
+      setTexts(kept);
+      const copied = await userTexts.takeCopyReport();
+      if (copied) {
+        const some = copied.copied === 1 ? '1 text' : `${copied.copied} texts`;
+        const left = copied.skipped.length > 0 ? ` ${copied.skipped.map(title => `“${title}”`).join(', ')} could not be copied, as your account had no room for ${copied.skipped.length === 1 ? 'it' : 'them'}.` : '';
+        setNotice(`${copied.copied > 0 ? `${some} from this browser ${copied.copied === 1 ? 'was' : 'were'} copied to your account.` : ''}${left}`.trim());
+      }
+    } catch (error) {
+      setTexts(current => current ?? []);
+      setLoadError(describeTextError(error, 'list'));
+    }
   }, []);
 
-  function save(input: UserTextInput) {
-    const saved = editing && editing !== 'new' ? userTexts.update(editing, input) : userTexts.add(input);
-    setTexts(userTexts.list());
+  useEffect(() => {
+    if (auth.state.status === 'loading' && auth.enabled) return;
+    // (Started a moment later, so that the page is not changed while it is being drawn.)
+    const first = setTimeout(() => void load(true), 0);
+    const read = () => void load(false);
+    window.addEventListener('storage', read);
+    return () => {
+      clearTimeout(first);
+      window.removeEventListener('storage', read);
+    };
+  }, [who, auth.enabled, auth.state.status, load]);
+
+  async function save(input: UserTextInput) {
+    const saved = editing && editing !== 'new' ? await userTexts.update(editing, input) : await userTexts.add(input);
+    setTexts(await userTexts.list(true));
     setEditing(null);
     setNotice(`Kept “${saved.title}”.`);
   }
 
-  function remove(text: UserText) {
+  async function remove(text: UserText) {
     try {
-      userTexts.remove(text.id);
-      setTexts(userTexts.list());
+      await userTexts.remove(text.id);
+      setTexts(await userTexts.list(true));
       setDeleting(null);
       setDeleteError(null);
       setNotice(`Deleted “${text.title}”.`);
     } catch (error) {
-      setDeleteError(error instanceof UserTextError ? error.message : 'The text could not be deleted.');
+      setDeleteError(describeTextError(error, 'delete'));
     }
   }
+
+  const inAccount = where === 'account';
+  const subtitle =
+    where === null
+      ? 'Your own writing, made into books.'
+      : inAccount
+        ? 'Kept in your account, so they are there in any browser you sign in on.'
+        : auth.enabled
+          ? 'Kept in this browser only. Sign in, and they are kept in your account instead.'
+          : 'Kept in this browser only. Nothing you add is sent anywhere.';
 
   const changing = editing && editing !== 'new' ? (texts?.find(text => text.id === editing) ?? null) : null;
 
@@ -66,7 +108,7 @@ export default function TextsPage() {
       <SiteHeader
         current="texts"
         title="Your own texts"
-        subtitle="Kept in this browser only. Nothing you add is sent anywhere."
+        subtitle={subtitle}
         actions={
           <>
             <CollectionForPage library={library.status === 'ready' ? library.library : null} />
@@ -85,8 +127,17 @@ export default function TextsPage() {
           {notice}
         </p>
 
-        {editing === 'new' && <TextEditor onSave={save} onCancel={() => setEditing(null)} />}
-        {changing && <TextEditor key={changing.id} text={changing} onSave={save} onCancel={() => setEditing(null)} />}
+        {loadError && (
+          <div role="alert" className="mb-4 rounded border border-[#C9B98F] bg-[#F6EEDB] p-3 text-sm text-[#6C3438]">
+            {loadError}{' '}
+            <button type="button" onClick={() => void load(true)} className={SMALL}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {editing === 'new' && <TextEditor onSave={save} where={where ?? 'browser'} onCancel={() => setEditing(null)} />}
+        {changing && <TextEditor key={changing.id} text={changing} onSave={save} where={where ?? 'browser'} onCancel={() => setEditing(null)} />}
 
         {editing === null && (
           <button type="button" onClick={() => { setNotice(null); setEditing('new'); }} className={`${PRIMARY} px-4 py-2 text-sm`}>
@@ -139,17 +190,23 @@ export default function TextsPage() {
         )}
 
         <p className="mt-10 max-w-xl text-xs text-[#57544E]">
-          Your texts stay in this browser. Poems you make from them can be saved like any other, but a poem can only be opened again where its text is: in this browser, on this
-          computer. Add only texts you are free to use; a poem made from someone else&apos;s writing is for you to share with care.
+          {inAccount
+            ? 'Your texts are kept in your account, on our server, where only you can read them; they are deleted with the account. Poems you make from them can be saved like any other, and open again in any browser you sign in on. '
+            : 'Your texts stay in this browser. Poems you make from them can be saved like any other, but a poem can only be opened again where its text is: in this browser, on this computer. '}
+          Add only texts you are free to use; a poem made from someone else&apos;s writing is for you to share with care.
         </p>
       </main>
 
       {deleting && (
         <ConfirmDialog
           title={`Delete “${deleting.title}”?`}
-          description="The text will be removed from this browser, and poems made from it can no longer be opened. This can't be undone."
+          description={
+            inAccount
+              ? "The text will be removed from your account, and poems made from it can no longer be opened. This can't be undone."
+              : "The text will be removed from this browser, and poems made from it can no longer be opened. This can't be undone."
+          }
           confirmLabel="Delete text"
-          onConfirm={() => remove(deleting)}
+          onConfirm={() => void remove(deleting)}
           onCancel={() => setDeleting(null)}
           error={deleteError}
         />

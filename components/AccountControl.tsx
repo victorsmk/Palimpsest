@@ -113,7 +113,7 @@ function AccountDialog({ manager, user, onClose }: { manager: AuthManager; user:
           {deleted ? (
             <>
               <p role="status" className="text-sm text-[#57544E]">
-                Your account and every poem saved in it have been deleted. You are signed out.
+                Your account, and every poem and text saved in it, have been deleted. You are signed out.
               </p>
               <button type="button" onClick={onClose} className={`${ROW} mt-4 text-center`} data-autofocus>
                 Close
@@ -145,7 +145,7 @@ function AccountDialog({ manager, user, onClose }: { manager: AuthManager; user:
       {confirmDelete && (
         <ConfirmDialog
           title="Delete your account?"
-          description="This permanently deletes your account and every poem saved in it. It cannot be undone. Poems saved in this browser's own storage are not touched."
+          description="This permanently deletes your account and every poem and text saved in it. It cannot be undone. Poems and texts kept in this browser's own storage are not touched."
           confirmLabel="Delete account"
           busyLabel="Deleting…"
           onConfirm={deleteAccount}

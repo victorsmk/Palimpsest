@@ -7,6 +7,8 @@ import { testUserId, TEST_CODE } from '@/lib/auth/testClient';
 import { createTestDb } from '../tests/helpers/pgliteDb';
 import { inProcessFetch } from '../tests/helpers/inProcessApi';
 import { createLibraryApi } from '@/lib/server/api/library';
+import { createTextsApi } from '@/lib/server/api/texts';
+import { PostgresTextRepository } from '@/lib/server/PostgresTextRepository';
 import { seedRealBooks, seedVerseBook } from '../tests/helpers/library';
 
 export { expect, TEST_CODE, testUserId };
@@ -27,6 +29,8 @@ export async function openStudio(page: Page, excerpt = START_EXCERPT) {
 export interface FakeServer {
   /** One user's poems in the server's database. */
   poemsOf(email: string): PostgresPoemRepository;
+  /** One user's own texts in the server's database. */
+  textsOf(email: string): PostgresTextRepository;
   /** While set, every request to /api gets this status instead of an answer (503: down, 401: the sign-in has run out). */
   answerWith: number | null;
   /** While true, requests to /api fail as if the network were gone. */
@@ -50,9 +54,11 @@ export const test = base.extend<{ server: FakeServer }>({
       poemsOf: userId => new PostgresPoemRepository(db, userId),
       accounts: createAccountStore({ db, noAuthUser: true }),
     });
-    const handle = inProcessFetch(api, createLibraryApi({ db }));
+    const texts = createTextsApi({ authenticate: testAuthenticator(), textsOf: userId => new PostgresTextRepository(db, userId) });
+    const handle = inProcessFetch(api, createLibraryApi({ db }), texts);
     const server: FakeServer = {
       poemsOf: email => new PostgresPoemRepository(db, testUserId(email)),
+      textsOf: email => new PostgresTextRepository(db, testUserId(email)),
       answerWith: null,
       offline: false,
       requests: [],

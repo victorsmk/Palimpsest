@@ -16,7 +16,7 @@ test.describe('the privacy page', () => {
     }
     await expect(page.getByRole('link', { name: 'butnaru.victor05@gmail.com' })).toHaveAttribute('href', 'mailto:butnaru.victor05@gmail.com');
     await expect(page.getByRole('main')).toContainText('Account → Delete my account');
-    await expect(page.getByRole('main')).toContainText('they are never sent to us'); // texts the reader adds
+    await expect(page.getByRole('main')).toContainText('are never sent to us'); // texts the reader adds
   });
 
   test('does what it says about cookies: the site sets none', async ({ page, context }) => {

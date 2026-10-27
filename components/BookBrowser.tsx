@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import { summaryOf, type Book, type PassageSummary } from '@/lib/models';
 import { bookService } from '@/lib/services';
+import { useAuth } from './useAuth';
 import { usePagedList } from './usePagedList';
 
 const BOOKS_PER_PAGE = 20;
@@ -59,7 +60,10 @@ function BookList({ search, onSearch, onPick, onSurprise, autoFocus }: { search:
   }, [autoFocus]);
   const list = usePagedList<Book>(search.trim(), after => bookService.searchBooks({ search: search.trim(), after, limit: BOOKS_PER_PAGE }), SEARCH_DELAY_MS);
   // The reader's own texts are found by the same search, and listed first: there are few of them.
-  const own = usePagedList<Book>(search.trim(), after => bookService.listOwnBooks({ search: search.trim(), after, limit: 30 }));
+  // Who is signed in decides where they are kept, so signing in (in the window over this one) lists them again.
+  const auth = useAuth();
+  const who = auth.state.status === 'signed-in' ? auth.state.user.id : auth.state.status;
+  const own = usePagedList<Book>(`${who}|${search.trim()}`, after => bookService.listOwnBooks({ search: search.trim(), after, limit: 30 }));
   const searching = search.trim() !== '';
   const hasLibrary = bookService.hasRemoteLibrary;
   const total = list.items.length + own.items.length;

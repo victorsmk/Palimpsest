@@ -30,6 +30,24 @@ create table if not exists poems (
 -- A user's poems, the most recently changed first, then by id: the order of every list.
 create index if not exists poems_by_user_recent on poems (user_id, updated_ms desc, id);
 
+-- The texts a signed-in reader has added (a story, a letter, a poem of their own), kept in their account so that
+-- they follow the reader to any browser. A text belongs to one user and is only ever read or written through that
+-- user's id (see lib/server/PostgresTextRepository.ts). The id is made by the browser ("my-" and eight letters or
+-- digits) because the ids of the excerpts, and so of poems made from them, are built on it; it is unique per user.
+create table if not exists user_texts (
+  user_id    uuid        not null,
+  id         text        collate "C" not null,
+  title      text        not null,
+  author     text        not null,
+  form       text        not null check (form in ('prose', 'verse')),
+  text       text        not null,
+  -- ISO 8601 text, as the browser keeps them, and the moment of the last change as a number to order by.
+  created_at text        not null,
+  updated_at text        not null,
+  updated_ms bigint      not null,
+  primary key (user_id, id)
+);
+
 -- How many requests of each kind a user has made in the current window (see lib/server/api/rateLimit.ts).
 -- One row per kind of request and user. "subject" is the user's id; window_start is the start of the window
 -- in milliseconds, hits the requests counted in it.

@@ -132,7 +132,7 @@ test.describe('reading a text of your own', () => {
     await expect(page).toHaveURL(/\/studio#passage=my-/);
     await expect(page.getByRole('heading', { level: 2, name: 'The Long Walk — Part 1 of 3' })).toBeVisible();
     await expect(page.getByText(/^A\. Writer \(\d{4}\)$/)).toBeVisible();
-    await expect(page.getByText('Your own text, kept in this browser')).toBeVisible();
+    await expect(page.getByText('Your own text', { exact: true })).toBeVisible();
     await expect(page.getByText('Public domain source via')).toHaveCount(0);
     await expect(pageWords(page).first()).toHaveText('p0x0');
 

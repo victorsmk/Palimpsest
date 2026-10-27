@@ -9,6 +9,8 @@ import { checkHealth } from './health';
 import { createDbRateLimiter } from './rateLimit';
 import { createPoemsApi, type PoemsApi } from './handlers';
 import { createLibraryApi, type LibraryApi } from './library';
+import { createTextsApi, type TextsApi } from './texts';
+import { PostgresTextRepository } from '../PostgresTextRepository';
 import { errorResponse, json } from './http';
 
 /**
@@ -19,6 +21,7 @@ import { errorResponse, json } from './http';
 interface Running {
   api: PoemsApi;
   library: LibraryApi;
+  texts: TextsApi;
   config: ServerConfig;
   db: Db;
 }
@@ -33,13 +36,16 @@ async function build(): Promise<Running> {
     noAuthUser: config.testAuth,
     supabase: !config.testAuth && config.supabase && config.serviceRoleKey ? { url: config.supabase.url, serviceRoleKey: config.serviceRoleKey } : undefined,
   });
+  const authenticate = config.testAuth ? testAuthenticator() : supabaseAuthenticator(config.supabase!);
+  const limiter = createDbRateLimiter(db);
   const api = createPoemsApi({
     accounts,
-    authenticate: config.testAuth ? testAuthenticator() : supabaseAuthenticator(config.supabase!),
+    authenticate,
     poemsOf: userId => new PostgresPoemRepository(db, userId),
-    limiter: createDbRateLimiter(db),
+    limiter,
   });
-  return { api, library: createLibraryApi({ db }), config, db };
+  const texts = createTextsApi({ authenticate, textsOf: userId => new PostgresTextRepository(db, userId), limiter });
+  return { api, library: createLibraryApi({ db }), texts, config, db };
 }
 
 /** Built once, on first use. If it cannot be built, the next request tries again. */
@@ -92,6 +98,25 @@ export async function healthResponse(request: Request): Promise<Response> {
   }
   return json(result.body, result.status);
 }
+
+/** Like `lazy`, for the handlers of the reader's own texts (signed in, like the poems). */
+function lazyTexts<Args extends unknown[]>(pick: (api: TextsApi) => (request: Request, ...args: Args) => Promise<Response>) {
+  return async (request: Request, ...args: Args): Promise<Response> => {
+    request.headers.get('authorization'); // as in `lazy`: makes this a request-time handler
+    try {
+      return await pick((await running()).texts)(request, ...args);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  };
+}
+
+export const textsApi = {
+  list: lazyTexts(api => api.list),
+  create: lazyTexts(api => api.create),
+  update: lazyTexts<[string]>(api => api.update),
+  remove: lazyTexts<[string]>(api => api.remove),
+};
 
 export const libraryApi = {
   books: lazyLibrary(api => api.books),

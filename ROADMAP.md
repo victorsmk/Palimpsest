@@ -37,8 +37,8 @@ first step would be to make the search itself faster (fewer lines kept per word,
 (maybe also docx if not too complicated)", and to do it the best way I could, unattended. What was built, in
 `lib/userTexts/` and the `/texts` page ("Your texts" in every page's navigation):
 
-- **Kept in this browser only** (`localStorage`, key `palimpsest:user-texts:v1`); nothing is uploaded, said on the page
-  and in the privacy policy. Limits: 600,000 characters a text, 2,000,000 in all, 30 texts; a refused write says so
+- **Kept in this browser** (`localStorage`, key `palimpsest:user-texts:v1`) **when signed out; in the account when signed in**
+  (see "Texts that follow the account" below). Limits: 600,000 characters a text, 2,000,000 in all, 30 texts; a refused write says so
   and nothing is lost. Data it cannot read is never written over.
 - **Reading files** (`files.ts`, no new dependency): `.txt` as UTF-8, else Windows-1252; a binary file is refused;
   `.docx` read by unpacking the zip with the browser's own `DecompressionStream` and reading `word/document.xml`
@@ -57,8 +57,31 @@ first step would be to make the search itself faster (fewer lines kept per word,
 - **Limits worth knowing:** a poem saved from such a text is stored (on the server with an account) as the numbers of
   the words kept, so it opens again only in the browser that has the text. An uploaded text is not checked for rights;
   the page says to add only what you may use.
-- **Not done:** PDF (extracting clean text needs a library and a decision; asked for later), `.doc`/`.rtf`/`.odt`,
-  keeping texts in the account so they follow the writer to other browsers.
+- **Not done:** PDF (extracting clean text needs a library and a decision; asked for later), `.doc`/`.rtf`/`.odt`.
+
+### Texts that follow the account (asked for and built 2026-10-27)
+
+The user: "own texts following across browsers ... pretty important". Decided with them: copy the browser's texts to the
+account **automatically** on sign-in (no dialog), say so on the privacy page, and no extra rights checking.
+
+- **Signed in:** the texts are in the `user_texts` table (`db/schema.sql`; one row per text per user, the whole text),
+  through `GET/POST /api/texts` and `PUT/DELETE /api/texts/:id` (`lib/server/api/texts.ts`,
+  `lib/server/PostgresTextRepository.ts`), with the poems' sign-in check and rate limits. Limits are enforced on the
+  server, under a per-user lock: 30 texts, 600,000 characters a text, and **3,000,000 bytes in all** (bytes, because a
+  list of the texts is one response and a host limits a response to a few MB; a script of 3-byte characters therefore
+  holds fewer characters than English). The browser makes the id (`my-` + 8 characters) so that excerpt ids, and
+  poems made from them, are the same everywhere; adding with a taken id is a 409.
+- **Signed out:** as before, in the browser. `lib/userTexts/TextLibrary.ts` chooses (it asks who is signed in) and is
+  also the list of books the pages read; an unreachable account never silently falls back to the browser's storage.
+- **Copy on sign-in:** the first time a signed-in reader's texts are asked for on a page load, each text of this browser
+  that has not been handled for that user (a list of ids kept in this browser, per user) is created in the account with
+  its id and times; the browser's copies stay. A text the reader deletes from the account is not copied again; a text
+  added while signed out is copied at the next sign-in. A text the account has no room for is reported by title. The
+  Your texts page tells what was copied once.
+- **Conflicts:** if two browsers change the same text, the last save wins (no revision check, unlike poems); changing a
+  text deleted elsewhere says so. The list is cached for 30 seconds in the page, and read afresh on the Your texts page.
+- **Not verified:** the real Supabase (only the in-process Postgres and the made-up sign-in); `db/schema.sql` must be
+  run once for the new table (DEPLOYMENT.md part 1); a signed-in reader's texts before that fail with a message.
 
 ## Many more books, chosen from a list (raised 2026-10-25; in progress since 2026-10-28, see LIBRARY.md)
 

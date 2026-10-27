@@ -14,8 +14,10 @@ const BUTTON =
 interface TextEditorProps {
   /** The text being changed; none when a new one is being added. */
   text?: UserText;
-  /** Called with what the reader typed; it throws a message to show if the text cannot be kept. */
-  onSave: (input: UserTextInput) => void;
+  /** Called with what the reader typed; it rejects with a message to show if the text cannot be kept. */
+  onSave: (input: UserTextInput) => Promise<void>;
+  /** Where the text will be kept, for what the form says about it. */
+  where?: 'account' | 'browser';
   onCancel: () => void;
 }
 
@@ -25,7 +27,7 @@ const plural = (n: number, one: string, many: string) => `${n.toLocaleString('en
  * Adding a text, or changing one: choose a file (.txt or .docx) or paste the text, name it, and correct it in the
  * box before it is kept. It says how many words and how many excerpts there will be.
  */
-export function TextEditor({ text, onSave, onCancel }: TextEditorProps) {
+export function TextEditor({ text, onSave, onCancel, where = 'browser' }: TextEditorProps) {
   const ids = { title: useId(), author: useId(), body: useId(), file: useId(), help: useId() };
   const [title, setTitle] = useState(text?.title ?? '');
   const [author, setAuthor] = useState(text?.author ?? '');
@@ -34,6 +36,7 @@ export function TextEditor({ text, onSave, onCancel }: TextEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // The count follows the text, a moment behind it: cutting a long text on every key would make typing in it heavy.
@@ -59,18 +62,20 @@ export function TextEditor({ text, onSave, onCancel }: TextEditorProps) {
     }
   }
 
-  function save(event: React.FormEvent) {
+  async function save(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setSaving(true);
     try {
-      onSave({ title, author, form, text: body });
+      await onSave({ title, author, form, text: body });
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'The text could not be kept.');
+      setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={save} aria-label={text ? `Change “${text.title}”` : 'Add a text'} className="card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-5 shadow-sm">
+    <form onSubmit={event => void save(event)} aria-label={text ? `Change “${text.title}”` : 'Add a text'} className="card-gilt rounded-lg border border-[#E0D4BE] bg-[#FAF6EE] p-5 shadow-sm">
       <h2 className="font-display text-xl font-bold text-[#24231F]">{text ? 'Change this text' : 'Add a text'}</h2>
 
       <div className="mt-4 rounded border border-dashed border-[#C9B98F] bg-[#F6EEDB] p-4">
@@ -88,7 +93,9 @@ export function TextEditor({ text, onSave, onCancel }: TextEditorProps) {
           className="block w-full text-sm text-[#24231F] file:mr-3 file:rounded file:border file:border-[#7A5C1A] file:bg-transparent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#5E4512] hover:file:bg-[#E4D8C2]"
         />
         <p id={ids.help} className="mt-2 text-xs text-[#57544E]">
-          Plain text (.txt) or Word (.docx). It is read here, in this browser, and kept only here: nothing is sent anywhere. Or type or paste the text in the box below.
+          Plain text (.txt) or Word (.docx). {where === 'account'
+            ? 'It is read here, in this browser, and sent to your account only when you keep it. Or type or paste the text in the box below.'
+            : 'It is read here, in this browser, and kept only here: nothing is sent anywhere. Or type or paste the text in the box below.'}
         </p>
         <p role="status" className="mt-2 text-xs text-[#5B5D45]">
           {reading ? 'Reading the file…' : note}
@@ -153,8 +160,8 @@ export function TextEditor({ text, onSave, onCancel }: TextEditorProps) {
       )}
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <button type="submit" className={`${BUTTON} bg-[#6C3438] text-[#F3EBDD] hover:bg-[#57292D]`}>
-          {text ? 'Save changes' : 'Keep this text'}
+        <button type="submit" disabled={saving} className={`${BUTTON} bg-[#6C3438] text-[#F3EBDD] hover:bg-[#57292D]`}>
+          {saving ? 'Keeping…' : text ? 'Save changes' : 'Keep this text'}
         </button>
         <button type="button" onClick={onCancel} className={`${BUTTON} border border-[#C9B98F] text-[#24231F] hover:bg-[#E4D8C2]/60`}>
           Cancel

@@ -37,7 +37,7 @@ async function save(page: Page, title: string) {
 test('the server is up and set up for the demo', async ({ request }) => {
   const health = await request.get('/api/health');
   expect(health.status()).toBe(200);
-  expect(await health.json()).toEqual({ ok: true, settings: 'ok', database: 'ok', signIn: 'test sign-in (development only)', accountDeletion: 'ready', rateLimiting: 'ok', library: 'ok' });
+  expect(await health.json()).toEqual({ ok: true, settings: 'ok', database: 'ok', signIn: 'test sign-in (development only)', accountDeletion: 'ready', rateLimiting: 'ok', library: 'ok', texts: 'ok' });
 });
 
 test('the demo has a library of three real books, found by search and read over the real server, with no sign-in', async ({ request }) => {

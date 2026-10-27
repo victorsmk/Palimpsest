@@ -1,4 +1,4 @@
-import { AuthError, type AuthClient, type AuthSession, type AuthState, type GoogleSignIn } from './types';
+import { AuthError, type AuthClient, type AuthSession, type AuthUser, type AuthState, type GoogleSignIn } from './types';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CODE = /^\d{6,10}$/;
@@ -45,6 +45,15 @@ export class AuthManager {
   async getToken(): Promise<string | null> {
     try {
       return (await (await this.clientPromise).getSession())?.token ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Who is signed in, or null; like `getToken` it waits for the sign-in service to be ready. */
+  async currentUser(): Promise<AuthUser | null> {
+    try {
+      return (await (await this.clientPromise).getSession())?.user ?? null;
     } catch {
       return null;
     }

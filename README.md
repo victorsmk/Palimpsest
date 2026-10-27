@@ -36,8 +36,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## Your own texts
 
 The **Your texts** page (`/texts`) takes a plain text (.txt) or Word (.docx) file, or pasted words, lets you correct them, and
-then reads them like any book in Discover, Assisted and the Studio. They stay in the browser. The code is in
-`lib/userTexts/`; the notes are in `ROADMAP.md`.
+then reads them like any book in Discover, Assisted and the Studio. Signed out, they stay in the browser; signed in, they are kept
+in the account (`user_texts` table, the `/api/texts` API) and follow you to any browser, and the texts the browser already had
+are copied across the first time you sign in. The code is in `lib/userTexts/` (`TextLibrary.ts` chooses where they are kept) and
+`lib/server/`; the notes are in `ROADMAP.md`.
 
 ## Learn More
 

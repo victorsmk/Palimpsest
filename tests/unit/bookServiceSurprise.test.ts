@@ -46,3 +46,18 @@ describe('a surprise from the library', () => {
     await expect(new BookService(new BrowserBookRepository([]), down).surprise()).rejects.toThrow('down');
   });
 });
+
+describe('the reader’s own texts in the list of books', () => {
+  const own = (listBooks: BookRepository['listBooks']): BookRepository => ({ ...remote([]), listBooks });
+
+  it('are listed when they can be read', async () => {
+    const book = { id: 'my-aaaaaaaa', title: 'Mine', author: 'Me', year: 2026, attribution: passage('x').attribution };
+    const service = new BookService(new BrowserBookRepository([]), null, own(async () => ({ items: [book], next: null })));
+    expect((await service.listOwnBooks()).items.map(b => b.id)).toEqual(['my-aaaaaaaa']);
+  });
+
+  it('are left out, not an error, when the account cannot be reached, so the library can still be chosen from', async () => {
+    const service = new BookService(new BrowserBookRepository([]), null, own(async () => { throw new Error('down'); }));
+    await expect(service.listOwnBooks()).resolves.toEqual({ items: [], next: null });
+  });
+});
