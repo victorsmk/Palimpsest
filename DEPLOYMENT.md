@@ -270,8 +270,11 @@ those are in the checklist.
 ## 6. Things to know about the free plans
 
 - **Supabase pauses a free project after about 7 days without activity.** Everything then fails (the health page
-  says Supabase could not be reached). Restore it from the Supabase dashboard. Before a demonstration, open
-  the site and sign in the day before.
+  says Supabase could not be reached). Restore it from the Supabase dashboard. To keep it from happening,
+  [`vercel.json`](vercel.json) has Vercel call `/api/health` once a day (at about 05:17 UTC); that request reads
+  the database and asks Supabase's sign-in service, which counts as activity. Check **Vercel → the project →
+  Settings → Cron Jobs** shows it, and that its runs appear in the logs. (A run is marked failed while the health
+  page is not "ok", for example before `db/schema.sql` has been run again; it still keeps the project awake.)
 - **Vercel Hobby is for non-commercial use**, one function region, and has usage limits.
 - **Backups:** the free Supabase plan is not a backup service, and the app has no backup file for accounts any
   more. Each person can use **Download my poems as text** in My Collection to keep a readable copy of their poems.
