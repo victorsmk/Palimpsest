@@ -61,7 +61,7 @@ create table if not exists rate_limits (
 
 create index if not exists rate_limits_by_window on rate_limits (window_start);
 
--- The library of books to make poems from (see LIBRARY.md). Public texts, the same for everyone. A book
+-- The library of books to make poems from (see "Adding books" in the README). Public texts, the same for everyone. A book
 -- is cut into excerpts once, when it is imported, and an excerpt is never changed or re-cut afterwards:
 -- a saved poem points at the words of an excerpt by their position, so changing one would break it.
 create table if not exists books (

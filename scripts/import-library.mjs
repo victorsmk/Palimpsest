@@ -1,4 +1,4 @@
-// Imports books from Project Gutenberg text files into the library (see LIBRARY.md).
+// Imports books from Project Gutenberg text files into the library (see "Adding books" in the README).
 //
 //   node scripts/import-library.mjs --list data/library/pilot.json [--raw data/library/raw] [--dry-run]
 //

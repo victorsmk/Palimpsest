@@ -1,7 +1,7 @@
 // Starts the app the way it runs online (poems on a server, accounts, signing in) but entirely on this
 // computer, with no account or key: the "server" is part of this process, its database lives in memory,
 // and signing in takes any email address and the code 123456. It starts empty and forgets everything when
-// it is stopped. For trying the app; see DEPLOYMENT.md for the real thing.
+// it is stopped. For trying the app; see the README for the real thing.
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

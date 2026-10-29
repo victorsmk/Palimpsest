@@ -70,7 +70,7 @@ export async function checkHealth(input: HealthInput): Promise<{ status: 200 | 5
     }
   }
 
-  // The library of books (its tables, from db/schema.sql). Whether any books are in it is for LIBRARY.md to say.
+  // The library of books (its tables, from db/schema.sql). Whether any books are in it is for the import to say (README, "Adding books").
   if (body.database === 'ok') {
     try {
       await input.db!.query('select 1 from passages limit 1');

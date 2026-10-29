@@ -14,7 +14,7 @@ import { click, render } from '../helpers/react';
 
 // Signing in with Google: Google's script and its button, the nonce, the hand-over of Google's token to
 // Supabase, the stand-in for the demo, and the sign-in dialog around it. (The real Google, and Supabase's
-// real checking of its token, cannot be tried here: see DEPLOYMENT.md.)
+// real checking of its token, cannot be tried here: see the README.)
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 const settled = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });

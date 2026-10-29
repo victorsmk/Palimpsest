@@ -17,7 +17,7 @@ const SEARCH_MAX = 100;
 
 /**
  * The library's side of the API: public, read-only, no sign-in. It is for the books everyone shares, not for
- * anyone's poems. A flood of requests is for Vercel's firewall rule to stop (DEPLOYMENT.md), since there is
+ * anyone's poems. A flood of requests is for Vercel's firewall rule to stop (README, "Put it online"), since there is
  * no user to count them against.
  */
 export function createLibraryApi(deps: { db: Db }) {

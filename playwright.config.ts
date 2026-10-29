@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
-// Optional, machine-specific settings (kept out of git): see e2e/README.md.
+// Optional, machine-specific settings (kept out of git).
 if (existsSync('.env.e2e.local')) process.loadEnvFile('.env.e2e.local');
 
 const PORT = 3100;

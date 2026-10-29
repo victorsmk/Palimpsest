@@ -45,5 +45,8 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 
-# Project Gutenberg files saved by hand for the library import (large; see LIBRARY.md)
+# Project Gutenberg files saved by hand for the library import (large; see "Adding books" in the README)
 /data/library/raw/
+
+# local tool settings
+/.claude/
